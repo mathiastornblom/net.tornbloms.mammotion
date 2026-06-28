@@ -1,0 +1,11 @@
+{
+  "type": "number",
+  "title": { "en": "Mowed Area" },
+  "units": { "en": "m²" },
+  "min": 0,
+  "decimals": 0,
+  "getable": true,
+  "setable": false,
+  "uiComponent": "sensor",
+  "icon": "/assets/icon.svg"
+}

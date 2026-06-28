@@ -1,0 +1,15 @@
+{
+  "type": "enum",
+  "values": [
+    { "id": "idle",     "title": { "en": "Idle" } },
+    { "id": "mowing",   "title": { "en": "Mowing" } },
+    { "id": "returning","title": { "en": "Returning" } },
+    { "id": "charging", "title": { "en": "Charging" } },
+    { "id": "paused",   "title": { "en": "Paused" } },
+    { "id": "error",    "title": { "en": "Error" } }
+  ],
+  "title": { "en": "Mower Status" },
+  "getable": true,
+  "setable": false,
+  "uiComponent": "sensor"
+}

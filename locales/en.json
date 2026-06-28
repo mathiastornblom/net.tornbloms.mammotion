@@ -1,1 +1,24 @@
-{}
+{
+  "error": {
+    "missing_credentials": "Please enter your email and password.",
+    "invalid_credentials": "Invalid email or password. Please try again.",
+    "not_authenticated": "No Mammotion account configured. Please re-add the device.",
+    "device_offline": "Mower is offline",
+    "command_failed": "Command failed"
+  },
+  "flow": {
+    "triggers": {
+      "mower_started_mowing": { "title": "Mower started mowing" },
+      "mower_docked": { "title": "Mower returned to dock" },
+      "mower_error": { "title": "Mower reported an error" }
+    },
+    "conditions": {
+      "is_mowing": { "title": "Mower is mowing" }
+    },
+    "actions": {
+      "start_mowing": { "title": "Start mowing" },
+      "send_to_dock": { "title": "Send mower to dock" },
+      "pause_mowing": { "title": "Pause mowing" }
+    }
+  }
+}

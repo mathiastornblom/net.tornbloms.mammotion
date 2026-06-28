@@ -1,0 +1,46 @@
+{
+  "name": {
+    "en": "Mammotion Robot Mower"
+  },
+  "class": "other",
+  "capabilities": [
+    "onoff",
+    "measure_battery",
+    "alarm_generic",
+    "mower_status",
+    "measure_mow_progress",
+    "measure_mow_area",
+    "mow_blade_height"
+  ],
+  "capabilitiesOptions": {
+    "onoff": {
+      "title": {
+        "en": "Mowing"
+      }
+    },
+    "alarm_generic": {
+      "title": {
+        "en": "Error"
+      }
+    }
+  },
+  "pair": [
+    {
+      "id": "login_credentials",
+      "template": "login_credentials"
+    },
+    {
+      "id": "list_devices",
+      "template": "list_devices"
+    },
+    {
+      "id": "add_devices",
+      "template": "add_devices"
+    }
+  ],
+  "images": {
+    "small": "/drivers/luba/assets/images/small.png",
+    "large": "/drivers/luba/assets/images/large.png",
+    "xlarge": "/drivers/luba/assets/images/xlarge.png"
+  }
+}

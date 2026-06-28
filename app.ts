@@ -2,13 +2,11 @@
 
 import Homey from 'homey';
 
-module.exports = class MyApp extends Homey.App {
+/** Main Mammotion app entry point. */
+module.exports = class MammotionApp extends Homey.App {
 
-  /**
-   * onInit is called when the app is initialized.
-   */
-  async onInit() {
-    this.log('MyApp has been initialized');
+  async onInit(): Promise<void> {
+    this.log('Mammotion app initialized');
   }
 
-}
+};
