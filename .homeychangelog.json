@@ -4,5 +4,14 @@
   },
   "1.0.1": {
     "en": "Fixes for first publish launch"
+  },
+  "1.0.2": {
+    "en": "Fixed flow cards and pairing getting stuck after login"
+  },
+  "1.1.0": {
+    "en": "Migrated to ESM and Node 22, added all 13 supported languages"
+  },
+  "1.1.1": {
+    "en": "Icons"
   }
 }

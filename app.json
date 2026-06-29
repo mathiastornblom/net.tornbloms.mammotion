@@ -1,24 +1,50 @@
 {
   "_comment": "This file is generated. Please edit .homeycompose/app.json instead.",
   "id": "net.tornbloms.mammotion",
-  "version": "1.0.1",
-  "compatibility": ">=12.4.0",
+  "version": "1.1.1",
+  "compatibility": ">=12.9.0",
   "sdk": 3,
   "runtime": "nodejs",
   "platforms": [
     "local"
   ],
   "name": {
-    "en": "Mammotion"
+    "en": "Mammotion",
+    "nl": "Mammotion",
+    "de": "Mammotion",
+    "fr": "Mammotion",
+    "it": "Mammotion",
+    "sv": "Mammotion",
+    "no": "Mammotion",
+    "es": "Mammotion",
+    "da": "Mammotion",
+    "ru": "Mammotion",
+    "pl": "Mammotion",
+    "ko": "Mammotion",
+    "ar": "Mammotion"
   },
   "description": {
-    "en": "Adds support for Mammotion devices"
+    "en": "Your lawn, perfectly cut, without lifting a finger",
+    "nl": "Je gazon, perfect gemaaid, zonder een vinger uit te steken",
+    "de": "Ihr Rasen, perfekt gemäht, ohne einen Finger zu rühren",
+    "fr": "Votre gazon, parfaitement tondu, sans lever le petit doigt",
+    "it": "Il tuo prato, perfettamente tagliato, senza muovere un dito",
+    "sv": "Din gräsmatta, perfekt klippt, utan att lyfta ett finger",
+    "no": "Gressplenen din, perfekt klippet, uten å røre en finger",
+    "es": "Tu césped, perfectamente cortado, sin mover un dedo",
+    "da": "Din græsplæne, perfekt klippet, uden at røre en finger",
+    "ru": "Ваш газон идеально подстрижен — и для этого не нужно пошевелить пальцем",
+    "pl": "Twój trawnik, idealnie skoszony, bez ruszania palcem",
+    "ko": "손 하나 까딱하지 않고도 완벽하게 깎인 잔디",
+    "ar": "حديقتك، مجزوزة بدقة، دون أن تحرك ساكنًا"
   },
   "category": [
     "appliances"
   ],
-  "brandColor": "#2DAB68",
-  "permissions": [],
+  "brandColor": "#d45448",
+  "permissions": [
+    "homey:wireless:ble"
+  ],
   "images": {
     "small": "/assets/images/small.png",
     "large": "/assets/images/large.png",
@@ -28,12 +54,41 @@
     "name": "Mathias Törnblom",
     "email": "mathias@tornbloms.net"
   },
+  "tags": {
+    "en": [
+      "mammotion",
+      "lubas"
+    ]
+  },
+  "contributors": {
+    "developers": [
+      {
+        "name": "Mathias Törnblom"
+      }
+    ]
+  },
+  "bugs": {
+    "url": "https://github.com/mathiastornblom/net.tornbloms.mammotion/issues"
+  },
+  "esm": true,
   "flow": {
     "triggers": [
       {
         "id": "mower_started_mowing",
         "title": {
-          "en": "Mower started mowing"
+          "en": "Mower started mowing",
+          "nl": "Maaier begon te maaien",
+          "de": "Mäher hat mit dem Mähen begonnen",
+          "fr": "La tondeuse a commencé à tondre",
+          "it": "Il tagliaerba ha iniziato a tagliare",
+          "sv": "Klipparen började klippa",
+          "no": "Klipperen begynte å klippe",
+          "es": "El cortacésped empezó a cortar",
+          "da": "Plæneklipperen begyndte at klippe",
+          "ru": "Газонокосилка начала косить",
+          "pl": "Kosiarka zaczęła kosić",
+          "ko": "잔디깎이가 작업을 시작함",
+          "ar": "بدأت الجزازة بالجز"
         },
         "args": [
           {
@@ -46,7 +101,19 @@
       {
         "id": "mower_docked",
         "title": {
-          "en": "Mower docked"
+          "en": "Mower docked",
+          "nl": "Maaier is gedockt",
+          "de": "Mäher hat angedockt",
+          "fr": "La tondeuse s'est amarrée",
+          "it": "Il tagliaerba si è agganciato alla base",
+          "sv": "Klipparen dockade",
+          "no": "Klipperen dokket",
+          "es": "El cortacésped se acopló",
+          "da": "Plæneklipperen dockede",
+          "ru": "Газонокосилка вернулась на базу",
+          "pl": "Kosiarka wróciła do stacji",
+          "ko": "잔디깎이가 충전소로 복귀함",
+          "ar": "عادت الجزازة إلى القاعدة"
         },
         "args": [
           {
@@ -59,7 +126,19 @@
       {
         "id": "mower_error",
         "title": {
-          "en": "Mower reported an error"
+          "en": "Mower reported an error",
+          "nl": "Maaier meldde een fout",
+          "de": "Mäher hat einen Fehler gemeldet",
+          "fr": "La tondeuse a signalé une erreur",
+          "it": "Il tagliaerba ha segnalato un errore",
+          "sv": "Klipparen rapporterade ett fel",
+          "no": "Klipperen rapporterte en feil",
+          "es": "El cortacésped reportó un error",
+          "da": "Plæneklipperen rapporterede en fejl",
+          "ru": "Газонокосилка сообщила об ошибке",
+          "pl": "Kosiarka zgłosiła błąd",
+          "ko": "잔디깎이가 오류를 보고함",
+          "ar": "أبلغت الجزازة عن خطأ"
         },
         "args": [
           {
@@ -74,7 +153,19 @@
       {
         "id": "is_mowing",
         "title": {
-          "en": "Mower !{{is|isn't}} mowing"
+          "en": "Mower !{{is|isn't}} mowing",
+          "nl": "Maaier !{{maait|maait niet}}",
+          "de": "Mäher !{{mäht|mäht nicht}}",
+          "fr": "La tondeuse !{{tond|ne tond pas}}",
+          "it": "Il tagliaerba !{{sta tagliando|non sta tagliando}}",
+          "sv": "Klipparen !{{klipper|klipper inte}}",
+          "no": "Klipperen !{{klipper|klipper ikke}}",
+          "es": "El cortacésped !{{está cortando|no está cortando}}",
+          "da": "Plæneklipperen !{{klipper|klipper ikke}}",
+          "ru": "Газонокосилка !{{косит|не косит}}",
+          "pl": "Kosiarka !{{kosi|nie kosi}}",
+          "ko": "잔디깎이가 !{{작업 중|작업 중이 아님}}",
+          "ar": "الجزازة !{{تجز|لا تجز}}"
         },
         "args": [
           {
@@ -89,7 +180,19 @@
       {
         "id": "start_mowing",
         "title": {
-          "en": "Start mowing"
+          "en": "Start mowing",
+          "nl": "Start met maaien",
+          "de": "Mähen starten",
+          "fr": "Démarrer la tonte",
+          "it": "Avvia il taglio",
+          "sv": "Starta klippning",
+          "no": "Start klipping",
+          "es": "Iniciar corte",
+          "da": "Start klipning",
+          "ru": "Начать кошение",
+          "pl": "Zacznij koszenie",
+          "ko": "작업 시작",
+          "ar": "بدء الجز"
         },
         "args": [
           {
@@ -102,7 +205,19 @@
       {
         "id": "send_to_dock",
         "title": {
-          "en": "Send to dock"
+          "en": "Send to dock",
+          "nl": "Stuur naar dock",
+          "de": "Zur Dockingstation senden",
+          "fr": "Envoyer à la base",
+          "it": "Invia alla base",
+          "sv": "Skicka till dockan",
+          "no": "Send til dokk",
+          "es": "Enviar a la base",
+          "da": "Send til docken",
+          "ru": "Отправить на базу",
+          "pl": "Wyślij do stacji",
+          "ko": "충전소로 보내기",
+          "ar": "إرسال إلى القاعدة"
         },
         "args": [
           {
@@ -115,7 +230,19 @@
       {
         "id": "pause_mowing",
         "title": {
-          "en": "Pause mowing"
+          "en": "Pause mowing",
+          "nl": "Maaien onderbreken",
+          "de": "Mähen pausieren",
+          "fr": "Mettre la tonte en pause",
+          "it": "Metti in pausa il taglio",
+          "sv": "Pausa klippning",
+          "no": "Pause klipping",
+          "es": "Pausar corte",
+          "da": "Pause klipning",
+          "ru": "Приостановить кошение",
+          "pl": "Wstrzymaj koszenie",
+          "ko": "작업 일시정지",
+          "ar": "إيقاف الجز مؤقتًا"
         },
         "args": [
           {
@@ -130,7 +257,19 @@
   "drivers": [
     {
       "name": {
-        "en": "Mammotion Robot Mower"
+        "en": "Mammotion Robot Mower",
+        "nl": "Mammotion Robotmaaier",
+        "de": "Mammotion Mähroboter",
+        "fr": "Tondeuse robot Mammotion",
+        "it": "Robot tagliaerba Mammotion",
+        "sv": "Mammotion Robotgräsklippare",
+        "no": "Mammotion Robotgressklipper",
+        "es": "Robot cortacésped Mammotion",
+        "da": "Mammotion Robotplæneklipper",
+        "ru": "Робот-газонокосилка Mammotion",
+        "pl": "Robot koszący Mammotion",
+        "ko": "Mammotion 로봇 잔디깎이",
+        "ar": "جزازة عشب روبوتية من Mammotion"
       },
       "class": "other",
       "capabilities": [
@@ -150,23 +289,53 @@
       "capabilitiesOptions": {
         "onoff": {
           "title": {
-            "en": "Mowing"
+            "en": "Mowing",
+            "nl": "Maaien",
+            "de": "Mähen",
+            "fr": "Tonte",
+            "it": "Taglio",
+            "sv": "Klippning",
+            "no": "Klipping",
+            "es": "Cortar",
+            "da": "Klipning",
+            "ru": "Кошение",
+            "pl": "Koszenie",
+            "ko": "작업",
+            "ar": "الجز"
           }
         },
         "alarm_generic": {
           "title": {
-            "en": "Error"
+            "en": "Error",
+            "nl": "Fout",
+            "de": "Fehler",
+            "fr": "Erreur",
+            "it": "Errore",
+            "sv": "Fel",
+            "no": "Feil",
+            "es": "Error",
+            "da": "Fejl",
+            "ru": "Ошибка",
+            "pl": "Błąd",
+            "ko": "오류",
+            "ar": "خطأ"
           }
         }
       },
       "pair": [
         {
           "id": "login_credentials",
-          "template": "login_credentials"
+          "template": "login_credentials",
+          "navigation": {
+            "next": "list_devices"
+          }
         },
         {
           "id": "list_devices",
-          "template": "list_devices"
+          "template": "list_devices",
+          "navigation": {
+            "next": "add_devices"
+          }
         },
         {
           "id": "add_devices",
@@ -178,6 +347,13 @@
         "large": "/drivers/luba/assets/images/large.png",
         "xlarge": "/drivers/luba/assets/images/xlarge.png"
       },
+      "connectivity": [
+        "lan",
+        "ble"
+      ],
+      "platforms": [
+        "local"
+      ],
       "id": "luba"
     }
   ],
@@ -185,7 +361,19 @@
     "measure_mow_area": {
       "type": "number",
       "title": {
-        "en": "Mowed Area"
+        "en": "Mowed Area",
+        "nl": "Gemaaid gebied",
+        "de": "Gemähte Fläche",
+        "fr": "Surface tondue",
+        "it": "Area tagliata",
+        "sv": "Klippt yta",
+        "no": "Klippet areal",
+        "es": "Área cortada",
+        "da": "Klippet areal",
+        "ru": "Скошенная площадь",
+        "pl": "Skoszony obszar",
+        "ko": "작업 면적",
+        "ar": "المساحة المجزوزة"
       },
       "units": {
         "en": "m²"
@@ -200,7 +388,19 @@
     "measure_mow_progress": {
       "type": "number",
       "title": {
-        "en": "Mow Progress"
+        "en": "Mow Progress",
+        "nl": "Maaivoortgang",
+        "de": "Mähfortschritt",
+        "fr": "Progression de la tonte",
+        "it": "Avanzamento taglio",
+        "sv": "Klippframsteg",
+        "no": "Klippefremdrift",
+        "es": "Progreso del corte",
+        "da": "Klippefremgang",
+        "ru": "Прогресс кошения",
+        "pl": "Postęp koszenia",
+        "ko": "작업 진행률",
+        "ar": "تقدم الجز"
       },
       "units": {
         "en": "%"
@@ -216,7 +416,19 @@
     "mow_blade_height": {
       "type": "number",
       "title": {
-        "en": "Blade Height"
+        "en": "Blade Height",
+        "nl": "Maaihoogte",
+        "de": "Schnitthöhe",
+        "fr": "Hauteur de coupe",
+        "it": "Altezza lama",
+        "sv": "Klipphöjd",
+        "no": "Klippehøyde",
+        "es": "Altura de corte",
+        "da": "Klippehøjde",
+        "ru": "Высота скашивания",
+        "pl": "Wysokość koszenia",
+        "ko": "칼날 높이",
+        "ar": "ارتفاع النصل"
       },
       "units": {
         "en": "mm"
@@ -236,42 +448,126 @@
         {
           "id": "idle",
           "title": {
-            "en": "Idle"
+            "en": "Idle",
+            "nl": "Inactief",
+            "de": "Inaktiv",
+            "fr": "Inactif",
+            "it": "Inattivo",
+            "sv": "Inaktiv",
+            "no": "Inaktiv",
+            "es": "Inactivo",
+            "da": "Inaktiv",
+            "ru": "Ожидание",
+            "pl": "Bezczynny",
+            "ko": "대기",
+            "ar": "خامل"
           }
         },
         {
           "id": "mowing",
           "title": {
-            "en": "Mowing"
+            "en": "Mowing",
+            "nl": "Maait",
+            "de": "Mäht",
+            "fr": "Tond",
+            "it": "In taglio",
+            "sv": "Klipper",
+            "no": "Klipper",
+            "es": "Cortando",
+            "da": "Klipper",
+            "ru": "Косит",
+            "pl": "Koszenie",
+            "ko": "작업 중",
+            "ar": "يجز"
           }
         },
         {
           "id": "returning",
           "title": {
-            "en": "Returning"
+            "en": "Returning",
+            "nl": "Keert terug",
+            "de": "Kehrt zurück",
+            "fr": "Retour en cours",
+            "it": "Sta tornando",
+            "sv": "Återvänder",
+            "no": "Returnerer",
+            "es": "Regresando",
+            "da": "Returnerer",
+            "ru": "Возвращается",
+            "pl": "Wraca",
+            "ko": "복귀 중",
+            "ar": "عائد"
           }
         },
         {
           "id": "charging",
           "title": {
-            "en": "Charging"
+            "en": "Charging",
+            "nl": "Laadt op",
+            "de": "Lädt",
+            "fr": "En charge",
+            "it": "In carica",
+            "sv": "Laddar",
+            "no": "Lader",
+            "es": "Cargando",
+            "da": "Lader",
+            "ru": "Заряжается",
+            "pl": "Ładowanie",
+            "ko": "충전 중",
+            "ar": "يشحن"
           }
         },
         {
           "id": "paused",
           "title": {
-            "en": "Paused"
+            "en": "Paused",
+            "nl": "Gepauzeerd",
+            "de": "Pausiert",
+            "fr": "En pause",
+            "it": "In pausa",
+            "sv": "Pausad",
+            "no": "Pauset",
+            "es": "En pausa",
+            "da": "Pauset",
+            "ru": "Приостановлено",
+            "pl": "Wstrzymano",
+            "ko": "일시정지",
+            "ar": "متوقف مؤقتًا"
           }
         },
         {
           "id": "error",
           "title": {
-            "en": "Error"
+            "en": "Error",
+            "nl": "Fout",
+            "de": "Fehler",
+            "fr": "Erreur",
+            "it": "Errore",
+            "sv": "Fel",
+            "no": "Feil",
+            "es": "Error",
+            "da": "Fejl",
+            "ru": "Ошибка",
+            "pl": "Błąd",
+            "ko": "오류",
+            "ar": "خطأ"
           }
         }
       ],
       "title": {
-        "en": "Mower Status"
+        "en": "Mower Status",
+        "nl": "Maaierstatus",
+        "de": "Mähstatus",
+        "fr": "État de la tondeuse",
+        "it": "Stato del tagliaerba",
+        "sv": "Klipparstatus",
+        "no": "Klipperstatus",
+        "es": "Estado del cortacésped",
+        "da": "Plæneklipperstatus",
+        "ru": "Статус газонокосилки",
+        "pl": "Status kosiarki",
+        "ko": "잔디깎이 상태",
+        "ar": "حالة الجزازة"
       },
       "getable": true,
       "setable": false,

@@ -1,23 +1,49 @@
 {
   "id": "net.tornbloms.mammotion",
-  "version": "1.0.1",
-  "compatibility": ">=12.4.0",
+  "version": "1.1.1",
+  "compatibility": ">=12.9.0",
   "sdk": 3,
   "runtime": "nodejs",
   "platforms": [
     "local"
   ],
   "name": {
-    "en": "Mammotion"
+    "en": "Mammotion",
+    "nl": "Mammotion",
+    "de": "Mammotion",
+    "fr": "Mammotion",
+    "it": "Mammotion",
+    "sv": "Mammotion",
+    "no": "Mammotion",
+    "es": "Mammotion",
+    "da": "Mammotion",
+    "ru": "Mammotion",
+    "pl": "Mammotion",
+    "ko": "Mammotion",
+    "ar": "Mammotion"
   },
   "description": {
-    "en": "Adds support for Mammotion devices"
+    "en": "Your lawn, perfectly cut, without lifting a finger",
+    "nl": "Je gazon, perfect gemaaid, zonder een vinger uit te steken",
+    "de": "Ihr Rasen, perfekt gemäht, ohne einen Finger zu rühren",
+    "fr": "Votre gazon, parfaitement tondu, sans lever le petit doigt",
+    "it": "Il tuo prato, perfettamente tagliato, senza muovere un dito",
+    "sv": "Din gräsmatta, perfekt klippt, utan att lyfta ett finger",
+    "no": "Gressplenen din, perfekt klippet, uten å røre en finger",
+    "es": "Tu césped, perfectamente cortado, sin mover un dedo",
+    "da": "Din græsplæne, perfekt klippet, uden at røre en finger",
+    "ru": "Ваш газон идеально подстрижен — и для этого не нужно пошевелить пальцем",
+    "pl": "Twój trawnik, idealnie skoszony, bez ruszania palcem",
+    "ko": "손 하나 까딱하지 않고도 완벽하게 깎인 잔디",
+    "ar": "حديقتك، مجزوزة بدقة، دون أن تحرك ساكنًا"
   },
   "category": [
     "appliances"
   ],
-  "brandColor": "#2DAB68",
-  "permissions": [],
+  "brandColor": "#d45448",
+  "permissions": [
+    "homey:wireless:ble"
+  ],
   "images": {
     "small": "/assets/images/small.png",
     "large": "/assets/images/large.png",
@@ -26,5 +52,21 @@
   "author": {
     "name": "Mathias Törnblom",
     "email": "mathias@tornbloms.net"
+  },
+  "tags": {
+    "en": [
+      "mammotion",
+      "lubas"
+    ]
+  },
+  "contributors": {
+    "developers": [
+      {
+        "name": "Mathias Törnblom"
+      }
+    ]
+  },
+  "bugs": {
+    "url": "https://github.com/mathiastornblom/net.tornbloms.mammotion/issues"
   }
 }
