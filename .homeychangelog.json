@@ -100,5 +100,8 @@
   },
   "1.9.0": {
     "en": "Added RTK Position sensor (No Fix / GNSS / Float / RTK Fixed), Rain Protection toggle, Battery Cycles counter, and Blade Used Time — all from existing telemetry that was already being received but not displayed"
+  },
+  "2.0.0": {
+    "en": "Feature-complete release: full cloud control (start/stop/dock/pause, blade height and speed, headlamp, side LED, rain protection), full sensor set (battery, GPS, WiFi, Bluetooth, area, progress, speed, timing, RTK position, battery cycles, blade wear), and best-effort Bluetooth with automatic MQTT fallback"
   }
 }
