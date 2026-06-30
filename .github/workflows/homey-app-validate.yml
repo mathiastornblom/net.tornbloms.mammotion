@@ -10,6 +10,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # The validate action's container runs `npx tsc` against this checked-out
+      # directory but never installs dependencies itself — without this step,
+      # our own `typescript` devDependency is missing and the build step fails
+      # with "Tsconfig validation failed: unable to read configuration".
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
       - uses: athombv/github-action-homey-app-validate@master
         with:
           level: verified
