@@ -76,6 +76,9 @@ export default class LubaDevice extends Homey.Device {
       await this.sendBladeHeight(value);
     });
 
+    // Ensure the sensor shows "Disconnected" immediately rather than blank until a transport connects.
+    this.setCapabilityValue('active_transport', 'none').catch(this.error.bind(this));
+
     await this.startTransports();
   }
 
@@ -227,6 +230,10 @@ export default class LubaDevice extends Homey.Device {
         this.mqtt = new MqttClient({
           onTelemetry: (iotId, state) => {
             if (this.activeTransport === 'ble') return; // BLE is primary; discard MQTT telemetry
+            if (this.activeTransport !== 'mqtt') {
+              this.switchActiveTransport('mqtt');
+              this.setAvailable().catch(this.error.bind(this));
+            }
             this.handleTelemetry(iotId, state, 'mqtt');
           },
           onStatus: (iotId, online) => this.handleMqttStatus(iotId, online),

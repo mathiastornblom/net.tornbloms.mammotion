@@ -91,5 +91,8 @@
   },
   "1.7.0": {
     "en": "Improved Bluetooth reliability: service discovery now uses the full GATT scan instead of a filtered one (which was hanging), and retries back off from 15s to 4 min after repeated failures to reduce radio congestion"
+  },
+  "1.7.1": {
+    "en": "Fixed Connection Type sensor showing blank — it now initialises to Disconnected on startup and switches to Cloud as soon as the first telemetry arrives via MQTT, without waiting for a separate status message from the mower"
   }
 }
