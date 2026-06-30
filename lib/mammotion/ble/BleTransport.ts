@@ -14,8 +14,10 @@ const UUID_NOTIFY_CHAR = '0000ff02-0000-1000-8000-00805f9b34fb';
  *  expose MTU negotiation, so start at BLE 4.0 default (20 bytes) until verified on device. */
 const BLE_CHUNK_SIZE = 20;
 
-/** Reconnect grace period after BLE fails, to avoid hammering the radio. */
-const BLE_RECONNECT_DELAY_MS = 15_000;
+/** Initial reconnect delay after BLE fails. Doubles on each consecutive failure,
+ *  capped at BLE_RECONNECT_MAX_MS, to avoid hammering the radio indefinitely. */
+const BLE_RECONNECT_BASE_MS = 15_000;
+const BLE_RECONNECT_MAX_MS  = 4 * 60_000; // 4 min
 
 /** Max time to wait for post-connect GATT setup before giving up and retrying.
  *  Homey's own BLE operation timeout is ~30s — too slow to wait on when the
@@ -70,6 +72,7 @@ export class BleTransport {
 
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private stopped = false;
+  private consecutiveFailures = 0;
 
   /** Cached after first discovery; persisted across restarts via device store. */
   private peripheralUuid: string | null;
@@ -139,6 +142,7 @@ export class BleTransport {
         return;
       }
 
+      this.consecutiveFailures = 0;
       this.onStatus(this.iotId, true);
 
       // One-shot BLE sync — same as pymammotion's _ble_sync(2) on connect.
@@ -146,6 +150,7 @@ export class BleTransport {
       this.log('BLE: sent todev_ble_sync(2)');
 
     } catch (err) {
+      this.consecutiveFailures++;
       this.logError(`BLE: connect failed: ${err instanceof Error ? err.message : String(err)}`);
       this.onStatus(this.iotId, false);
       await this.disconnectPeripheral();
@@ -158,7 +163,11 @@ export class BleTransport {
    *  disconnects mid-setup otherwise hangs these calls until Homey's own
    *  ~30s BLE operation timeout. */
   private async setupGattSession(peripheral: Homey.BlePeripheral): Promise<'ok' | 'no-service'> {
-    const [service] = await peripheral.discoverServices([UUID_SERVICE]);
+    // Discover ALL services (no UUID filter) — the filtered "Discover Primary Service by
+    // UUID" GATT procedure has been observed to hang indefinitely on this mower's firmware,
+    // while the unfiltered "Discover All Primary Services" procedure should be more reliable.
+    const services = await peripheral.discoverServices();
+    const service = services.find((s) => s.uuid === UUID_SERVICE) ?? null;
     if (!service) return 'no-service';
 
     const [notifyChar, writeChar] = await Promise.all([
@@ -280,11 +289,12 @@ export class BleTransport {
 
   private scheduleReconnect(): void {
     if (this.stopped || this.reconnectTimer) return;
-    this.log(`BLE: scheduling reconnect in ${BLE_RECONNECT_DELAY_MS}ms`);
+    const delay = Math.min(BLE_RECONNECT_BASE_MS * (2 ** this.consecutiveFailures), BLE_RECONNECT_MAX_MS);
+    this.log(`BLE: scheduling reconnect in ${Math.round(delay / 1000)}s (failure #${this.consecutiveFailures})`);
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null;
       void this.connect();
-    }, BLE_RECONNECT_DELAY_MS);
+    }, delay);
   }
 
   private async disconnectPeripheral(): Promise<void> {
