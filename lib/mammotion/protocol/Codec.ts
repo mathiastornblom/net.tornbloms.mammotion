@@ -18,6 +18,7 @@ export const MsgCmdType = {
   EMBED_DRIVER: 243,
   EMBED_SYS: 244,
   ESP: 248,
+  MUL: 249,
 } as const;
 
 /** MsgDevice enum values (luba_msg.proto). */
@@ -26,6 +27,7 @@ export const MsgDevice = {
   DEV_MAINCTL: 1,
   DEV_MOBILEAPP: 7,
   DEV_NAVIGATION: 17,
+  SOC_MODULE_MULTIMEDIA: 21,
 } as const;
 
 /** MsgAttr enum values (luba_msg.proto). */

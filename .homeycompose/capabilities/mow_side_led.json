@@ -1,0 +1,22 @@
+{
+  "type": "boolean",
+  "title": {
+    "en": "Side LED",
+    "nl": "Zijlamp",
+    "de": "Seitenleuchte",
+    "fr": "LED latérale",
+    "it": "LED laterale",
+    "sv": "Sido-LED",
+    "no": "Side-LED",
+    "es": "LED lateral",
+    "da": "Side-LED",
+    "ru": "Боковая подсветка",
+    "pl": "Boczna dioda LED",
+    "ko": "사이드 LED",
+    "ar": "مصباح LED جانبي"
+  },
+  "getable": true,
+  "setable": true,
+  "uiComponent": "toggle",
+  "icon": "/assets/icon.svg"
+}

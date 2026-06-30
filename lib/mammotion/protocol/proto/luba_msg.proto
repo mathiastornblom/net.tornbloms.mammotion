@@ -1,11 +1,11 @@
 syntax = "proto3";
 
 // NOTE: This envelope is intentionally trimmed to the oneof branches the Homey app
-// currently uses (net=8, sys=10, nav=11, driver=12) to keep the generated protobuf
-// bundle small. Field numbers are unchanged, so this stays wire-compatible: unknown
-// oneof branches (ota/mul/pept/base/pdt/ctrl) are simply ignored on decode. The full
-// set of .proto files is still vendored alongside this one for reference; restore the
-// imports + branches below when adding maps/OTA/etc. Upstream: mikey0000/PyMammotion.
+// currently uses (net=8, sys=10, nav=11, driver=12, mul=14) to keep the generated
+// protobuf bundle small. Field numbers are unchanged, so this stays wire-compatible:
+// unknown oneof branches (ota/pept/base/pdt/ctrl) are simply ignored on decode. The
+// full set of .proto files is still vendored alongside this one for reference; restore
+// the imports + branches below when adding maps/OTA/etc. Upstream: mikey0000/PyMammotion.
 // `net` (DevNet) was added back for the BLE sync handshake (todev_ble_sync) — DevNet
 // was already pulled in transitively via mctrl_sys.proto's own import, so this adds
 // no new file to the bundle.
@@ -14,6 +14,7 @@ import "dev_net.proto";
 import "mctrl_driver.proto";
 import "mctrl_nav.proto";
 import "mctrl_sys.proto";
+import "luba_mul.proto";
 
 message MsgNull {
 }
@@ -31,6 +32,7 @@ message LubaMsg {
     MctlSys sys = 10;
     MctlNav nav = 11;
     MctlDriver driver = 12;
+    SocMul mul = 14;
     MsgNull null = 16;
   }
   uint64 timestamp = 15;

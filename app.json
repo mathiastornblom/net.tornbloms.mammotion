@@ -535,6 +535,121 @@
             "filter": "driver_id=luba"
           }
         ]
+      },
+      {
+        "id": "set_blade_speed",
+        "title": {
+          "en": "Set blade speed",
+          "nl": "Stel maaiersnelheid in",
+          "de": "Klingengeschwindigkeit einstellen",
+          "fr": "Régler la vitesse de lame",
+          "it": "Imposta velocità lama",
+          "sv": "Ange klipphastighet",
+          "no": "Angi klingefart",
+          "es": "Establecer velocidad de cuchilla",
+          "da": "Indstil knivhastighed",
+          "ru": "Установить скорость лезвия",
+          "pl": "Ustaw prędkość ostrza",
+          "ko": "칼날 속도 설정",
+          "ar": "تعيين سرعة النصل"
+        },
+        "titleFormatted": {
+          "en": "Set blade speed to [[speed]]",
+          "nl": "Stel maaiersnelheid in op [[speed]]",
+          "de": "Klingengeschwindigkeit auf [[speed]] einstellen",
+          "fr": "Régler la vitesse de lame sur [[speed]]",
+          "it": "Imposta velocità lama su [[speed]]",
+          "sv": "Ange klipphastighet till [[speed]]",
+          "no": "Angi klingefart til [[speed]]",
+          "es": "Establecer velocidad de cuchilla a [[speed]]",
+          "da": "Indstil knivhastighed til [[speed]]",
+          "ru": "Установить скорость лезвия: [[speed]]",
+          "pl": "Ustaw prędkość ostrza na [[speed]]",
+          "ko": "칼날 속도를 [[speed]]로 설정",
+          "ar": "تعيين سرعة النصل إلى [[speed]]"
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=luba"
+          },
+          {
+            "type": "dropdown",
+            "name": "speed",
+            "title": {
+              "en": "Speed",
+              "nl": "Snelheid",
+              "de": "Geschwindigkeit",
+              "fr": "Vitesse",
+              "it": "Velocità",
+              "sv": "Hastighet",
+              "no": "Fart",
+              "es": "Velocidad",
+              "da": "Hastighed",
+              "ru": "Скорость",
+              "pl": "Prędkość",
+              "ko": "속도",
+              "ar": "السرعة"
+            },
+            "values": [
+              {
+                "id": "economic",
+                "label": {
+                  "en": "Low",
+                  "nl": "Laag",
+                  "de": "Niedrig",
+                  "fr": "Faible",
+                  "it": "Bassa",
+                  "sv": "Låg",
+                  "no": "Lav",
+                  "es": "Baja",
+                  "da": "Lav",
+                  "ru": "Низкая",
+                  "pl": "Niskie",
+                  "ko": "낮음",
+                  "ar": "منخفض"
+                }
+              },
+              {
+                "id": "standard",
+                "label": {
+                  "en": "Medium",
+                  "nl": "Gemiddeld",
+                  "de": "Mittel",
+                  "fr": "Moyen",
+                  "it": "Media",
+                  "sv": "Medel",
+                  "no": "Middels",
+                  "es": "Media",
+                  "da": "Middel",
+                  "ru": "Средняя",
+                  "pl": "Średnie",
+                  "ko": "보통",
+                  "ar": "متوسط"
+                }
+              },
+              {
+                "id": "performance",
+                "label": {
+                  "en": "High",
+                  "nl": "Hoog",
+                  "de": "Hoch",
+                  "fr": "Élevé",
+                  "it": "Alta",
+                  "sv": "Hög",
+                  "no": "Høy",
+                  "es": "Alta",
+                  "da": "Høj",
+                  "ru": "Высокая",
+                  "pl": "Wysokie",
+                  "ko": "높음",
+                  "ar": "مرتفع"
+                }
+              }
+            ]
+          }
+        ]
       }
     ]
   },
@@ -570,7 +685,10 @@
         "measure_mowing_speed",
         "measure_elapsed_time",
         "measure_left_time",
-        "active_transport"
+        "active_transport",
+        "mow_cutter_mode",
+        "mow_headlamp",
+        "mow_side_led"
       ],
       "energy": {
         "batteries": [
@@ -1031,6 +1149,128 @@
       "getable": true,
       "setable": true,
       "uiComponent": "slider",
+      "icon": "/assets/icon.svg"
+    },
+    "mow_cutter_mode": {
+      "type": "enum",
+      "values": [
+        {
+          "id": "economic",
+          "title": {
+            "en": "Low",
+            "nl": "Laag",
+            "de": "Niedrig",
+            "fr": "Faible",
+            "it": "Bassa",
+            "sv": "Låg",
+            "no": "Lav",
+            "es": "Baja",
+            "da": "Lav",
+            "ru": "Низкая",
+            "pl": "Niskie",
+            "ko": "낮음",
+            "ar": "منخفض"
+          }
+        },
+        {
+          "id": "standard",
+          "title": {
+            "en": "Medium",
+            "nl": "Gemiddeld",
+            "de": "Mittel",
+            "fr": "Moyen",
+            "it": "Media",
+            "sv": "Medel",
+            "no": "Middels",
+            "es": "Media",
+            "da": "Middel",
+            "ru": "Средняя",
+            "pl": "Średnie",
+            "ko": "보통",
+            "ar": "متوسط"
+          }
+        },
+        {
+          "id": "performance",
+          "title": {
+            "en": "High",
+            "nl": "Hoog",
+            "de": "Hoch",
+            "fr": "Élevé",
+            "it": "Alta",
+            "sv": "Hög",
+            "no": "Høy",
+            "es": "Alta",
+            "da": "Høj",
+            "ru": "Высокая",
+            "pl": "Wysokie",
+            "ko": "높음",
+            "ar": "مرتفع"
+          }
+        }
+      ],
+      "title": {
+        "en": "Blade Speed",
+        "nl": "Maaiersnelheid",
+        "de": "Klingengeschwindigkeit",
+        "fr": "Vitesse de lame",
+        "it": "Velocità lama",
+        "sv": "Klipphastighet",
+        "no": "Klingefart",
+        "es": "Velocidad de cuchilla",
+        "da": "Knivhastighed",
+        "ru": "Скорость лезвия",
+        "pl": "Prędkość ostrza",
+        "ko": "칼날 속도",
+        "ar": "سرعة النصل"
+      },
+      "getable": true,
+      "setable": true,
+      "uiComponent": "picker",
+      "icon": "/assets/icon.svg"
+    },
+    "mow_headlamp": {
+      "type": "boolean",
+      "title": {
+        "en": "Headlamp",
+        "nl": "Koplamp",
+        "de": "Scheinwerfer",
+        "fr": "Phare",
+        "it": "Faro",
+        "sv": "Strålkastare",
+        "no": "Lykt",
+        "es": "Faro",
+        "da": "Forlygte",
+        "ru": "Фара",
+        "pl": "Reflektor",
+        "ko": "전조등",
+        "ar": "المصباح الأمامي"
+      },
+      "getable": true,
+      "setable": true,
+      "uiComponent": "toggle",
+      "icon": "/assets/icon.svg"
+    },
+    "mow_side_led": {
+      "type": "boolean",
+      "title": {
+        "en": "Side LED",
+        "nl": "Zijlamp",
+        "de": "Seitenleuchte",
+        "fr": "LED latérale",
+        "it": "LED laterale",
+        "sv": "Sido-LED",
+        "no": "Side-LED",
+        "es": "LED lateral",
+        "da": "Side-LED",
+        "ru": "Боковая подсветка",
+        "pl": "Boczna dioda LED",
+        "ko": "사이드 LED",
+        "ar": "مصباح LED جانبي"
+      },
+      "getable": true,
+      "setable": true,
+      "uiComponent": "toggle",
       "icon": "/assets/icon.svg"
     },
     "mower_status": {

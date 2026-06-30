@@ -7,6 +7,8 @@ import {
   RptAct,
   RptInfoType,
 } from '../protocol/Codec.js';
+// lamp_ctrl_sta enum values (luba_mul.proto)
+const LAMP_CTRL = { power_off: 0, power_on: 1 } as const;
 import { LEGACY_LUBA1_PRODUCT_KEYS, NON_MOWER_PRODUCT_KEYS } from '../constants.js';
 
 export type DeviceCommand = 'start' | 'pause' | 'resume' | 'stop' | 'dock' | 'cancelJob' | 'cancelDock';
@@ -17,6 +19,9 @@ export interface StartMowOptions {
   speed?: number;
   isEdge?: boolean;
 }
+
+/** Blade/cutter speed mode (CutterWorkMode enum in mctrl_driver.proto). */
+export type CutterMode = 0 | 1 | 2; // 0=standard, 1=economic (slow), 2=performance (fast)
 
 /** NavTaskCtrl.action values (mctrl_nav.proto / navigation.py). */
 const TASK_ACTION: Record<DeviceCommand, number> = {
@@ -139,6 +144,43 @@ export function buildStartMowCommand(
   productKey?: string,
 ): string {
   return buildTaskControlCommand('start', userAccount, deviceName, seq, productKey);
+}
+
+/**
+ * Build a set-headlamp command (SocMul.set_lamp / SetHeadlamp in luba_mul.proto).
+ * set_ids=0 targets the main headlamp; set_ids=1 targets the side LED.
+ * lamp_manual_ctrl=1 (manual_power_on/off) overrides any auto-lighting schedule.
+ */
+export function buildSetHeadlampCommand(
+  on: boolean,
+  userAccount: string,
+  seq: { value: number },
+  setIds = 0,
+): string {
+  return encodeLubaMsgBase64({
+    ...envelope(MsgCmdType.MUL, MsgDevice.SOC_MODULE_MULTIMEDIA, userAccount, seq),
+    mul: {
+      setLamp: {
+        setIds,
+        lampCtrl: on ? LAMP_CTRL.power_on : LAMP_CTRL.power_off,
+        lampManualCtrl: on ? 1 : 0, // manual_power_on / manual_power_off
+      },
+    },
+  });
+}
+
+/** Build a set-blade-speed command (MctlDriver.cutter_mode_ctrl_by_hand). */
+export function buildSetBladeSpeedCommand(
+  mode: CutterMode,
+  userAccount: string,
+  seq: { value: number },
+): string {
+  return encodeLubaMsgBase64({
+    ...envelope(MsgCmdType.EMBED_DRIVER, MsgDevice.DEV_MAINCTL, userAccount, seq),
+    driver: {
+      cutterModeCtrlByHand: { CutterMode: mode },
+    },
+  });
 }
 
 /** Build a set-blade-height command (MctlDriver.todev_knife_height_set). */

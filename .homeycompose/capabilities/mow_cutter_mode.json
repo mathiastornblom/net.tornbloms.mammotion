@@ -1,0 +1,78 @@
+{
+  "type": "enum",
+  "values": [
+    {
+      "id": "economic",
+      "title": {
+        "en": "Low",
+        "nl": "Laag",
+        "de": "Niedrig",
+        "fr": "Faible",
+        "it": "Bassa",
+        "sv": "Låg",
+        "no": "Lav",
+        "es": "Baja",
+        "da": "Lav",
+        "ru": "Низкая",
+        "pl": "Niskie",
+        "ko": "낮음",
+        "ar": "منخفض"
+      }
+    },
+    {
+      "id": "standard",
+      "title": {
+        "en": "Medium",
+        "nl": "Gemiddeld",
+        "de": "Mittel",
+        "fr": "Moyen",
+        "it": "Media",
+        "sv": "Medel",
+        "no": "Middels",
+        "es": "Media",
+        "da": "Middel",
+        "ru": "Средняя",
+        "pl": "Średnie",
+        "ko": "보통",
+        "ar": "متوسط"
+      }
+    },
+    {
+      "id": "performance",
+      "title": {
+        "en": "High",
+        "nl": "Hoog",
+        "de": "Hoch",
+        "fr": "Élevé",
+        "it": "Alta",
+        "sv": "Hög",
+        "no": "Høy",
+        "es": "Alta",
+        "da": "Høj",
+        "ru": "Высокая",
+        "pl": "Wysokie",
+        "ko": "높음",
+        "ar": "مرتفع"
+      }
+    }
+  ],
+  "title": {
+    "en": "Blade Speed",
+    "nl": "Maaiersnelheid",
+    "de": "Klingengeschwindigkeit",
+    "fr": "Vitesse de lame",
+    "it": "Velocità lama",
+    "sv": "Klipphastighet",
+    "no": "Klingefart",
+    "es": "Velocidad de cuchilla",
+    "da": "Knivhastighed",
+    "ru": "Скорость лезвия",
+    "pl": "Prędkość ostrza",
+    "ko": "칼날 속도",
+    "ar": "سرعة النصل"
+  },
+  "getable": true,
+  "setable": true,
+  "uiComponent": "picker",
+  "icon": "/assets/icon.svg"
+}

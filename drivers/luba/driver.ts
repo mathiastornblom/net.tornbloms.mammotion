@@ -85,6 +85,11 @@ export default class LubaDriver extends Homey.Driver {
         await (args.device as any).requestSchedule();
       });
 
+    this.homey.flow.getActionCard('set_blade_speed')
+      .registerRunListener(async (args: { device: Homey.Device; speed: 'economic' | 'standard' | 'performance' }) => {
+        await (args.device as any).actionSetBladeSpeed(args.speed);
+      });
+
     this.homey.flow.getConditionCard('is_mowing')
       .registerRunListener((args: { device: Homey.Device }) => {
         return (args.device as any).getMowerState() === 'mowing';

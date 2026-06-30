@@ -11,8 +11,11 @@ import {
   buildStartMowCommand,
   buildRequestIotSyncCommand,
   buildSetBladeHeightCommand,
+  buildSetBladeSpeedCommand,
+  buildSetHeadlampCommand,
   buildReadScheduleCommand,
   type StartMowOptions,
+  type CutterMode,
 } from '../../lib/mammotion/commands/LubaCommands.js';
 import { MammotionError } from '../../lib/mammotion/errors.js';
 import type LubaDriver from './driver.js';
@@ -76,8 +79,24 @@ export default class LubaDevice extends Homey.Device {
       await this.sendBladeHeight(value);
     });
 
-    // Ensure the sensor shows "Disconnected" immediately rather than blank until a transport connects.
+    this.registerCapabilityListener('mow_cutter_mode', async (value: string) => {
+      await this.actionSetBladeSpeed(value as 'economic' | 'standard' | 'performance');
+    });
+
+    this.registerCapabilityListener('mow_headlamp', async (value: boolean) => {
+      await this.actionSetHeadlamp(value, 0);
+    });
+
+    this.registerCapabilityListener('mow_side_led', async (value: boolean) => {
+      await this.actionSetHeadlamp(value, 1);
+    });
+
+    // Ensure sensor shows "Disconnected" immediately rather than blank until a transport connects.
     this.setCapabilityValue('active_transport', 'none').catch(this.error.bind(this));
+    // mow_cutter_mode has no read-back from telemetry, so default to standard on init.
+    if (this.getCapabilityValue('mow_cutter_mode') === null) {
+      this.setCapabilityValue('mow_cutter_mode', 'standard').catch(this.error.bind(this));
+    }
 
     await this.startTransports();
   }
@@ -408,6 +427,23 @@ export default class LubaDevice extends Homey.Device {
     if (typeof options.bladeHeight === 'number') await this.sendBladeHeight(options.bladeHeight);
     const bytes = Buffer.from(buildStartMowCommand(options, session.userAccount, context.deviceName, this.seq, context.productKey), 'base64');
     await this.sendRaw(bytes, 'start_mowing');
+  }
+
+  async actionSetBladeSpeed(mode: 'economic' | 'standard' | 'performance'): Promise<void> {
+    const modeMap: Record<string, CutterMode> = { economic: 1, standard: 0, performance: 2 };
+    const session = await this.getSession();
+    const bytes = Buffer.from(buildSetBladeSpeedCommand(modeMap[mode] ?? 0, session.userAccount, this.seq), 'base64');
+    await this.sendRaw(bytes, `set_blade_speed(${mode})`);
+    this.setCapIfChanged('mow_cutter_mode', mode);
+  }
+
+  /** setIds: 0 = headlamp, 1 = side LED */
+  async actionSetHeadlamp(on: boolean, setIds: 0 | 1): Promise<void> {
+    const session = await this.getSession();
+    const bytes = Buffer.from(buildSetHeadlampCommand(on, session.userAccount, this.seq, setIds), 'base64');
+    const label = setIds === 0 ? 'headlamp' : 'side_led';
+    await this.sendRaw(bytes, `set_${label}(${on})`);
+    this.setCapIfChanged(setIds === 0 ? 'mow_headlamp' : 'mow_side_led', on);
   }
 
   async actionDock(): Promise<void> { await this.sendTaskControlRaw('dock'); }

@@ -94,5 +94,8 @@
   },
   "1.7.1": {
     "en": "Fixed Connection Type sensor showing blank — it now initialises to Disconnected on startup and switches to Cloud as soon as the first telemetry arrives via MQTT, without waiting for a separate status message from the mower"
+  },
+  "1.8.0": {
+    "en": "Added Blade Speed control (Low / Medium / High) and Headlamp + Side LED toggles — all available as device controls and in Flow actions"
   }
 }

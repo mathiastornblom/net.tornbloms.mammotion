@@ -1,0 +1,22 @@
+{
+  "type": "boolean",
+  "title": {
+    "en": "Headlamp",
+    "nl": "Koplamp",
+    "de": "Scheinwerfer",
+    "fr": "Phare",
+    "it": "Faro",
+    "sv": "Strålkastare",
+    "no": "Lykt",
+    "es": "Faro",
+    "da": "Forlygte",
+    "ru": "Фара",
+    "pl": "Reflektor",
+    "ko": "전조등",
+    "ar": "المصباح الأمامي"
+  },
+  "getable": true,
+  "setable": true,
+  "uiComponent": "toggle",
+  "icon": "/assets/icon.svg"
+}
