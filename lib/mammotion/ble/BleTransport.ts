@@ -17,6 +17,11 @@ const BLE_CHUNK_SIZE = 20;
 /** Reconnect grace period after BLE fails, to avoid hammering the radio. */
 const BLE_RECONNECT_DELAY_MS = 15_000;
 
+/** Max time to wait for post-connect GATT setup before giving up and retrying.
+ *  Homey's own BLE operation timeout is ~30s — too slow to wait on when the
+ *  peripheral has already silently disconnected (observed on weak-signal links). */
+const BLE_SETUP_TIMEOUT_MS = 8_000;
+
 /** Minimal duck-type of the BLE manager — all BleTransport ever calls on it. */
 interface BleManager {
   discover(serviceFilter?: string[]): Promise<Homey.BleAdvertisement[]>;
@@ -37,10 +42,17 @@ export type BleStatusCallback = (iotId: string, connected: boolean) => void;
  * advertisement payload carries an empty serviceUuids list (confirmed via Homey's
  * own BLE devtool) even though the ffff vendor service IS present once GATT-
  * connected. Fixed by dropping the service filter and matching on local name only.
- * Also note: RSSI on this hub was -100 to -103 dBm (very weak) — connect/notify/
- * MTU/BluFi-framing remain unverified; discovery itself was the blocker found so
- * far. See [[protocol-notes]] memory for the full writeup before changing scan
- * logic again.
+ *
+ * ⚠️  Real-device test #2 (2026-06-30, same hub): discovery and the BLE-level
+ * connect() now both succeed (RSSI -86 to -102 dBm), but the peripheral
+ * disconnects 2-10s later — before discoverServices/subscribeToNotifications
+ * can finish. Consistent across 4 attempts. Most likely a weak-signal range
+ * issue on this Homey 3s, not a code bug (the connect handshake itself works).
+ * Added an 8s setup timeout (BLE_SETUP_TIMEOUT_MS) so a dropped peripheral is
+ * detected and retried quickly instead of waiting Homey's own ~30s internal
+ * BLE timeout. Notify/MTU/BluFi-framing remain unverified — setup has never
+ * completed. See [[protocol-notes]] memory for the full writeup before
+ * changing scan/connect logic again.
  */
 export class BleTransport {
   private bleManager: BleManager;
@@ -110,26 +122,22 @@ export class BleTransport {
       const peripheral = await advertisement.connect();
       this.peripheral = peripheral;
 
-      const [service] = await peripheral.discoverServices([UUID_SERVICE]);
-      if (!service) {
+      const result = await Promise.race([
+        this.setupGattSession(peripheral),
+        new Promise<'timeout'>((resolve) => setTimeout(() => resolve('timeout'), BLE_SETUP_TIMEOUT_MS)),
+      ]);
+
+      if (result === 'timeout') {
+        // Peripheral likely dropped mid-setup (common on weak-signal links) — Homey's
+        // own BLE operation timeout is ~30s, too slow to wait out before retrying.
+        throw new Error(`GATT setup timed out after ${BLE_SETUP_TIMEOUT_MS}ms`);
+      }
+      if (result === 'no-service') {
         this.logError(`BLE: service ${UUID_SERVICE} not found on ${this.deviceName}`);
         await this.disconnectPeripheral();
         this.scheduleReconnect();
         return;
       }
-
-      const [notifyChar, writeChar] = await Promise.all([
-        service.getCharacteristic(UUID_NOTIFY_CHAR),
-        service.getCharacteristic(UUID_WRITE_CHAR),
-      ]);
-
-      this.writeChar = writeChar;
-      this.assembler.reset();
-      resetSendSequence();
-      this.seq = { value: -1 };
-
-      await notifyChar.subscribeToNotifications((data: Buffer) => this.handleNotification(data));
-      this.log('BLE: subscribed to notifications');
 
       this.onStatus(this.iotId, true);
 
@@ -143,6 +151,29 @@ export class BleTransport {
       await this.disconnectPeripheral();
       this.scheduleReconnect();
     }
+  }
+
+  /** Discover the GATT service/characteristics and subscribe to notifications.
+   *  Raced against BLE_SETUP_TIMEOUT_MS in connect() since a peripheral that
+   *  disconnects mid-setup otherwise hangs these calls until Homey's own
+   *  ~30s BLE operation timeout. */
+  private async setupGattSession(peripheral: Homey.BlePeripheral): Promise<'ok' | 'no-service'> {
+    const [service] = await peripheral.discoverServices([UUID_SERVICE]);
+    if (!service) return 'no-service';
+
+    const [notifyChar, writeChar] = await Promise.all([
+      service.getCharacteristic(UUID_NOTIFY_CHAR),
+      service.getCharacteristic(UUID_WRITE_CHAR),
+    ]);
+
+    this.writeChar = writeChar;
+    this.assembler.reset();
+    resetSendSequence();
+    this.seq = { value: -1 };
+
+    await notifyChar.subscribeToNotifications((data: Buffer) => this.handleNotification(data));
+    this.log('BLE: subscribed to notifications');
+    return 'ok';
   }
 
   /** Write raw protobuf bytes (LubaMsg) to the device, applying BluFi framing. */

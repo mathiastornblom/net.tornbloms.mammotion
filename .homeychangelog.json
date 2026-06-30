@@ -85,5 +85,8 @@
   },
   "1.6.8": {
     "en": "Bluetooth reconnects now skip the full radio scan by reusing the mower's saved address — faster and less disruptive to other wireless devices on the hub"
+  },
+  "1.6.9": {
+    "en": "Bluetooth setup now fails fast (8s) instead of hanging for 30s when a weak-signal connection drops mid-setup, so it retries sooner"
   }
 }

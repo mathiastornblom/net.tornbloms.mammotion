@@ -1,6 +1,6 @@
 {
   "id": "net.tornbloms.mammotion",
-  "version": "1.6.8",
+  "version": "1.6.9",
   "compatibility": ">=12.9.0",
   "sdk": 3,
   "runtime": "nodejs",
