@@ -82,5 +82,8 @@
   },
   "1.6.7": {
     "en": "Fixed Bluetooth discovery never finding the mower — the scan was filtering by a service UUID the device doesn't advertise, even though it's there and connectable"
+  },
+  "1.6.8": {
+    "en": "Bluetooth reconnects now skip the full radio scan by reusing the mower's saved address — faster and less disruptive to other wireless devices on the hub"
   }
 }

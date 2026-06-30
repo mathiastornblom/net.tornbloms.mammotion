@@ -147,6 +147,8 @@ export default class LubaDevice extends Homey.Device {
           }
         }
       },
+      peripheralUuid: this.getStoreValue('blePeripheralUuid') as string | null,
+      onPeripheralUuid: (uuid) => this.setStoreValue('blePeripheralUuid', uuid).catch(this.error.bind(this)),
       log: (msg) => this.log(`[BLE] ${msg}`),
       logError: (msg) => this.error(`[BLE] ${msg}`),
     });

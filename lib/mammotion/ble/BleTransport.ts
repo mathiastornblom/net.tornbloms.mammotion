@@ -20,6 +20,7 @@ const BLE_RECONNECT_DELAY_MS = 15_000;
 /** Minimal duck-type of the BLE manager — all BleTransport ever calls on it. */
 interface BleManager {
   discover(serviceFilter?: string[]): Promise<Homey.BleAdvertisement[]>;
+  find(peripheralUuid: string): Promise<Homey.BleAdvertisement>;
 }
 
 export type BleMessageCallback = (iotId: string, decoded: Record<string, unknown>) => void;
@@ -58,6 +59,10 @@ export class BleTransport {
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private stopped = false;
 
+  /** Cached after first discovery; persisted across restarts via device store. */
+  private peripheralUuid: string | null;
+  private onPeripheralUuid: ((uuid: string) => void) | undefined;
+
   constructor(opts: {
     /** Pass `this.homey.ble` from a Device or Driver. */
     bleManager: BleManager;
@@ -67,6 +72,10 @@ export class BleTransport {
     onStatus: BleStatusCallback;
     log: (msg: string) => void;
     logError: (msg: string) => void;
+    /** Stored peripheral UUID from a prior session — skips full scan on reconnect. */
+    peripheralUuid?: string | null;
+    /** Called when a new UUID is learned so the caller can persist it. */
+    onPeripheralUuid?: (uuid: string) => void;
   }) {
     this.bleManager = opts.bleManager;
     this.iotId = opts.iotId;
@@ -75,6 +84,8 @@ export class BleTransport {
     this.onStatus = opts.onStatus;
     this.log = opts.log;
     this.logError = opts.logError;
+    this.peripheralUuid = opts.peripheralUuid ?? null;
+    this.onPeripheralUuid = opts.onPeripheralUuid;
   }
 
   /** Scan for the mower advertisement then connect, discover, subscribe and sync. */
@@ -157,19 +168,38 @@ export class BleTransport {
   // ─── Private ────────────────────────────────────────────────────────────────
 
   private async discoverMower(): Promise<Homey.BleAdvertisement | null> {
+    // If we have a cached peripheralUuid from a prior session, use find() — it's a fast
+    // point-to-point lookup recommended by Homey docs instead of a full scan.
+    if (this.peripheralUuid) {
+      try {
+        const ad = await this.bleManager.find(this.peripheralUuid);
+        this.log(`BLE: found ${ad.localName} via cached UUID (RSSI ${ad.rssi})`);
+        return ad;
+      } catch {
+        // Peripheral not reachable by stored UUID — fall through to a fresh scan.
+        this.log('BLE: cached UUID not found, falling back to full scan');
+        this.peripheralUuid = null;
+      }
+    }
+
     // No service-UUID filter: confirmed via real-device test (2026-06-30) that this
     // mower's advertisement payload carries an empty serviceUuids list (Homey devtool
     // showed "Advertised service uuids: []") even though the ffff vendor service IS
-    // present once GATT-connected. discover([UUID_SERVICE]) silently excludes it, since
-    // Homey's serviceFilter matches against the advertisement, not post-connect GATT
-    // services. Match by local name instead; the service itself is verified after
-    // connecting via peripheral.discoverServices([UUID_SERVICE]) below.
+    // present once GATT-connected. discover([UUID_SERVICE]) silently excludes it; match
+    // by local name only. Service presence is verified post-connect via discoverServices.
     const ads = await this.bleManager.discover();
     this.log(`BLE: scan found ${ads.length} BLE advertisements`);
-    return ads.find(
-      (ad) => BLE_LOCAL_NAME_PREFIXES.some((prefix) => ad.localName?.startsWith(prefix))
-        && ad.localName === this.deviceName,
+    const ad = ads.find(
+      (a) => BLE_LOCAL_NAME_PREFIXES.some((prefix) => a.localName?.startsWith(prefix))
+        && a.localName === this.deviceName,
     ) ?? null;
+
+    if (ad) {
+      // Persist the UUID so future reconnects skip the full scan.
+      this.peripheralUuid = ad.uuid;
+      this.onPeripheralUuid?.(ad.uuid);
+    }
+    return ad;
   }
 
   private handleNotification(data: Buffer): void {
