@@ -67,5 +67,8 @@
   },
   "1.6.2": {
     "en": "Added a diagnostic action to read the mower's stored mowing schedule (read-only — see docs/SCHEDULING_PLAN.md for why write support is deferred)"
+  },
+  "1.6.3": {
+    "en": "Fixed GitHub CI validation failure — added the required support URL"
   }
 }

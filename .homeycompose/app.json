@@ -1,6 +1,6 @@
 {
   "id": "net.tornbloms.mammotion",
-  "version": "1.6.2",
+  "version": "1.6.3",
   "compatibility": ">=12.9.0",
   "sdk": 3,
   "runtime": "nodejs",
@@ -68,5 +68,6 @@
   },
   "bugs": {
     "url": "https://github.com/mathiastornblom/net.tornbloms.mammotion/issues"
-  }
+  },
+  "support": "https://github.com/mathiastornblom/net.tornbloms.mammotion/issues"
 }
