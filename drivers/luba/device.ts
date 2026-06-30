@@ -15,8 +15,8 @@ import {
   buildSetHeadlampCommand,
   buildSetRainProtectionCommand,
   buildReadScheduleCommand,
+  CUTTER_MODE_MAP,
   type StartMowOptions,
-  type CutterMode,
 } from '../../lib/mammotion/commands/LubaCommands.js';
 import { MammotionError } from '../../lib/mammotion/errors.js';
 import type LubaDriver from './driver.js';
@@ -444,37 +444,45 @@ export default class LubaDevice extends Homey.Device {
     await this.sendRaw(bytes, 'start_mowing');
   }
 
-  async actionSetBladeSpeed(mode: 'economic' | 'standard' | 'performance'): Promise<void> {
-    const modeMap: Record<string, CutterMode> = { economic: 1, standard: 0, performance: 2 };
-    const session = await this.getSession();
-    const bytes = Buffer.from(buildSetBladeSpeedCommand(modeMap[mode] ?? 0, session.userAccount, this.seq), 'base64');
-    await this.sendRaw(bytes, `set_blade_speed(${mode})`);
-    this.setCapIfChanged('mow_cutter_mode', mode);
+  /** Sends a pre-built raw command, then reflects the new value on the given capability. */
+  private async sendCommandAndSync(
+    commandB64: string,
+    label: string,
+    capability: string,
+    value: number | string | boolean,
+  ): Promise<void> {
+    await this.sendRaw(Buffer.from(commandB64, 'base64'), label);
+    this.setCapIfChanged(capability, value);
   }
 
+  async actionSetBladeSpeed(mode: 'economic' | 'standard' | 'performance'): Promise<void> {
+    const session = await this.getSession();
+    const cmd = buildSetBladeSpeedCommand(CUTTER_MODE_MAP[mode], session.userAccount, this.seq);
+    await this.sendCommandAndSync(cmd, `set_blade_speed(${mode})`, 'mow_cutter_mode', mode);
+  }
+
+  private static readonly POS_LEVEL_MAP: Record<number, string> = { 1: 'gnss', 2: 'float', 4: 'rtk' };
   private static posLevelToEnum(level: number): string {
-    switch (level) {
-      case 1: return 'gnss';
-      case 2: return 'float';
-      case 4: return 'rtk';
-      default: return 'none';
-    }
+    return LubaDevice.POS_LEVEL_MAP[level] ?? 'none';
   }
 
   async actionSetRainProtection(enabled: boolean): Promise<void> {
     const session = await this.getSession();
-    const bytes = Buffer.from(buildSetRainProtectionCommand(enabled, session.userAccount, this.seq), 'base64');
-    await this.sendRaw(bytes, `set_rain_protection(${enabled})`);
-    this.setCapIfChanged('mow_rain_protection', enabled);
+    const cmd = buildSetRainProtectionCommand(enabled, session.userAccount, this.seq);
+    await this.sendCommandAndSync(cmd, `set_rain_protection(${enabled})`, 'mow_rain_protection', enabled);
   }
 
   /** setIds: 0 = headlamp, 1 = side LED */
+  private static readonly LAMP_TARGETS: Record<0 | 1, { label: string; capability: string }> = {
+    0: { label: 'headlamp', capability: 'mow_headlamp' },
+    1: { label: 'side_led', capability: 'mow_side_led' },
+  };
+
   async actionSetHeadlamp(on: boolean, setIds: 0 | 1): Promise<void> {
     const session = await this.getSession();
-    const bytes = Buffer.from(buildSetHeadlampCommand(on, session.userAccount, this.seq, setIds), 'base64');
-    const label = setIds === 0 ? 'headlamp' : 'side_led';
-    await this.sendRaw(bytes, `set_${label}(${on})`);
-    this.setCapIfChanged(setIds === 0 ? 'mow_headlamp' : 'mow_side_led', on);
+    const cmd = buildSetHeadlampCommand(on, session.userAccount, this.seq, setIds);
+    const target = LubaDevice.LAMP_TARGETS[setIds];
+    await this.sendCommandAndSync(cmd, `set_${target.label}(${on})`, target.capability, on);
   }
 
   async actionDock(): Promise<void> { await this.sendTaskControlRaw('dock'); }

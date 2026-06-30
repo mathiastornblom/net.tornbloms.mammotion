@@ -7,9 +7,10 @@ import {
   RptAct,
   RptInfoType,
 } from '../protocol/Codec.js';
+import { LEGACY_LUBA1_PRODUCT_KEYS, NON_MOWER_PRODUCT_KEYS } from '../constants.js';
+
 // lamp_ctrl_sta enum values (luba_mul.proto)
 const LAMP_CTRL = { power_off: 0, power_on: 1 } as const;
-import { LEGACY_LUBA1_PRODUCT_KEYS, NON_MOWER_PRODUCT_KEYS } from '../constants.js';
 
 export type DeviceCommand = 'start' | 'pause' | 'resume' | 'stop' | 'dock' | 'cancelJob' | 'cancelDock';
 
@@ -22,6 +23,13 @@ export interface StartMowOptions {
 
 /** Blade/cutter speed mode (CutterWorkMode enum in mctrl_driver.proto). */
 export type CutterMode = 0 | 1 | 2; // 0=standard, 1=economic (slow), 2=performance (fast)
+
+/** Maps the Homey-facing speed label to the wire-level CutterMode value. */
+export const CUTTER_MODE_MAP: Record<'economic' | 'standard' | 'performance', CutterMode> = {
+  economic: 1,
+  standard: 0,
+  performance: 2,
+};
 
 /** NavTaskCtrl.action values (mctrl_nav.proto / navigation.py). */
 const TASK_ACTION: Record<DeviceCommand, number> = {

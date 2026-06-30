@@ -125,10 +125,12 @@ export class BleTransport {
       const peripheral = await advertisement.connect();
       this.peripheral = peripheral;
 
+      let timeoutHandle: ReturnType<typeof setTimeout>;
       const result = await Promise.race([
         this.setupGattSession(peripheral),
-        new Promise<'timeout'>((resolve) => setTimeout(() => resolve('timeout'), BLE_SETUP_TIMEOUT_MS)),
+        new Promise<'timeout'>((resolve) => { timeoutHandle = setTimeout(() => resolve('timeout'), BLE_SETUP_TIMEOUT_MS); }),
       ]);
+      clearTimeout(timeoutHandle!);
 
       if (result === 'timeout') {
         // Peripheral likely dropped mid-setup (common on weak-signal links) — Homey's
