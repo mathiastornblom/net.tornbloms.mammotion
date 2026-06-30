@@ -79,5 +79,8 @@
   },
   "1.6.6": {
     "en": "Quieted repeated Bluetooth 'device not found' log spam when using cloud-only mode — it's expected, not an error, and was flooding diagnostic reports"
+  },
+  "1.6.7": {
+    "en": "Fixed Bluetooth discovery never finding the mower — the scan was filtering by a service UUID the device doesn't advertise, even though it's there and connectable"
   }
 }

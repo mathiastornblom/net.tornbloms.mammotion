@@ -31,11 +31,15 @@ export type BleStatusCallback = (iotId: string, connected: boolean) => void;
  * applies without modification. See docs/BLE_PLAN.md for the full analysis and open
  * questions to verify once tested against a real device.
  *
- * ⚠️  Real-device test (2026-06-30, Homey 3s / homey3s, 90+ min runtime): BLE scan
- * never found the mower's advertisement even once, while MQTT ran fine in parallel
- * the whole time. Connect/notify/MTU/BluFi-framing remain unverified — discovery
- * never got that far. See [[protocol-notes]] memory for the full writeup before
- * changing scan logic again.
+ * ⚠️  Real-device test (2026-06-30, Homey 3s / homey3s): the BLE scan found zero
+ * matches because discover() was filtering by service UUID, and this mower's
+ * advertisement payload carries an empty serviceUuids list (confirmed via Homey's
+ * own BLE devtool) even though the ffff vendor service IS present once GATT-
+ * connected. Fixed by dropping the service filter and matching on local name only.
+ * Also note: RSSI on this hub was -100 to -103 dBm (very weak) — connect/notify/
+ * MTU/BluFi-framing remain unverified; discovery itself was the blocker found so
+ * far. See [[protocol-notes]] memory for the full writeup before changing scan
+ * logic again.
  */
 export class BleTransport {
   private bleManager: BleManager;
@@ -153,8 +157,15 @@ export class BleTransport {
   // ─── Private ────────────────────────────────────────────────────────────────
 
   private async discoverMower(): Promise<Homey.BleAdvertisement | null> {
-    const ads = await this.bleManager.discover([UUID_SERVICE]);
-    this.log(`BLE: scan found ${ads.length} devices with service ${UUID_SERVICE}`);
+    // No service-UUID filter: confirmed via real-device test (2026-06-30) that this
+    // mower's advertisement payload carries an empty serviceUuids list (Homey devtool
+    // showed "Advertised service uuids: []") even though the ffff vendor service IS
+    // present once GATT-connected. discover([UUID_SERVICE]) silently excludes it, since
+    // Homey's serviceFilter matches against the advertisement, not post-connect GATT
+    // services. Match by local name instead; the service itself is verified after
+    // connecting via peripheral.discoverServices([UUID_SERVICE]) below.
+    const ads = await this.bleManager.discover();
+    this.log(`BLE: scan found ${ads.length} BLE advertisements`);
     return ads.find(
       (ad) => BLE_LOCAL_NAME_PREFIXES.some((prefix) => ad.localName?.startsWith(prefix))
         && ad.localName === this.deviceName,
