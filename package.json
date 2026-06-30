@@ -1,6 +1,6 @@
 {
   "name": "net.tornbloms.mammotion",
-  "version": "1.6.3",
+  "version": "1.6.4",
   "type": "module",
   "engines": {
     "node": ">=22.0.0"
@@ -13,7 +13,8 @@
     "test:proto": "tsc && node --test scripts/proto-roundtrip.test.mjs",
     "test:ble": "tsc && node --test scripts/blufi-codec.test.mjs",
     "test:schedule": "tsc && node --test scripts/schedule-roundtrip.test.mjs",
-    "test": "npm run test:proto && npm run test:ble && npm run test:schedule"
+    "test:routing": "tsc && node --test scripts/device-routing.test.mjs",
+    "test": "npm run test:proto && npm run test:ble && npm run test:schedule && npm run test:routing"
   },
   "dependencies": {
     "mqtt": "^5.10.1",

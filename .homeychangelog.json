@@ -70,5 +70,8 @@
   },
   "1.6.3": {
     "en": "Fixed GitHub CI validation failure — added the required support URL"
+  },
+  "1.6.4": {
+    "en": "Fixed command routing for modern mowers (Luba 2 and later) — was incorrectly relying on the device display name instead of its product key, which could misroute start/stop/dock/pause commands"
   }
 }

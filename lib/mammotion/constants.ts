@@ -65,7 +65,22 @@ export const WORK_MODE: Record<number, string> = {
   39: 'charging_pause',
 };
 
-/** Receiver device constants for LubaMsg (field 3 = rcver). */
-export const DEV_MOBILEAPP = 7;
-export const DEV_MAINCTL = 1;
-export const DEV_NAVIGATION = 17;
+/**
+ * Product keys for the original Luba 1 (DeviceType.LUBA, value 1) — the only mower
+ * classification below the "Luba 2 or higher" threshold that determines whether NAV
+ * commands route to DEV_NAVIGATION vs DEV_MAINCTL. Verified against pymammotion's
+ * device_type.py (LubaProductKey list) and cross-checked with DNAngelX/ioBroker.mammotion's
+ * independently-generated product-keys.ts. Any OTHER recognized product key (Luba 2/VA/VP/
+ * MN/LD/MD/LA/MB, Yuka family, CM900, …) is "Luba 2 or higher" and should use DEV_NAVIGATION.
+ */
+export const LEGACY_LUBA1_PRODUCT_KEYS: readonly string[] = [
+  'a1UBFdq6nNz', 'a1x0zHD3Xop', 'a1pvCnb3PPu', 'a1kweSOPylG', 'a1JFpmAV5Ur',
+  'a1BmXWlsdbA', 'a1jOhAYOIG8', 'a1K4Ki2L5rK', 'a1ae1QnXZGf', 'a1nf9kRBWoH', 'a1ZU6bdGjaM',
+];
+
+/** Product keys that are RTK base stations or pool robots — never paired through this
+ *  mower driver, but excluded explicitly in case a productKey is ever seen unexpectedly. */
+export const NON_MOWER_PRODUCT_KEYS: readonly string[] = [
+  'a1qXkZ5P39W', 'a1Nc68bGZzX', 'a1wIIUUdAMX', 'a1mGLcddn4u', // RTK
+  'a1NfZqdSREf', 'a1ZuQVL7UiN', // RTK NB
+];

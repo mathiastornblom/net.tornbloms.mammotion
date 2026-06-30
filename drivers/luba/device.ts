@@ -187,7 +187,7 @@ export default class LubaDevice extends Homey.Device {
   async requestSchedule(planIndex = 0): Promise<void> {
     const session = await this.getSession();
     const context = this.getContext();
-    const cmd = buildReadScheduleCommand(session.userAccount, context.deviceName, planIndex, this.seq);
+    const cmd = buildReadScheduleCommand(session.userAccount, context.deviceName, planIndex, this.seq, context.productKey);
     await this.sendRaw(Buffer.from(cmd, 'base64'), 'read_schedule');
   }
 
@@ -397,7 +397,7 @@ export default class LubaDevice extends Homey.Device {
     const session = await this.getSession();
     const context = this.getContext();
     if (typeof options.bladeHeight === 'number') await this.sendBladeHeight(options.bladeHeight);
-    const bytes = Buffer.from(buildStartMowCommand(options, session.userAccount, context.deviceName, this.seq), 'base64');
+    const bytes = Buffer.from(buildStartMowCommand(options, session.userAccount, context.deviceName, this.seq, context.productKey), 'base64');
     await this.sendRaw(bytes, 'start_mowing');
   }
 
@@ -408,7 +408,7 @@ export default class LubaDevice extends Homey.Device {
   private async sendTaskControlRaw(command: 'start' | 'pause' | 'resume' | 'stop' | 'dock' | 'cancelJob' | 'cancelDock'): Promise<void> {
     const session = await this.getSession();
     const context = this.getContext();
-    const bytes = Buffer.from(buildTaskControlCommand(command, session.userAccount, context.deviceName, this.seq), 'base64');
+    const bytes = Buffer.from(buildTaskControlCommand(command, session.userAccount, context.deviceName, this.seq, context.productKey), 'base64');
     await this.sendRaw(bytes, command);
   }
 

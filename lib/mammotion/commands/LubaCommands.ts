@@ -7,6 +7,7 @@ import {
   RptAct,
   RptInfoType,
 } from '../protocol/Codec.js';
+import { LEGACY_LUBA1_PRODUCT_KEYS, NON_MOWER_PRODUCT_KEYS } from '../constants.js';
 
 export type DeviceCommand = 'start' | 'pause' | 'resume' | 'stop' | 'dock' | 'cancelJob' | 'cancelDock';
 
@@ -42,8 +43,24 @@ const REPORT_SUB = [
   RptInfoType.RIT_FW_INFO,
 ];
 
-/** Whether the device is a Luba Pro (NAV commands route to DEV_NAVIGATION). */
-export function isLubaProDevice(deviceName: string): boolean {
+/**
+ * Whether NAV commands should route to DEV_NAVIGATION (17) instead of DEV_MAINCTL (1).
+ * Mirrors pymammotion's DeviceType.is_luba_pro(): true for every mower classification
+ * EXCEPT the original Luba 1 (RTK/pool aren't paired through this driver).
+ *
+ * productKey is authoritative and always available (even for shared-not-owned devices,
+ * unlike the numeric deviceType field which the owned-devices-only API omits — see
+ * MammotionAuth.fetchDevices vs fetchDeviceRecords). The device-name substring check is
+ * kept only as a last-resort fallback for a productKey we don't yet recognize.
+ */
+export function isLubaProDevice(deviceName: string, productKey?: string): boolean {
+  if (productKey) {
+    if (LEGACY_LUBA1_PRODUCT_KEYS.includes(productKey)) return false;
+    if (NON_MOWER_PRODUCT_KEYS.includes(productKey)) return false; // shouldn't occur via this driver
+    // Any other known-shape Mammotion/Aliyun product key (a1xxxxxxxxx, or a bare
+    // alphanumeric like uY54W5rM8YH) is treated as "Luba 2 or higher".
+    return true;
+  }
   const lower = deviceName.toLowerCase();
   return lower.includes('luba pro') || lower.includes('lubapro');
 }
@@ -97,8 +114,9 @@ export function buildTaskControlCommand(
   userAccount: string,
   deviceName: string,
   seq: { value: number },
+  productKey?: string,
 ): string {
-  const rcver = isLubaProDevice(deviceName) ? MsgDevice.DEV_NAVIGATION : MsgDevice.DEV_MAINCTL;
+  const rcver = isLubaProDevice(deviceName, productKey) ? MsgDevice.DEV_NAVIGATION : MsgDevice.DEV_MAINCTL;
   return encodeLubaMsgBase64({
     ...envelope(MsgCmdType.NAV, rcver, userAccount, seq),
     nav: {
@@ -118,8 +136,9 @@ export function buildStartMowCommand(
   userAccount: string,
   deviceName: string,
   seq: { value: number },
+  productKey?: string,
 ): string {
-  return buildTaskControlCommand('start', userAccount, deviceName, seq);
+  return buildTaskControlCommand('start', userAccount, deviceName, seq, productKey);
 }
 
 /** Build a set-blade-height command (MctlDriver.todev_knife_height_set). */
@@ -162,8 +181,9 @@ export function buildReadScheduleCommand(
   deviceName: string,
   planIndex: number,
   seq: { value: number },
+  productKey?: string,
 ): string {
-  const receiver = isLubaProDevice(deviceName) ? MsgDevice.DEV_NAVIGATION : MsgDevice.DEV_MAINCTL;
+  const receiver = isLubaProDevice(deviceName, productKey) ? MsgDevice.DEV_NAVIGATION : MsgDevice.DEV_MAINCTL;
   return encodeLubaMsgBase64({
     ...envelope(MsgCmdType.NAV, receiver, userAccount, seq),
     nav: {
