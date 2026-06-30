@@ -15,7 +15,7 @@
     "ko": "WiFi 신호",
     "ar": "إشارة WiFi"
   },
-  "units": { "en": "dBm" },
+  "units": "dBm",
   "decimals": 0,
   "getable": true,
   "setable": false,

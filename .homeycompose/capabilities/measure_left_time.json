@@ -15,7 +15,7 @@
     "ko": "남은 시간",
     "ar": "الوقت المتبقي"
   },
-  "units": { "en": "min" },
+  "units": "min",
   "min": 0,
   "decimals": 0,
   "getable": true,

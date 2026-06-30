@@ -15,7 +15,7 @@
     "ko": "작업 속도",
     "ar": "سرعة الجز"
   },
-  "units": { "en": "m/s" },
+  "units": "m/s",
   "min": 0,
   "decimals": 2,
   "getable": true,

@@ -15,7 +15,7 @@
     "ko": "경과 시간",
     "ar": "الوقت المنقضي"
   },
-  "units": { "en": "min" },
+  "units": "min",
   "min": 0,
   "decimals": 0,
   "getable": true,

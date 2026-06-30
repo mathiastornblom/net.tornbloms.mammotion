@@ -12,6 +12,7 @@ import { LEGACY_LUBA1_PRODUCT_KEYS, NON_MOWER_PRODUCT_KEYS } from '../constants.
 // lamp_ctrl_sta enum values (luba_mul.proto)
 const LAMP_CTRL = { power_off: 0, power_on: 1 } as const;
 
+/** Task-control commands accepted by buildTaskControlCommand. */
 export type DeviceCommand = 'start' | 'pause' | 'resume' | 'stop' | 'dock' | 'cancelJob' | 'cancelDock';
 
 /** Options accepted by the start-mowing flow card. */

@@ -25,11 +25,13 @@ import type {
 /** Performs all Mammotion cloud HTTP calls: login, token refresh, device list, MQTT credentials. */
 export class MammotionAuth {
 
+  /** Generates a unique per-session client identifier the Mammotion API expects on every request. */
   private static buildClientId(): string {
     const rand = Array.from({ length: 7 }, () => Math.floor(Math.random() * 10)).join('');
     return `${Date.now()}_${rand}_1`;
   }
 
+  /** Computes the HMAC-SHA256 request signature required by the Mammotion OAuth endpoint. */
   private static createOauthSignature(payload: Record<string, string>): string {
     const timestampMs = `${Date.now()}`;
     const payloadJson = JSON.stringify(payload);
@@ -38,6 +40,7 @@ export class MammotionAuth {
     return createHmac('sha256', md5Secret).update(stringToSign, 'utf8').digest('hex');
   }
 
+  /** Decodes the access token's JWT payload to read the regional Aliyun IoT domain claim. */
   private static extractIotDomain(accessToken: string): string {
     const parts = accessToken.split('.');
     if (parts.length < 2) throw new AuthError('Access token is not a valid JWT');

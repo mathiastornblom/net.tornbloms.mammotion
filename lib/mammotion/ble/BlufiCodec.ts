@@ -18,6 +18,7 @@ export const SUB_TYPE_CUSTOM_DATA = 19;
  *  doesn't expose MTU negotiation, so start at the BLE 4.0 minimum until verified safe to raise. */
 export const DEFAULT_CHUNK_SIZE = 20;
 
+/** Decoded frame-control flag byte that prefixes every BluFi frame. */
 export interface FrameCtrl {
   encrypted: boolean;
   checksum: boolean;
@@ -68,6 +69,7 @@ export function nextSendSequence(): number {
   return sendSequence;
 }
 
+/** Resets the shared send-sequence counter; call on every (re)connect. */
 export function resetSendSequence(): void {
   sendSequence = -1;
 }
@@ -107,6 +109,7 @@ export function buildFrames(
   });
 }
 
+/** Outcome of feeding one raw notification frame into BlufiFrameAssembler.push(). */
 export type FrameResult =
   | { kind: 'complete'; packageType: number; subType: number; data: Buffer }
   | { kind: 'fragment' }
@@ -124,6 +127,7 @@ export class BlufiFrameAssembler {
   private packageType = 0;
   private subType = 0;
 
+  /** Clears reassembly state; call on every (re)connect alongside resetSendSequence(). */
   reset(): void {
     this.readSequence = -1;
     this.chunks = [];

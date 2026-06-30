@@ -15,7 +15,7 @@
     "ko": "블루투스 신호",
     "ar": "إشارة Bluetooth"
   },
-  "units": { "en": "dBm" },
+  "units": "dBm",
   "decimals": 0,
   "getable": true,
   "setable": false,

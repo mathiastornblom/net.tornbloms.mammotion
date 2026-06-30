@@ -103,7 +103,21 @@
   "settings": [
     {
       "type": "group",
-      "label": { "en": "Connection", "sv": "Anslutning", "nl": "Verbinding", "de": "Verbindung", "fr": "Connexion" },
+      "label": {
+        "en": "Connection",
+        "sv": "Anslutning",
+        "nl": "Verbinding",
+        "de": "Verbindung",
+        "fr": "Connexion",
+        "it": "Connessione",
+        "da": "Forbindelse",
+        "es": "Conexión",
+        "no": "Tilkobling",
+        "ru": "Соединение",
+        "pl": "Połączenie",
+        "ko": "연결",
+        "ar": "الاتصال"
+      },
       "children": [
         {
           "id": "transport_preference",
@@ -113,11 +127,30 @@
             "sv": "Transportläge",
             "nl": "Transportmodus",
             "de": "Transportmodus",
-            "fr": "Mode de transport"
+            "fr": "Mode de transport",
+            "it": "Modalità di trasporto",
+            "da": "Transporttilstand",
+            "es": "Modo de transporte",
+            "no": "Transportmodus",
+            "ru": "Режим передачи",
+            "pl": "Tryb transportu",
+            "ko": "전송 모드",
+            "ar": "وضع النقل"
           },
           "hint": {
             "en": "Auto uses BLE when the mower is in range and falls back to cloud MQTT when it is not. BLE only and MQTT only force a specific transport.",
-            "sv": "Auto använder BLE när klipparen är i räckvidd och faller tillbaka till MQTT när den inte är det."
+            "sv": "Auto använder BLE när klipparen är i räckvidd och faller tillbaka till MQTT när den inte är det. Endast BLE och endast MQTT tvingar fram en specifik transport.",
+            "nl": "Auto gebruikt BLE wanneer de maaier binnen bereik is en valt terug op cloud-MQTT wanneer dat niet het geval is. Alleen BLE en alleen MQTT forceren een specifiek transport.",
+            "de": "Auto verwendet BLE, wenn der Mäher in Reichweite ist, und greift andernfalls auf Cloud-MQTT zurück. Nur BLE und Nur MQTT erzwingen einen bestimmten Transport.",
+            "fr": "Auto utilise BLE lorsque la tondeuse est à portée et bascule sur MQTT cloud sinon. BLE uniquement et MQTT uniquement forcent un transport spécifique.",
+            "it": "Auto usa BLE quando il tagliaerba è nel raggio d'azione e torna a MQTT cloud quando non lo è. Solo BLE e solo MQTT forzano un trasporto specifico.",
+            "da": "Auto bruger BLE, når klipperen er inden for rækkevidde, og falder tilbage til MQTT i skyen, når den ikke er det. Kun BLE og kun MQTT tvinger en bestemt transport.",
+            "es": "Auto usa BLE cuando el cortacésped está al alcance y recurre a MQTT en la nube cuando no lo está. Solo BLE y solo MQTT fuerzan un transporte específico.",
+            "no": "Auto bruker BLE når klipperen er innenfor rekkevidde og faller tilbake til MQTT i skyen når den ikke er det. Kun BLE og kun MQTT tvinger en bestemt transport.",
+            "ru": "Автоматический режим использует BLE, когда газонокосилка находится в зоне действия, и переключается на облачный MQTT, когда это не так. Только BLE и только MQTT принудительно используют определённый транспорт.",
+            "pl": "Tryb automatyczny używa BLE, gdy kosiarka jest w zasięgu, i przełącza się na MQTT w chmurze, gdy nie jest. Tylko BLE i tylko MQTT wymuszają określony transport.",
+            "ko": "자동 모드는 잔디깎이가 범위 내에 있을 때 BLE를 사용하고, 범위를 벗어나면 클라우드 MQTT로 전환합니다. BLE 전용 및 MQTT 전용은 특정 전송 방식을 강제합니다.",
+            "ar": "يستخدم الوضع التلقائي BLE عندما تكون الجزازة ضمن النطاق، ويتحول إلى MQTT السحابي عندما لا تكون كذلك. يفرض كل من BLE فقط وMQTT فقط نوع نقل معين."
           },
           "value": "auto",
           "values": [
@@ -128,7 +161,15 @@
                 "sv": "Auto (BLE föredras, MQTT som reserv)",
                 "nl": "Auto (BLE voorkeur, MQTT reserv)",
                 "de": "Auto (BLE bevorzugt, MQTT als Fallback)",
-                "fr": "Auto (BLE préféré, MQTT secours)"
+                "fr": "Auto (BLE préféré, MQTT secours)",
+                "it": "Auto (BLE preferito, MQTT di riserva)",
+                "da": "Auto (BLE foretrukket, MQTT som reserve)",
+                "es": "Auto (BLE preferido, MQTT como respaldo)",
+                "no": "Auto (BLE foretrukket, MQTT som reserve)",
+                "ru": "Авто (BLE предпочтительно, MQTT резерв)",
+                "pl": "Auto (BLE preferowane, MQTT zapasowo)",
+                "ko": "자동 (BLE 우선, MQTT 대체)",
+                "ar": "تلقائي (BLE مفضل، MQTT احتياطي)"
               }
             },
             {
@@ -138,7 +179,15 @@
                 "sv": "Endast BLE (lokalt, inget moln behövs)",
                 "nl": "Alleen BLE (lokaal, geen cloud nodig)",
                 "de": "Nur BLE (lokal, kein Cloud nötig)",
-                "fr": "BLE uniquement (local, sans cloud)"
+                "fr": "BLE uniquement (local, sans cloud)",
+                "it": "Solo BLE (locale, nessun cloud necessario)",
+                "da": "Kun BLE (lokalt, ingen sky påkrævet)",
+                "es": "Solo BLE (local, sin necesidad de nube)",
+                "no": "Kun BLE (lokalt, ingen sky nødvendig)",
+                "ru": "Только BLE (локально, облако не требуется)",
+                "pl": "Tylko BLE (lokalnie, bez chmury)",
+                "ko": "BLE 전용 (로컬, 클라우드 불필요)",
+                "ar": "BLE فقط (محلي، لا حاجة للسحابة)"
               }
             },
             {
@@ -148,7 +197,15 @@
                 "sv": "Endast MQTT (moln)",
                 "nl": "Alleen MQTT (cloud)",
                 "de": "Nur MQTT (Cloud)",
-                "fr": "MQTT uniquement (cloud)"
+                "fr": "MQTT uniquement (cloud)",
+                "it": "Solo MQTT (cloud)",
+                "da": "Kun MQTT (sky)",
+                "es": "Solo MQTT (nube)",
+                "no": "Kun MQTT (sky)",
+                "ru": "Только MQTT (облако)",
+                "pl": "Tylko MQTT (chmura)",
+                "ko": "MQTT 전용 (클라우드)",
+                "ar": "MQTT فقط (سحابة)"
               }
             }
           ]
@@ -544,7 +601,19 @@
           "ar": "قراءة جدول الجز"
         },
         "hint": {
-          "en": "Reads the mower's stored schedule into the app log for diagnostics. Does not change anything on the device."
+          "en": "Reads the mower's stored schedule into the app log for diagnostics. Does not change anything on the device.",
+          "nl": "Leest het opgeslagen maaischema van de maaier uit naar het app-logboek voor diagnose. Verandert niets op het apparaat.",
+          "de": "Liest den gespeicherten Mähplan des Mähers zu Diagnosezwecken in das App-Protokoll ein. Ändert nichts am Gerät.",
+          "fr": "Lit le programme de tonte stocké de la tondeuse dans le journal de l'application à des fins de diagnostic. Ne modifie rien sur l'appareil.",
+          "it": "Legge il programma di taglio memorizzato del tagliaerba nel log dell'app a scopo diagnostico. Non modifica nulla sul dispositivo.",
+          "sv": "Läser klipparens sparade klippschema till app-loggen för diagnostik. Ändrar ingenting på enheten.",
+          "no": "Leser klipperens lagrede klippeplan inn i applogg for diagnostikk. Endrer ingenting på enheten.",
+          "es": "Lee el horario de corte guardado del cortacésped en el registro de la aplicación con fines de diagnóstico. No cambia nada en el dispositivo.",
+          "da": "Læser plæneklipperens gemte klippeplan ind i app-loggen til diagnosticering. Ændrer intet på enheden.",
+          "ru": "Считывает сохранённое расписание кошения газонокосилки в журнал приложения для диагностики. Ничего не изменяет на устройстве.",
+          "pl": "Odczytuje zapisany harmonogram koszenia kosiarki do dziennika aplikacji w celach diagnostycznych. Nie zmienia niczego w urządzeniu.",
+          "ko": "진단을 위해 잔디깎이에 저장된 일정을 앱 로그로 읽어옵니다. 기기의 설정은 변경되지 않습니다.",
+          "ar": "يقرأ الجدول المحفوظ للجزازة في سجل التطبيق لأغراض التشخيص. لا يغيّر أي شيء على الجهاز."
         }
       },
       {
@@ -601,11 +670,39 @@
             "values": [
               {
                 "id": "true",
-                "label": { "en": "On (stop in rain)", "sv": "På (stanna i regn)", "nl": "Aan (stoppen bij regen)", "de": "Ein (bei Regen stoppen)", "fr": "Activé (arrêt sous la pluie)" }
+                "label": {
+                  "en": "On (stop in rain)",
+                  "sv": "På (stanna i regn)",
+                  "nl": "Aan (stoppen bij regen)",
+                  "de": "Ein (bei Regen stoppen)",
+                  "fr": "Activé (arrêt sous la pluie)",
+                  "it": "Attivo (fermati con la pioggia)",
+                  "da": "Til (stop i regn)",
+                  "es": "Activado (detener en lluvia)",
+                  "no": "På (stopp i regn)",
+                  "ru": "Вкл. (остановка под дождём)",
+                  "pl": "Wł. (zatrzymaj w deszczu)",
+                  "ko": "켜짐 (비 오면 정지)",
+                  "ar": "تشغيل (التوقف في المطر)"
+                }
               },
               {
                 "id": "false",
-                "label": { "en": "Off (continue in rain)", "sv": "Av (fortsätt i regn)", "nl": "Uit (doorgaan bij regen)", "de": "Aus (bei Regen weiter)", "fr": "Désactivé (continuer sous la pluie)" }
+                "label": {
+                  "en": "Off (continue in rain)",
+                  "sv": "Av (fortsätt i regn)",
+                  "nl": "Uit (doorgaan bij regen)",
+                  "de": "Aus (bei Regen weiter)",
+                  "fr": "Désactivé (continuer sous la pluie)",
+                  "it": "Disattivo (continua con la pioggia)",
+                  "da": "Fra (fortsæt i regn)",
+                  "es": "Desactivado (continuar en lluvia)",
+                  "no": "Av (fortsett i regn)",
+                  "ru": "Выкл. (продолжать под дождём)",
+                  "pl": "Wył. (kontynuuj w deszczu)",
+                  "ko": "꺼짐 (비와도 계속)",
+                  "ar": "إيقاف (الاستمرار في المطر)"
+                }
               }
             ]
           }

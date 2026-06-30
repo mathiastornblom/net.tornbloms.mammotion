@@ -15,7 +15,7 @@
     "ko": "작업 면적",
     "ar": "المساحة المجزوزة"
   },
-  "units": { "en": "m²" },
+  "units": "m²",
   "min": 0,
   "decimals": 0,
   "getable": true,

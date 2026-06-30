@@ -103,5 +103,8 @@
   },
   "2.0.0": {
     "en": "Feature-complete release: full cloud control (start/stop/dock/pause, blade height and speed, headlamp, side LED, rain protection), full sensor set (battery, GPS, WiFi, Bluetooth, area, progress, speed, timing, RTK position, battery cycles, blade wear), and best-effort Bluetooth with automatic MQTT fallback"
+  },
+  "2.0.1": {
+    "en": "Fixed newly paired mowers missing several sensors and controls added in recent versions (blade speed, headlamp, side LED, rain protection, RTK position, battery cycles, blade wear). Completed translations for all 13 supported languages across every setting and Flow card."
   }
 }

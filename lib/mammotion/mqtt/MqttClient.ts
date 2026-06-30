@@ -8,6 +8,7 @@ import { decodeLubaMsg } from '../protocol/Codec.js';
 import { extractTelemetry } from '../protocol/TelemetryParser.js';
 import { MQTT_CONNECT_TIMEOUT_MS } from '../constants.js';
 
+/** Decoded mower telemetry fields, as extracted from a LubaMsg report by TelemetryParser. */
 export interface TelemetryState {
   workMode: number | null;
   batteryPercent: number | null;
@@ -29,7 +30,9 @@ export interface TelemetryState {
   bladeUsedTime: number | null;
 }
 
+/** Fired with the changed telemetry fields whenever a report is decoded. */
 export type TelemetryCallback = (iotId: string, state: Partial<TelemetryState>) => void;
+/** Fired when a device's reported online/offline status changes. */
 export type StatusCallback = (iotId: string, online: boolean) => void;
 
 const MQTT_INVOKE_PATH = '/v1/mqtt/rpc/thing/service/invoke';
@@ -155,6 +158,7 @@ export class MqttClient {
     }
   }
 
+  /** Routes an incoming MQTT message to status, protobuf, or notification handling by topic shape. */
   private handleMessage(topic: string, payload: Buffer): void {
     const parts = topic.split('/');
     if (parts.length < 5) return;
@@ -274,6 +278,7 @@ export class MqttClient {
     });
   }
 
+  /** Tears down the MQTT connection and removes all listeners. */
   disconnect(): void {
     if (this.client) {
       this.client.removeAllListeners();
@@ -282,6 +287,7 @@ export class MqttClient {
     }
   }
 
+  /** Whether the MQTT client currently has an open broker connection. */
   get isConnected(): boolean {
     return this.client?.connected ?? false;
   }

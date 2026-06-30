@@ -1,11 +1,13 @@
 'use strict';
 
+/** Generic envelope wrapping every Mammotion cloud API response. */
 export interface MammotionApiResponse<T> {
   code: number;
   msg: string;
   data: T;
 }
 
+/** Raw OAuth token response from the Mammotion login/refresh endpoint. */
 export interface LoginResponse {
   access_token: string;
   refresh_token: string;
@@ -18,6 +20,7 @@ export interface LoginResponse {
   };
 }
 
+/** JWT-based MQTT broker connection credentials. */
 export interface MqttConnection {
   host: string;
   clientId: string;
@@ -27,6 +30,7 @@ export interface MqttConnection {
   expireTime?: number;
 }
 
+/** Device entry from the device/page endpoint — carries productKey and recordDeviceName needed for MQTT topics. */
 export interface DeviceRecord {
   iotId: string;
   deviceId?: string;
@@ -35,11 +39,13 @@ export interface DeviceRecord {
   status?: number;
 }
 
+/** Paginated wrapper around DeviceRecord returned by some account types. */
 export interface DevicePageData {
   records: DeviceRecord[];
   total: number;
 }
 
+/** Device entry from the device/list endpoint — owned devices only (absent for shared-not-owned mowers). */
 export interface MammotionDevice {
   iotId: string;
   deviceId?: string;

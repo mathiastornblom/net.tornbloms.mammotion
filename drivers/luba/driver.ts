@@ -31,11 +31,13 @@ export default class LubaDriver extends Homey.Driver {
   private errorTrigger!: Homey.FlowCardTriggerDevice;
   private batteryBelowTrigger!: Homey.FlowCardTriggerDevice;
 
+  /** Registers all Flow trigger/condition/action cards for this driver. */
   async onInit(): Promise<void> {
     this.log('LubaDriver initialized');
     this.registerFlowCards();
   }
 
+  /** Wires up every Flow card's run listener to the corresponding device method. */
   private registerFlowCards(): void {
     this.startedMowingTrigger = this.homey.flow.getDeviceTriggerCard('mower_started_mowing');
     this.startedMowingTrigger.registerRunListener(() => true);
@@ -235,12 +237,16 @@ export default class LubaDriver extends Homey.Driver {
         name: context.deviceName || context.iotId,
         data: { id: context.iotId },
         store: { context },
+        // Keep in sync with driver.compose.json's top-level "capabilities" array — Homey
+        // uses this list (not the compose manifest) to set up a newly paired device's
+        // capabilities, so any capability missing here is silently absent until repair.
         capabilities: [
           'onoff', 'measure_battery', 'alarm_generic',
           'mower_status', 'measure_mow_progress', 'measure_mow_area', 'mow_blade_height',
           'measure_wifi_rssi', 'measure_ble_rssi', 'measure_gps_stars',
           'measure_mowing_speed', 'measure_elapsed_time', 'measure_left_time',
-          'active_transport',
+          'active_transport', 'mow_cutter_mode', 'mow_headlamp', 'mow_side_led',
+          'mow_pos_level', 'mow_rain_protection', 'measure_battery_cycles', 'measure_blade_used_time',
         ],
       };
     });

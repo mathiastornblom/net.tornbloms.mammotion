@@ -30,7 +30,9 @@ interface BleManager {
   find(peripheralUuid: string): Promise<Homey.BleAdvertisement>;
 }
 
+/** Fired with a decoded LubaMsg whenever a complete BLE notification frame is reassembled. */
 export type BleMessageCallback = (iotId: string, decoded: Record<string, unknown>) => void;
+/** Fired when the BLE connection to the mower is established or lost. */
 export type BleStatusCallback = (iotId: string, connected: boolean) => void;
 
 /**
@@ -203,12 +205,14 @@ export class BleTransport {
     await this.disconnectPeripheral();
   }
 
+  /** Whether the BLE peripheral is currently connected. */
   get isConnected(): boolean {
     return this.peripheral?.isConnected ?? false;
   }
 
   // ─── Private ────────────────────────────────────────────────────────────────
 
+  /** Locates the mower's BLE advertisement — via a cached UUID lookup first, then a fresh scan. */
   private async discoverMower(): Promise<Homey.BleAdvertisement | null> {
     // If we have a cached peripheralUuid from a prior session, use find() — it's a fast
     // point-to-point lookup recommended by Homey docs instead of a full scan.
@@ -244,6 +248,7 @@ export class BleTransport {
     return ad;
   }
 
+  /** Feeds one raw GATT notification through the frame assembler and dispatches complete messages. */
   private handleNotification(data: Buffer): void {
     const result = this.assembler.push(data);
     if (result.kind === 'fragment') return;
@@ -272,6 +277,7 @@ export class BleTransport {
     }
   }
 
+  /** Frames raw bytes via BluFi and writes each resulting fragment to the GATT write characteristic. */
   private async sendBytes(bytes: Buffer): Promise<void> {
     if (!this.writeChar) throw new Error('BLE write characteristic not available');
     const frames = buildFrames(bytes, { chunkSize: BLE_CHUNK_SIZE });
@@ -283,12 +289,14 @@ export class BleTransport {
     }
   }
 
+  /** Clears connection state and triggers a reconnect attempt unless the transport was stopped. */
   private handleDisconnect(): void {
     this.writeChar = null;
     this.onStatus(this.iotId, false);
     if (!this.stopped) this.scheduleReconnect();
   }
 
+  /** Schedules the next connect() attempt with exponential backoff based on consecutive failures. */
   private scheduleReconnect(): void {
     if (this.stopped || this.reconnectTimer) return;
     const delay = Math.min(BLE_RECONNECT_BASE_MS * (2 ** this.consecutiveFailures), BLE_RECONNECT_MAX_MS);
@@ -299,6 +307,7 @@ export class BleTransport {
     }, delay);
   }
 
+  /** Tears down the current peripheral connection, ignoring errors from an already-dead link. */
   private async disconnectPeripheral(): Promise<void> {
     const p = this.peripheral;
     this.peripheral = null;

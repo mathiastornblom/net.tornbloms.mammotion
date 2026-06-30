@@ -44,6 +44,7 @@ function workModeToStatus(mode: number): MowerStatus {
   }
 }
 
+/** Whether a raw work-mode integer represents an error/fault state. */
 function isErrorMode(mode: number): boolean {
   return mode === 37 || mode === 23 || mode === 38;
 }
@@ -69,6 +70,7 @@ export default class LubaDevice extends Homey.Device {
 
   // ─── Init / teardown ─────────────────────────────────────────────────────
 
+  /** Registers capability listeners and starts BLE/MQTT transports per the device's transport_preference setting. */
   async onInit(): Promise<void> {
     this.log(`LubaDevice ${this.getName()} initializing (preference=${this.transportPreference()})`);
 
@@ -113,7 +115,9 @@ export default class LubaDevice extends Homey.Device {
     await this.startTransports();
   }
 
+  /** Tears down transports when the device is removed from Homey. */
   async onDeleted(): Promise<void> { this.cleanup(); }
+  /** Tears down transports when the Homey app is restarted/updated. */
   async onUninit(): Promise<void> { this.cleanup(); }
 
   /** React to preference setting change without restarting Homey. */
@@ -128,10 +132,12 @@ export default class LubaDevice extends Homey.Device {
 
   // ─── Transport lifecycle ──────────────────────────────────────────────────
 
+  /** Reads the user-configured transport_preference setting, defaulting to 'auto'. */
   private transportPreference(): TransportPreference {
     return (this.getSetting('transport_preference') as TransportPreference | null) ?? 'auto';
   }
 
+  /** Starts BLE and/or MQTT according to the current transport preference. */
   private async startTransports(): Promise<void> {
     const pref = this.transportPreference();
     this.log(`startTransports: preference=${pref}`);
@@ -148,6 +154,7 @@ export default class LubaDevice extends Homey.Device {
 
   // ─── BLE transport ────────────────────────────────────────────────────────
 
+  /** Constructs and starts the BleTransport for this device's mower. */
   private async connectBle(): Promise<void> {
     const context = this.getContext();
     if (!context.recordDeviceName) {
@@ -183,6 +190,7 @@ export default class LubaDevice extends Homey.Device {
     void this.ble.connect();
   }
 
+  /** Routes a decoded BLE LubaMsg to telemetry handling and raw-message dispatch. */
   private handleBleMessage(iotId: string, decoded: Record<string, unknown>): void {
     if (iotId !== this.getData().id) return;
     const telemetry = extractTelemetry(decoded);
@@ -200,6 +208,7 @@ export default class LubaDevice extends Homey.Device {
     if (schedule) this.handleScheduleResponse(schedule);
   }
 
+  /** Logs a parsed schedule read response for diagnostics. */
   private handleScheduleResponse(schedule: ScheduleInfo): void {
     this.log(
       `Schedule [${schedule.planIndex + 1}/${schedule.totalPlanCount || '?'}] `
@@ -222,6 +231,7 @@ export default class LubaDevice extends Homey.Device {
 
   // ─── MQTT transport ───────────────────────────────────────────────────────
 
+  /** Fetches a fresh session and MQTT credentials, then connects the MqttClient for this device. */
   private async connectMqtt(): Promise<void> {
     if (this.mqttReconnectTimer) {
       clearTimeout(this.mqttReconnectTimer);
@@ -291,6 +301,7 @@ export default class LubaDevice extends Homey.Device {
     }
   }
 
+  /** Updates the active transport and device availability based on the mower's MQTT online status. */
   private handleMqttStatus(iotId: string, online: boolean): void {
     if (iotId !== this.getData().id) return;
     if (online) {
@@ -311,6 +322,7 @@ export default class LubaDevice extends Homey.Device {
     }
   }
 
+  /** Schedules the next connectMqtt() attempt with linear backoff, capped at 60s. */
   private scheduleMqttReconnect(): void {
     if (this.mqttReconnectTimer) return;
     this.mqttFailureCount += 1;
@@ -324,6 +336,7 @@ export default class LubaDevice extends Homey.Device {
 
   // ─── Transport switching ──────────────────────────────────────────────────
 
+  /** Updates the active_transport capability and internal state when the primary transport changes. */
   private switchActiveTransport(to: TransportName): void {
     if (this.activeTransport === to) return;
     this.log(`Transport switch: ${this.activeTransport} → ${to}`);
@@ -335,6 +348,7 @@ export default class LubaDevice extends Homey.Device {
 
   // ─── Telemetry ────────────────────────────────────────────────────────────
 
+  /** Starts the periodic re-arm of the one-shot telemetry report subscription (MQTT mode only). */
   private startPollTimer(): void {
     this.pollTimer = setInterval(async () => {
       try {
@@ -345,6 +359,7 @@ export default class LubaDevice extends Homey.Device {
     }, TELEMETRY_POLL_INTERVAL_MS);
   }
 
+  /** Re-arms the one-shot telemetry report subscription over MQTT. No-op while BLE is primary. */
   private async requestSync(): Promise<void> {
     if (this.activeTransport === 'ble') return; // BLE pushes on its own; no poll needed
     const session = await this.getSession();
@@ -353,12 +368,14 @@ export default class LubaDevice extends Homey.Device {
     await this.mqtt?.sendCommand(session, context, cmd);
   }
 
+  /** Writes a capability value only if it differs from the current one, to avoid redundant Homey updates. */
   private setCapIfChanged(capability: string, value: number | string | boolean): boolean {
     if (this.getCapabilityValue(capability) === value) return false;
     this.setCapabilityValue(capability, value).catch(this.error.bind(this));
     return true;
   }
 
+  /** Applies a decoded telemetry update to Homey capabilities and fires Flow triggers as needed. */
   private handleTelemetry(iotId: string, state: Partial<TelemetryState>, via: TransportName): void {
     if (iotId !== this.getData().id) return;
     this.mqttFailureCount = 0;
@@ -399,6 +416,7 @@ export default class LubaDevice extends Homey.Device {
     if (changed.length > 0) this.log(`[${via}] telemetry changed: ${changed.join(' ')}`);
   }
 
+  /** Updates the mower_status/onoff/alarm_generic capabilities and fires the matching Flow trigger on transition. */
   private updateMowerStatus(status: MowerStatus, rawMode: number): void {
     const wasStatus = this.currentStatus;
     this.currentStatus = status;
@@ -436,6 +454,7 @@ export default class LubaDevice extends Homey.Device {
     }
   }
 
+  /** Starts (or resumes) the mower's configured job, applying blade height first if given. */
   async actionStartMowing(options: StartMowOptions): Promise<void> {
     const session = await this.getSession();
     const context = this.getContext();
@@ -455,6 +474,7 @@ export default class LubaDevice extends Homey.Device {
     this.setCapIfChanged(capability, value);
   }
 
+  /** Sets the mower's cutting speed mode (Low/Medium/High) and reflects it on mow_cutter_mode. */
   async actionSetBladeSpeed(mode: 'economic' | 'standard' | 'performance'): Promise<void> {
     const session = await this.getSession();
     const cmd = buildSetBladeSpeedCommand(CUTTER_MODE_MAP[mode], session.userAccount, this.seq);
@@ -466,6 +486,7 @@ export default class LubaDevice extends Homey.Device {
     return LubaDevice.POS_LEVEL_MAP[level] ?? 'none';
   }
 
+  /** Toggles rain protection (stop mowing in rain vs. continue) and reflects it on mow_rain_protection. */
   async actionSetRainProtection(enabled: boolean): Promise<void> {
     const session = await this.getSession();
     const cmd = buildSetRainProtectionCommand(enabled, session.userAccount, this.seq);
@@ -478,6 +499,7 @@ export default class LubaDevice extends Homey.Device {
     1: { label: 'side_led', capability: 'mow_side_led' },
   };
 
+  /** Toggles the headlamp (setIds=0) or side LED (setIds=1) and reflects it on the matching capability. */
   async actionSetHeadlamp(on: boolean, setIds: 0 | 1): Promise<void> {
     const session = await this.getSession();
     const cmd = buildSetHeadlampCommand(on, session.userAccount, this.seq, setIds);
@@ -485,10 +507,14 @@ export default class LubaDevice extends Homey.Device {
     await this.sendCommandAndSync(cmd, `set_${target.label}(${on})`, target.capability, on);
   }
 
+  /** Sends the mower back to its charging dock. */
   async actionDock(): Promise<void> { await this.sendTaskControlRaw('dock'); }
+  /** Pauses the current mowing job. */
   async actionPause(): Promise<void> { await this.sendTaskControlRaw('pause'); }
+  /** Cancels/ends the current mowing job. */
   async actionStop(): Promise<void> { await this.sendTaskControlRaw('stop'); }
 
+  /** Builds and sends a NavTaskCtrl command for the given task-control action. */
   private async sendTaskControlRaw(command: 'start' | 'pause' | 'resume' | 'stop' | 'dock' | 'cancelJob' | 'cancelDock'): Promise<void> {
     const session = await this.getSession();
     const context = this.getContext();
@@ -496,6 +522,7 @@ export default class LubaDevice extends Homey.Device {
     await this.sendRaw(bytes, command);
   }
 
+  /** Sends a set-blade-height command. */
   private async sendBladeHeight(heightMm: number): Promise<void> {
     const session = await this.getSession();
     const bytes = Buffer.from(buildSetBladeHeightCommand(heightMm, session.userAccount, this.seq), 'base64');
@@ -504,6 +531,7 @@ export default class LubaDevice extends Homey.Device {
 
   // ─── Cleanup ──────────────────────────────────────────────────────────────
 
+  /** Stops timers and disconnects both transports. */
   private cleanup(): void {
     if (this.pollTimer) { clearInterval(this.pollTimer); this.pollTimer = null; }
     if (this.mqttReconnectTimer) { clearTimeout(this.mqttReconnectTimer); this.mqttReconnectTimer = null; }
@@ -516,8 +544,11 @@ export default class LubaDevice extends Homey.Device {
 
   // ─── Accessors ────────────────────────────────────────────────────────────
 
+  /** Returns the last known mower status, used by the is_mowing Flow condition. */
   getMowerState(): MowerStatus { return this.currentStatus; }
+  /** Reads the device's cloud context (productKey, deviceName, iotId) from the store. */
   private getContext(): DeviceContext { return this.getStoreValue('context') as DeviceContext; }
+  /** Delegates to the driver for a valid (refreshed if needed) auth session. */
   private async getSession(): Promise<AuthSession> {
     return (this.driver as any).getValidSession() as Promise<AuthSession>;
   }
