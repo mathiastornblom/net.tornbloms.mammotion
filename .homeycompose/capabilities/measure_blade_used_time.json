@@ -1,0 +1,24 @@
+{
+  "type": "number",
+  "title": {
+    "en": "Blade Used Time",
+    "nl": "Mesgebruikstijd",
+    "de": "Messerbetriebszeit",
+    "fr": "Temps d'utilisation de la lame",
+    "it": "Tempo di utilizzo lama",
+    "sv": "Klinganvändningstid",
+    "no": "Klingbrukstid",
+    "es": "Tiempo de uso de la cuchilla",
+    "da": "Knivbrugstid",
+    "ru": "Время работы лезвия",
+    "pl": "Czas pracy ostrza",
+    "ko": "칼날 사용 시간",
+    "ar": "وقت استخدام النصل"
+  },
+  "getable": true,
+  "setable": false,
+  "uiComponent": "sensor",
+  "units": "h",
+  "decimals": 1,
+  "icon": "/assets/icon.svg"
+}

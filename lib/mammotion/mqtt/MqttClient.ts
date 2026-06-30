@@ -24,6 +24,9 @@ export interface TelemetryState {
   latitude: number | null;
   longitude: number | null;
   errorCode: number | null;
+  // maintain report (RIT_MAINTAIN)
+  batteryCycles: number | null;
+  bladeUsedTime: number | null;
 }
 
 export type TelemetryCallback = (iotId: string, state: Partial<TelemetryState>) => void;

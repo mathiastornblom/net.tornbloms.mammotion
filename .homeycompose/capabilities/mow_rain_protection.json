@@ -1,0 +1,22 @@
+{
+  "type": "boolean",
+  "title": {
+    "en": "Rain Protection",
+    "nl": "Regenbescherming",
+    "de": "Regenschutz",
+    "fr": "Protection pluie",
+    "it": "Protezione pioggia",
+    "sv": "Regnskydd",
+    "no": "Regnbeskyttelse",
+    "es": "Protección lluvia",
+    "da": "Regnbeskyttelse",
+    "ru": "Защита от дождя",
+    "pl": "Ochrona przed deszczem",
+    "ko": "우천 보호",
+    "ar": "الحماية من المطر"
+  },
+  "getable": true,
+  "setable": true,
+  "uiComponent": "toggle",
+  "icon": "/assets/icon.svg"
+}

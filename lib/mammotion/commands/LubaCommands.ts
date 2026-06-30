@@ -147,6 +147,24 @@ export function buildStartMowCommand(
 }
 
 /**
+ * Build a rain-protection command (MctlSys.job_plan.rainTactics).
+ * rainTactics=0 = stop mowing when rain detected (protection ON).
+ * rainTactics=1 = continue mowing in rain (protection OFF).
+ */
+export function buildSetRainProtectionCommand(
+  stopInRain: boolean,
+  userAccount: string,
+  seq: { value: number },
+): string {
+  return encodeLubaMsgBase64({
+    ...envelope(MsgCmdType.EMBED_SYS, MsgDevice.DEV_MAINCTL, userAccount, seq),
+    sys: {
+      jobPlan: { rainTactics: stopInRain ? 0 : 1 },
+    },
+  });
+}
+
+/**
  * Build a set-headlamp command (SocMul.set_lamp / SetHeadlamp in luba_mul.proto).
  * set_ids=0 targets the main headlamp; set_ids=1 targets the side LED.
  * lamp_manual_ctrl=1 (manual_power_on/off) overrides any auto-lighting schedule.

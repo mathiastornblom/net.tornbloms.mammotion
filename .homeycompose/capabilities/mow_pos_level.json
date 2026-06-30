@@ -1,0 +1,96 @@
+{
+  "type": "enum",
+  "values": [
+    {
+      "id": "none",
+      "title": {
+        "en": "No Fix",
+        "nl": "Geen fix",
+        "de": "Kein Fix",
+        "fr": "Pas de fix",
+        "it": "Nessun fix",
+        "sv": "Ingen fix",
+        "no": "Ingen fix",
+        "es": "Sin fix",
+        "da": "Ingen fix",
+        "ru": "Нет фиксации",
+        "pl": "Brak fiksacji",
+        "ko": "위치 없음",
+        "ar": "لا يوجد إصلاح"
+      }
+    },
+    {
+      "id": "gnss",
+      "title": {
+        "en": "GNSS",
+        "nl": "GNSS",
+        "de": "GNSS",
+        "fr": "GNSS",
+        "it": "GNSS",
+        "sv": "GNSS",
+        "no": "GNSS",
+        "es": "GNSS",
+        "da": "GNSS",
+        "ru": "GNSS",
+        "pl": "GNSS",
+        "ko": "GNSS",
+        "ar": "GNSS"
+      }
+    },
+    {
+      "id": "float",
+      "title": {
+        "en": "RTK Float",
+        "nl": "RTK Float",
+        "de": "RTK Float",
+        "fr": "RTK Float",
+        "it": "RTK Float",
+        "sv": "RTK Float",
+        "no": "RTK Float",
+        "es": "RTK Float",
+        "da": "RTK Float",
+        "ru": "RTK Float",
+        "pl": "RTK Float",
+        "ko": "RTK Float",
+        "ar": "RTK Float"
+      }
+    },
+    {
+      "id": "rtk",
+      "title": {
+        "en": "RTK Fixed",
+        "nl": "RTK Vast",
+        "de": "RTK Fest",
+        "fr": "RTK Fixe",
+        "it": "RTK Fisso",
+        "sv": "RTK Fast",
+        "no": "RTK Fast",
+        "es": "RTK Fijo",
+        "da": "RTK Fast",
+        "ru": "RTK Фиксировано",
+        "pl": "RTK Stały",
+        "ko": "RTK 고정",
+        "ar": "RTK ثابت"
+      }
+    }
+  ],
+  "title": {
+    "en": "RTK Position",
+    "nl": "RTK-positie",
+    "de": "RTK-Position",
+    "fr": "Position RTK",
+    "it": "Posizione RTK",
+    "sv": "RTK-position",
+    "no": "RTK-posisjon",
+    "es": "Posición RTK",
+    "da": "RTK-position",
+    "ru": "RTK позиция",
+    "pl": "Pozycja RTK",
+    "ko": "RTK 위치",
+    "ar": "موضع RTK"
+  },
+  "getable": true,
+  "setable": false,
+  "uiComponent": "sensor",
+  "icon": "/assets/icon.svg"
+}

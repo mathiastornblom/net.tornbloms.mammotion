@@ -1,7 +1,7 @@
 {
   "_comment": "This file is generated. Please edit .homeycompose/app.json instead.",
   "id": "net.tornbloms.mammotion",
-  "version": "1.7.1",
+  "version": "1.8.0",
   "compatibility": ">=12.9.0",
   "sdk": 3,
   "runtime": "nodejs",
@@ -537,6 +537,87 @@
         ]
       },
       {
+        "id": "set_rain_protection",
+        "title": {
+          "en": "Set rain protection",
+          "nl": "Regenbescherming instellen",
+          "de": "Regenschutz einstellen",
+          "fr": "Régler la protection pluie",
+          "it": "Imposta protezione pioggia",
+          "sv": "Ange regnskydd",
+          "no": "Angi regnbeskyttelse",
+          "es": "Configurar protección lluvia",
+          "da": "Indstil regnbeskyttelse",
+          "ru": "Установить защиту от дождя",
+          "pl": "Ustaw ochronę przed deszczem",
+          "ko": "우천 보호 설정",
+          "ar": "تعيين الحماية من المطر"
+        },
+        "titleFormatted": {
+          "en": "Turn rain protection [[enabled]]",
+          "nl": "Regenbescherming [[enabled]]",
+          "de": "Regenschutz [[enabled]]",
+          "fr": "Protection pluie [[enabled]]",
+          "it": "Protezione pioggia [[enabled]]",
+          "sv": "Regnskydd [[enabled]]",
+          "no": "Regnbeskyttelse [[enabled]]",
+          "es": "Protección lluvia [[enabled]]",
+          "da": "Regnbeskyttelse [[enabled]]",
+          "ru": "Защита от дождя [[enabled]]",
+          "pl": "Ochrona przed deszczem [[enabled]]",
+          "ko": "우천 보호 [[enabled]]",
+          "ar": "الحماية من المطر [[enabled]]"
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=luba"
+          },
+          {
+            "type": "dropdown",
+            "name": "enabled",
+            "title": {
+              "en": "Protection",
+              "nl": "Bescherming",
+              "de": "Schutz",
+              "fr": "Protection",
+              "it": "Protezione",
+              "sv": "Skydd",
+              "no": "Beskyttelse",
+              "es": "Protección",
+              "da": "Beskyttelse",
+              "ru": "Защита",
+              "pl": "Ochrona",
+              "ko": "보호",
+              "ar": "الحماية"
+            },
+            "values": [
+              {
+                "id": "true",
+                "label": {
+                  "en": "On (stop in rain)",
+                  "sv": "På (stanna i regn)",
+                  "nl": "Aan (stoppen bij regen)",
+                  "de": "Ein (bei Regen stoppen)",
+                  "fr": "Activé (arrêt sous la pluie)"
+                }
+              },
+              {
+                "id": "false",
+                "label": {
+                  "en": "Off (continue in rain)",
+                  "sv": "Av (fortsätt i regn)",
+                  "nl": "Uit (doorgaan bij regen)",
+                  "de": "Aus (bei Regen weiter)",
+                  "fr": "Désactivé (continuer sous la pluie)"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
         "id": "set_blade_speed",
         "title": {
           "en": "Set blade speed",
@@ -688,7 +769,11 @@
         "active_transport",
         "mow_cutter_mode",
         "mow_headlamp",
-        "mow_side_led"
+        "mow_side_led",
+        "mow_pos_level",
+        "mow_rain_protection",
+        "measure_battery_cycles",
+        "measure_blade_used_time"
       ],
       "energy": {
         "batteries": [
@@ -908,6 +993,53 @@
       "getable": true,
       "setable": false,
       "uiComponent": "sensor",
+      "icon": "/assets/icon.svg"
+    },
+    "measure_battery_cycles": {
+      "type": "number",
+      "title": {
+        "en": "Battery Cycles",
+        "nl": "Batterijcycli",
+        "de": "Akkuzyklen",
+        "fr": "Cycles de batterie",
+        "it": "Cicli batteria",
+        "sv": "Battericykler",
+        "no": "Batterisykluser",
+        "es": "Ciclos de batería",
+        "da": "Battericyklusser",
+        "ru": "Циклы зарядки",
+        "pl": "Cykle baterii",
+        "ko": "배터리 사이클",
+        "ar": "دورات البطارية"
+      },
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "decimals": 0,
+      "icon": "/assets/icon.svg"
+    },
+    "measure_blade_used_time": {
+      "type": "number",
+      "title": {
+        "en": "Blade Used Time",
+        "nl": "Mesgebruikstijd",
+        "de": "Messerbetriebszeit",
+        "fr": "Temps d'utilisation de la lame",
+        "it": "Tempo di utilizzo lama",
+        "sv": "Klinganvändningstid",
+        "no": "Klingbrukstid",
+        "es": "Tiempo de uso de la cuchilla",
+        "da": "Knivbrugstid",
+        "ru": "Время работы лезвия",
+        "pl": "Czas pracy ostrza",
+        "ko": "칼날 사용 시간",
+        "ar": "وقت استخدام النصل"
+      },
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "units": "h",
+      "decimals": 1,
       "icon": "/assets/icon.svg"
     },
     "measure_ble_rssi": {
@@ -1245,6 +1377,124 @@
         "pl": "Reflektor",
         "ko": "전조등",
         "ar": "المصباح الأمامي"
+      },
+      "getable": true,
+      "setable": true,
+      "uiComponent": "toggle",
+      "icon": "/assets/icon.svg"
+    },
+    "mow_pos_level": {
+      "type": "enum",
+      "values": [
+        {
+          "id": "none",
+          "title": {
+            "en": "No Fix",
+            "nl": "Geen fix",
+            "de": "Kein Fix",
+            "fr": "Pas de fix",
+            "it": "Nessun fix",
+            "sv": "Ingen fix",
+            "no": "Ingen fix",
+            "es": "Sin fix",
+            "da": "Ingen fix",
+            "ru": "Нет фиксации",
+            "pl": "Brak fiksacji",
+            "ko": "위치 없음",
+            "ar": "لا يوجد إصلاح"
+          }
+        },
+        {
+          "id": "gnss",
+          "title": {
+            "en": "GNSS",
+            "nl": "GNSS",
+            "de": "GNSS",
+            "fr": "GNSS",
+            "it": "GNSS",
+            "sv": "GNSS",
+            "no": "GNSS",
+            "es": "GNSS",
+            "da": "GNSS",
+            "ru": "GNSS",
+            "pl": "GNSS",
+            "ko": "GNSS",
+            "ar": "GNSS"
+          }
+        },
+        {
+          "id": "float",
+          "title": {
+            "en": "RTK Float",
+            "nl": "RTK Float",
+            "de": "RTK Float",
+            "fr": "RTK Float",
+            "it": "RTK Float",
+            "sv": "RTK Float",
+            "no": "RTK Float",
+            "es": "RTK Float",
+            "da": "RTK Float",
+            "ru": "RTK Float",
+            "pl": "RTK Float",
+            "ko": "RTK Float",
+            "ar": "RTK Float"
+          }
+        },
+        {
+          "id": "rtk",
+          "title": {
+            "en": "RTK Fixed",
+            "nl": "RTK Vast",
+            "de": "RTK Fest",
+            "fr": "RTK Fixe",
+            "it": "RTK Fisso",
+            "sv": "RTK Fast",
+            "no": "RTK Fast",
+            "es": "RTK Fijo",
+            "da": "RTK Fast",
+            "ru": "RTK Фиксировано",
+            "pl": "RTK Stały",
+            "ko": "RTK 고정",
+            "ar": "RTK ثابت"
+          }
+        }
+      ],
+      "title": {
+        "en": "RTK Position",
+        "nl": "RTK-positie",
+        "de": "RTK-Position",
+        "fr": "Position RTK",
+        "it": "Posizione RTK",
+        "sv": "RTK-position",
+        "no": "RTK-posisjon",
+        "es": "Posición RTK",
+        "da": "RTK-position",
+        "ru": "RTK позиция",
+        "pl": "Pozycja RTK",
+        "ko": "RTK 위치",
+        "ar": "موضع RTK"
+      },
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/assets/icon.svg"
+    },
+    "mow_rain_protection": {
+      "type": "boolean",
+      "title": {
+        "en": "Rain Protection",
+        "nl": "Regenbescherming",
+        "de": "Regenschutz",
+        "fr": "Protection pluie",
+        "it": "Protezione pioggia",
+        "sv": "Regnskydd",
+        "no": "Regnbeskyttelse",
+        "es": "Protección lluvia",
+        "da": "Regnbeskyttelse",
+        "ru": "Защита от дождя",
+        "pl": "Ochrona przed deszczem",
+        "ko": "우천 보호",
+        "ar": "الحماية من المطر"
       },
       "getable": true,
       "setable": true,

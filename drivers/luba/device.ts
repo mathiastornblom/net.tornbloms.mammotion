@@ -13,6 +13,7 @@ import {
   buildSetBladeHeightCommand,
   buildSetBladeSpeedCommand,
   buildSetHeadlampCommand,
+  buildSetRainProtectionCommand,
   buildReadScheduleCommand,
   type StartMowOptions,
   type CutterMode,
@@ -89,6 +90,10 @@ export default class LubaDevice extends Homey.Device {
 
     this.registerCapabilityListener('mow_side_led', async (value: boolean) => {
       await this.actionSetHeadlamp(value, 1);
+    });
+
+    this.registerCapabilityListener('mow_rain_protection', async (value: boolean) => {
+      await this.actionSetRainProtection(value);
     });
 
     // Ensure sensor shows "Disconnected" immediately rather than blank until a transport connects.
@@ -380,6 +385,16 @@ export default class LubaDevice extends Homey.Device {
     if (state.mowingSpeed != null && this.setCapIfChanged('measure_mowing_speed', state.mowingSpeed)) changed.push(`speed=${state.mowingSpeed}`);
     if (state.elapsedTime != null && this.setCapIfChanged('measure_elapsed_time', state.elapsedTime)) changed.push(`elapsed=${state.elapsedTime}`);
     if (state.leftTime != null && this.setCapIfChanged('measure_left_time', state.leftTime)) changed.push(`left=${state.leftTime}`);
+    if (state.posLevel != null) {
+      const posEnum = LubaDevice.posLevelToEnum(state.posLevel);
+      if (this.setCapIfChanged('mow_pos_level', posEnum)) changed.push(`pos=${posEnum}(${state.posLevel})`);
+    }
+    if (state.batteryCycles != null && this.setCapIfChanged('measure_battery_cycles', state.batteryCycles)) changed.push(`cycles=${state.batteryCycles}`);
+    if (state.bladeUsedTime != null) {
+      // bladeUsedTime is in minutes; expose as hours with 1 decimal
+      const hours = Math.round(state.bladeUsedTime / 6) / 10;
+      if (this.setCapIfChanged('measure_blade_used_time', hours)) changed.push(`blade=${hours}h`);
+    }
 
     if (changed.length > 0) this.log(`[${via}] telemetry changed: ${changed.join(' ')}`);
   }
@@ -435,6 +450,22 @@ export default class LubaDevice extends Homey.Device {
     const bytes = Buffer.from(buildSetBladeSpeedCommand(modeMap[mode] ?? 0, session.userAccount, this.seq), 'base64');
     await this.sendRaw(bytes, `set_blade_speed(${mode})`);
     this.setCapIfChanged('mow_cutter_mode', mode);
+  }
+
+  private static posLevelToEnum(level: number): string {
+    switch (level) {
+      case 1: return 'gnss';
+      case 2: return 'float';
+      case 4: return 'rtk';
+      default: return 'none';
+    }
+  }
+
+  async actionSetRainProtection(enabled: boolean): Promise<void> {
+    const session = await this.getSession();
+    const bytes = Buffer.from(buildSetRainProtectionCommand(enabled, session.userAccount, this.seq), 'base64');
+    await this.sendRaw(bytes, `set_rain_protection(${enabled})`);
+    this.setCapIfChanged('mow_rain_protection', enabled);
   }
 
   /** setIds: 0 = headlamp, 1 = side LED */

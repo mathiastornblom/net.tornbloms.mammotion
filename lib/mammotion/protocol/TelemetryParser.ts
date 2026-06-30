@@ -53,5 +53,15 @@ export function extractTelemetry(msg: Record<string, unknown>): Partial<Telemetr
     if (typeof work.manRunSpeed === 'number') telemetry.mowingSpeed = work.manRunSpeed / 100;
   }
 
+  const maintain = report.maintain as Record<string, unknown> | undefined;
+  if (maintain) {
+    if (typeof maintain.batCycles === 'number') telemetry.batteryCycles = maintain.batCycles;
+    const bladeUsed = maintain.bladeUsedTime as Record<string, number> | undefined;
+    if (bladeUsed && typeof bladeUsed.bladeUsedTime === 'number') {
+      // bladeUsedTime is in minutes per pymammotion reference
+      telemetry.bladeUsedTime = bladeUsed.bladeUsedTime;
+    }
+  }
+
   return telemetry;
 }

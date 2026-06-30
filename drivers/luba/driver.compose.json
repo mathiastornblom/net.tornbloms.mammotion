@@ -32,7 +32,11 @@
     "active_transport",
     "mow_cutter_mode",
     "mow_headlamp",
-    "mow_side_led"
+    "mow_side_led",
+    "mow_pos_level",
+    "mow_rain_protection",
+    "measure_battery_cycles",
+    "measure_blade_used_time"
   ],
   "energy": {
     "batteries": ["INTERNAL"]
@@ -542,6 +546,70 @@
         "hint": {
           "en": "Reads the mower's stored schedule into the app log for diagnostics. Does not change anything on the device."
         }
+      },
+      {
+        "id": "set_rain_protection",
+        "title": {
+          "en": "Set rain protection",
+          "nl": "Regenbescherming instellen",
+          "de": "Regenschutz einstellen",
+          "fr": "Régler la protection pluie",
+          "it": "Imposta protezione pioggia",
+          "sv": "Ange regnskydd",
+          "no": "Angi regnbeskyttelse",
+          "es": "Configurar protección lluvia",
+          "da": "Indstil regnbeskyttelse",
+          "ru": "Установить защиту от дождя",
+          "pl": "Ustaw ochronę przed deszczem",
+          "ko": "우천 보호 설정",
+          "ar": "تعيين الحماية من المطر"
+        },
+        "titleFormatted": {
+          "en": "Turn rain protection [[enabled]]",
+          "nl": "Regenbescherming [[enabled]]",
+          "de": "Regenschutz [[enabled]]",
+          "fr": "Protection pluie [[enabled]]",
+          "it": "Protezione pioggia [[enabled]]",
+          "sv": "Regnskydd [[enabled]]",
+          "no": "Regnbeskyttelse [[enabled]]",
+          "es": "Protección lluvia [[enabled]]",
+          "da": "Regnbeskyttelse [[enabled]]",
+          "ru": "Защита от дождя [[enabled]]",
+          "pl": "Ochrona przed deszczem [[enabled]]",
+          "ko": "우천 보호 [[enabled]]",
+          "ar": "الحماية من المطر [[enabled]]"
+        },
+        "args": [
+          {
+            "type": "dropdown",
+            "name": "enabled",
+            "title": {
+              "en": "Protection",
+              "nl": "Bescherming",
+              "de": "Schutz",
+              "fr": "Protection",
+              "it": "Protezione",
+              "sv": "Skydd",
+              "no": "Beskyttelse",
+              "es": "Protección",
+              "da": "Beskyttelse",
+              "ru": "Защита",
+              "pl": "Ochrona",
+              "ko": "보호",
+              "ar": "الحماية"
+            },
+            "values": [
+              {
+                "id": "true",
+                "label": { "en": "On (stop in rain)", "sv": "På (stanna i regn)", "nl": "Aan (stoppen bij regen)", "de": "Ein (bei Regen stoppen)", "fr": "Activé (arrêt sous la pluie)" }
+              },
+              {
+                "id": "false",
+                "label": { "en": "Off (continue in rain)", "sv": "Av (fortsätt i regn)", "nl": "Uit (doorgaan bij regen)", "de": "Aus (bei Regen weiter)", "fr": "Désactivé (continuer sous la pluie)" }
+              }
+            ]
+          }
+        ]
       },
       {
         "id": "set_blade_speed",

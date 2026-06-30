@@ -1,0 +1,23 @@
+{
+  "type": "number",
+  "title": {
+    "en": "Battery Cycles",
+    "nl": "Batterijcycli",
+    "de": "Akkuzyklen",
+    "fr": "Cycles de batterie",
+    "it": "Cicli batteria",
+    "sv": "Battericykler",
+    "no": "Batterisykluser",
+    "es": "Ciclos de batería",
+    "da": "Battericyklusser",
+    "ru": "Циклы зарядки",
+    "pl": "Cykle baterii",
+    "ko": "배터리 사이클",
+    "ar": "دورات البطارية"
+  },
+  "getable": true,
+  "setable": false,
+  "uiComponent": "sensor",
+  "decimals": 0,
+  "icon": "/assets/icon.svg"
+}
