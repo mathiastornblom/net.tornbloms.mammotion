@@ -1,0 +1,24 @@
+{
+  "error": {
+    "missing_credentials": "Bitte geben Sie Ihre E-Mail-Adresse und Ihr Passwort ein.",
+    "invalid_credentials": "Ungültige E-Mail-Adresse oder Passwort. Bitte versuchen Sie es erneut.",
+    "not_authenticated": "Kein Mammotion-Konto konfiguriert. Bitte fügen Sie das Gerät erneut hinzu.",
+    "device_offline": "Mäher ist offline",
+    "command_failed": "Befehl fehlgeschlagen"
+  },
+  "flow": {
+    "triggers": {
+      "mower_started_mowing": { "title": "Mäher hat mit dem Mähen begonnen" },
+      "mower_docked": { "title": "Mäher ist zur Ladestation zurückgekehrt" },
+      "mower_error": { "title": "Mäher hat einen Fehler gemeldet" }
+    },
+    "conditions": {
+      "is_mowing": { "title": "Mäher mäht" }
+    },
+    "actions": {
+      "start_mowing": { "title": "Mähen starten" },
+      "send_to_dock": { "title": "Mäher zur Ladestation senden" },
+      "pause_mowing": { "title": "Mähen pausieren" }
+    }
+  }
+}

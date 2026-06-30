@@ -3,9 +3,10 @@
 import https from 'https';
 import mqtt from 'mqtt';
 
-import type { MqttConnection, AuthSession, DeviceContext } from '../auth/types';
-import { decodeMessage, getBytesField, getVarintField } from '../protocol/Codec';
-import { MQTT_CONNECT_TIMEOUT_MS, MQTT_RECONNECT_PERIOD_MS, WORK_MODE } from '../constants';
+import type { MqttConnection, AuthSession, DeviceContext } from '../auth/types.js';
+import { decodeLubaMsg } from '../protocol/Codec.js';
+import { extractTelemetry } from '../protocol/TelemetryParser.js';
+import { MQTT_CONNECT_TIMEOUT_MS } from '../constants.js';
 
 export interface TelemetryState {
   workMode: number | null;
@@ -28,7 +29,12 @@ export interface TelemetryState {
 export type TelemetryCallback = (iotId: string, state: Partial<TelemetryState>) => void;
 export type StatusCallback = (iotId: string, online: boolean) => void;
 
-const MQTT_INVOKE_PATH = '/v1/message/send';
+const MQTT_INVOKE_PATH = '/v1/mqtt/rpc/thing/service/invoke';
+
+/** Random 21-digit request id, as sent by the official app on every invoke call. */
+function buildRequestId(): string {
+  return Array.from({ length: 21 }, () => Math.floor(Math.random() * 10)).join('');
+}
 
 /** Wraps the Mammotion JWT-based MQTT connection and provides send / receive APIs. */
 export class MqttClient {
@@ -36,6 +42,9 @@ export class MqttClient {
   private client: ReturnType<typeof mqtt.connect> | null = null;
   private onTelemetry: TelemetryCallback;
   private onStatus: StatusCallback;
+  private onNotification: (iotId: string, identifier: string) => void;
+  private onRawMessage?: (iotId: string, msg: Record<string, unknown>) => void;
+  private onClose: () => void;
   private log: (msg: string) => void;
   private logError: (msg: string) => void;
 
@@ -45,16 +54,33 @@ export class MqttClient {
   constructor(opts: {
     onTelemetry: TelemetryCallback;
     onStatus: StatusCallback;
+    /** Called for non-telemetry thing/event identifiers (device wants the app to
+     *  react) — the caller re-arms the report-config subscription. */
+    onNotification: (iotId: string, identifier: string) => void;
+    /** Called for every decoded LubaMsg (telemetry or not) — used for on-demand
+     *  reads (e.g. schedule) that aren't part of the periodic report stream. */
+    onRawMessage?: (iotId: string, msg: Record<string, unknown>) => void;
+    /** Called when the broker drops the connection. The JWT is single-use for
+     *  reconnects, so the caller must fetch fresh credentials and call connect() again. */
+    onClose: () => void;
     log: (msg: string) => void;
     logError: (msg: string) => void;
   }) {
     this.onTelemetry = opts.onTelemetry;
     this.onStatus = opts.onStatus;
+    this.onNotification = opts.onNotification;
+    this.onRawMessage = opts.onRawMessage;
+    this.onClose = opts.onClose;
     this.log = opts.log;
     this.logError = opts.logError;
   }
 
-  /** Connect to the MQTT broker and subscribe to device topics. */
+  /**
+   * Connect to the MQTT broker and subscribe to device topics.
+   * Aliyun's broker rejects reused JWT credentials on reconnect, so mqtt.js's
+   * built-in auto-reconnect is disabled — the caller must refetch credentials
+   * (via onClose) and call connect() again with a fresh MqttConnection.
+   */
   connect(mqttAuth: MqttConnection, devices: DeviceContext[]): void {
     if (this.client) {
       this.client.removeAllListeners();
@@ -75,7 +101,7 @@ export class MqttClient {
       clientId: mqttAuth.clientId,
       username: mqttAuth.username,
       password: mqttAuth.jwt,
-      reconnectPeriod: MQTT_RECONNECT_PERIOD_MS,
+      reconnectPeriod: 0,
       connectTimeout: MQTT_CONNECT_TIMEOUT_MS,
       protocolVersion: 4,
       clean: true,
@@ -96,9 +122,16 @@ export class MqttClient {
 
     this.client.on('close', () => {
       this.log('MQTT connection closed');
+      this.onClose();
     });
   }
 
+  /**
+   * Subscribes to exactly the topics pymammotion's JWT-based transport uses.
+   * Extra topic guesses (e.g. `app/down/thing/properties`) are not authorized
+   * by this account's ACL — Aliyun's broker closes the whole connection (not
+   * just the one subscription) when an unauthorized topic is requested.
+   */
   private subscribeDeviceTopics(devices: DeviceContext[]): void {
     const topics: string[] = [];
     for (const d of devices) {
@@ -106,19 +139,15 @@ export class MqttClient {
       const pk = d.productKey;
       const dn = d.recordDeviceName;
       topics.push(
-        `/sys/${pk}/${dn}/app/down/thing/status`,
         `/sys/${pk}/${dn}/thing/event/+/post`,
         `/sys/proto/${pk}/${dn}/thing/event/+/post`,
-        `/sys/${pk}/${dn}/app/down/thing/properties`,
-        `/sys/${pk}/${dn}/app/down/thing/events`,
-        `/sys/${pk}/${dn}/app/down/thing/model/down_raw`,
-        `/sys/${pk}/${dn}/app/down/_thing/event/notify`,
-        `/sys/${pk}/${dn}/thing/event/property/post`,
+        `/sys/${pk}/${dn}/app/down/thing/status`,
       );
     }
     for (const topic of topics) {
       this.client?.subscribe(topic, (err: Error | null) => {
         if (err) this.logError(`MQTT subscribe failed (${topic}): ${err.message}`);
+        else this.log(`MQTT subscribed: ${topic}`);
       });
     }
   }
@@ -148,87 +177,51 @@ export class MqttClient {
         return;
       }
 
-      if (topic.includes('/thing/event/') || topic.includes('/thing/properties')) {
-        this.handleJsonTelemetry(iotId ?? '', json);
+      if (topic.includes('/thing/event/')) {
+        // Topic shape: /sys/{pk}/{dn}/thing/event/{identifier}/post
+        const identifier = parts[parts.length - 2];
+        if (identifier === 'device_protobuf_msg_event') {
+          const content = this.extractBase64Content(json);
+          if (content && iotId) {
+            this.handleProtobufMessage(iotId, Buffer.from(content, 'base64'));
+          }
+          return;
+        }
+        // Any other identifier (device_biz_req_event, device_config_req_event,
+        // notifications…) means the device wants the app to react — re-arm the
+        // report-config subscription so telemetry keeps flowing.
+        if (iotId) this.onNotification(iotId, identifier);
       }
     } catch {
       // non-JSON payload on non-proto topic — ignore
     }
   }
 
-  private handleProtobufMessage(iotId: string, payload: Buffer): void {
-    try {
-      const fields = decodeMessage(payload);
-      const telemetry: Partial<TelemetryState> = {};
-
-      // Field 10 = MctlSys, field 11 = MctlNav, field 12 = MctlDriver
-      const sysField = getBytesField(fields, 10);
-      if (sysField) {
-        const sys = decodeMessage(sysField);
-        // MctlSys field 1 = toapp_report_cfg_rsp → contains work_tatus (field 2)
-        const reportRsp = getBytesField(sys, 1);
-        if (reportRsp) {
-          const rsp = decodeMessage(reportRsp);
-          const workMode = getVarintField(rsp, 2);
-          if (workMode !== null) telemetry.workMode = workMode;
-          const bat = getVarintField(rsp, 3);
-          if (bat !== null) telemetry.batteryPercent = bat;
-          const wifiRssi = getVarintField(rsp, 4);
-          if (wifiRssi !== null) telemetry.wifiRssi = wifiRssi > 0x7fffffff ? wifiRssi - 0x100000000 : wifiRssi;
-          const bleRssi = getVarintField(rsp, 5);
-          if (bleRssi !== null) telemetry.bleRssi = bleRssi > 0x7fffffff ? bleRssi - 0x100000000 : bleRssi;
-          const gps = getVarintField(rsp, 6);
-          if (gps !== null) telemetry.gpsStars = gps;
-        }
-      }
-
-      const navField = getBytesField(fields, 11);
-      if (navField) {
-        const nav = decodeMessage(navField);
-        // MctlNav field 22 = toapp_work_state
-        const workState = getBytesField(nav, 22);
-        if (workState) {
-          const ws = decodeMessage(workState);
-          const area = getVarintField(ws, 1);
-          if (area !== null) telemetry.area = area;
-          const prog = getVarintField(ws, 5);
-          if (prog !== null) telemetry.progress = prog;
-          const elapsed = getVarintField(ws, 7);
-          if (elapsed !== null) telemetry.elapsedTime = elapsed;
-          const left = getVarintField(ws, 8);
-          if (left !== null) telemetry.leftTime = left;
-        }
-      }
-
-      if (Object.keys(telemetry).length > 0 && iotId) {
-        this.onTelemetry(iotId, telemetry);
-      }
-    } catch {
-      // malformed protobuf — ignore
-    }
+  /** Unwraps the `{params: {content}}` or `{params: {value: {content}}}` envelope. */
+  private extractBase64Content(json: unknown): string | null {
+    const params = (json as Record<string, unknown> | undefined)?.params as Record<string, unknown> | undefined;
+    if (!params) return null;
+    if (typeof params.content === 'string') return params.content;
+    const value = params.value as Record<string, unknown> | undefined;
+    if (value && typeof value.content === 'string') return value.content;
+    return null;
   }
 
-  private handleJsonTelemetry(iotId: string, json: Record<string, unknown>): void {
-    const params = json?.params as Record<string, unknown>;
-    if (!params || !iotId) return;
-
-    const telemetry: Partial<TelemetryState> = {};
-    const items = Array.isArray(params) ? params : [params];
-
-    for (const item of items) {
-      const rec = item as Record<string, unknown>;
-      const identifier = rec.identifier as string | undefined;
-      const val = rec.value;
-      if (identifier === 'workState' || identifier === 'work_mode') {
-        telemetry.workMode = Number(val);
-      } else if (identifier === 'battery' || identifier === 'batterypercent') {
-        telemetry.batteryPercent = Number(val);
-      }
+  /** Decode a LubaMsg protobuf and forward telemetry via extractTelemetry (TelemetryParser.ts). */
+  private handleProtobufMessage(iotId: string, payload: Buffer): void {
+    if (!iotId) return;
+    let msg: Record<string, unknown>;
+    try {
+      msg = decodeLubaMsg(payload);
+    } catch (err) {
+      this.logError(`protobuf decode failed: ${err instanceof Error ? err.message : String(err)}`);
+      return;
     }
-
-    if (Object.keys(telemetry).length > 0) {
+    const telemetry = extractTelemetry(msg);
+    if (telemetry && Object.keys(telemetry).length > 0) {
       this.onTelemetry(iotId, telemetry);
     }
+    this.onRawMessage?.(iotId, msg);
   }
 
   /** Send a base64-encoded protobuf command via the IoT REST invoke endpoint. */
@@ -237,9 +230,13 @@ export class MqttClient {
     context: DeviceContext,
     contentBase64: string,
   ): Promise<string> {
+    // deviceName/productKey are sent empty (matching pymammotion's mqtt_invoke) —
+    // only iotId is used for routing.
     const body = JSON.stringify({
       iotId: context.iotId,
-      identifier: 'device_protobuf_msg_send',
+      deviceName: '',
+      productKey: '',
+      identifier: 'device_protobuf_sync_service',
       args: { content: contentBase64 },
     });
 
@@ -255,6 +252,11 @@ export class MqttClient {
             'Content-Type': 'application/json',
             'Content-Length': String(Buffer.byteLength(body)),
             'User-Agent': 'okhttp/4.9.3',
+            'Client-Id': session.clientId,
+            'Client-Type': '1',
+            'Request-Id': buildRequestId(),
+            'Accept-Language': 'en-US',
+            'L-T-Z': `${Date.now()}/0/0`,
           },
         },
         (res) => {

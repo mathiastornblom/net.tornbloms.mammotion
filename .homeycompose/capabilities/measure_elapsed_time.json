@@ -1,0 +1,25 @@
+{
+  "type": "number",
+  "title": {
+    "en": "Elapsed Time",
+    "nl": "Verstreken tijd",
+    "de": "Verstrichene Zeit",
+    "fr": "Temps écoulé",
+    "it": "Tempo trascorso",
+    "sv": "Förfluten tid",
+    "no": "Forløpt tid",
+    "es": "Tiempo transcurrido",
+    "da": "Forløbet tid",
+    "ru": "Прошедшее время",
+    "pl": "Czas, który upłynął",
+    "ko": "경과 시간",
+    "ar": "الوقت المنقضي"
+  },
+  "units": { "en": "min" },
+  "min": 0,
+  "decimals": 0,
+  "getable": true,
+  "setable": false,
+  "uiComponent": "sensor",
+  "icon": "/assets/icon.svg"
+}

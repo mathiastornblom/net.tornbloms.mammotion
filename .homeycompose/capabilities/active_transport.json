@@ -1,0 +1,78 @@
+{
+  "type": "enum",
+  "values": [
+    {
+      "id": "ble",
+      "title": {
+        "en": "Bluetooth",
+        "nl": "Bluetooth",
+        "de": "Bluetooth",
+        "fr": "Bluetooth",
+        "it": "Bluetooth",
+        "sv": "Bluetooth",
+        "no": "Bluetooth",
+        "es": "Bluetooth",
+        "da": "Bluetooth",
+        "ru": "Bluetooth",
+        "pl": "Bluetooth",
+        "ko": "블루투스",
+        "ar": "بلوتوث"
+      }
+    },
+    {
+      "id": "mqtt",
+      "title": {
+        "en": "Cloud",
+        "nl": "Cloud",
+        "de": "Cloud",
+        "fr": "Cloud",
+        "it": "Cloud",
+        "sv": "Moln",
+        "no": "Sky",
+        "es": "Nube",
+        "da": "Sky",
+        "ru": "Облако",
+        "pl": "Chmura",
+        "ko": "클라우드",
+        "ar": "السحابة"
+      }
+    },
+    {
+      "id": "none",
+      "title": {
+        "en": "Disconnected",
+        "nl": "Niet verbonden",
+        "de": "Nicht verbunden",
+        "fr": "Déconnecté",
+        "it": "Disconnesso",
+        "sv": "Frånkopplad",
+        "no": "Frakoblet",
+        "es": "Desconectado",
+        "da": "Afbrudt",
+        "ru": "Отключено",
+        "pl": "Rozłączono",
+        "ko": "연결 끊김",
+        "ar": "غير متصل"
+      }
+    }
+  ],
+  "title": {
+    "en": "Connection Type",
+    "nl": "Verbindingstype",
+    "de": "Verbindungstyp",
+    "fr": "Type de connexion",
+    "it": "Tipo di connessione",
+    "sv": "Anslutningstyp",
+    "no": "Tilkoblingstype",
+    "es": "Tipo de conexión",
+    "da": "Forbindelsestype",
+    "ru": "Тип соединения",
+    "pl": "Typ połączenia",
+    "ko": "연결 유형",
+    "ar": "نوع الاتصال"
+  },
+  "getable": true,
+  "setable": false,
+  "uiComponent": "sensor",
+  "icon": "/assets/icon.svg"
+}

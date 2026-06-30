@@ -1,0 +1,24 @@
+{
+  "error": {
+    "missing_credentials": "Wprowadź adres e-mail i hasło.",
+    "invalid_credentials": "Nieprawidłowy adres e-mail lub hasło. Spróbuj ponownie.",
+    "not_authenticated": "Nie skonfigurowano konta Mammotion. Dodaj urządzenie ponownie.",
+    "device_offline": "Kosiarka jest offline",
+    "command_failed": "Nie udało się wykonać komendy"
+  },
+  "flow": {
+    "triggers": {
+      "mower_started_mowing": { "title": "Kosiarka zaczęła kosić" },
+      "mower_docked": { "title": "Kosiarka wróciła do stacji dokującej" },
+      "mower_error": { "title": "Kosiarka zgłosiła błąd" }
+    },
+    "conditions": {
+      "is_mowing": { "title": "Kosiarka kosi" }
+    },
+    "actions": {
+      "start_mowing": { "title": "Zacznij koszenie" },
+      "send_to_dock": { "title": "Wyślij kosiarkę do stacji dokującej" },
+      "pause_mowing": { "title": "Wstrzymaj koszenie" }
+    }
+  }
+}

@@ -1,7 +1,7 @@
 {
   "_comment": "This file is generated. Please edit .homeycompose/app.json instead.",
   "id": "net.tornbloms.mammotion",
-  "version": "1.1.1",
+  "version": "1.6.2",
   "compatibility": ">=12.9.0",
   "sdk": 3,
   "runtime": "nodejs",
@@ -147,6 +147,68 @@
             "filter": "driver_id=luba"
           }
         ]
+      },
+      {
+        "id": "battery_below",
+        "title": {
+          "en": "Battery is low",
+          "nl": "Batterij is laag",
+          "de": "Akku ist niedrig",
+          "fr": "Batterie faible",
+          "it": "Batteria scarica",
+          "sv": "Batteriet är lågt",
+          "no": "Batteriet er lavt",
+          "es": "Batería baja",
+          "da": "Batteriet er lavt",
+          "ru": "Низкий заряд батареи",
+          "pl": "Niski poziom baterii",
+          "ko": "배터리 부족",
+          "ar": "البطارية منخفضة"
+        },
+        "titleFormatted": {
+          "en": "Battery drops below [[threshold]]%",
+          "nl": "Batterij daalt onder [[threshold]]%",
+          "de": "Akku fällt unter [[threshold]]%",
+          "fr": "La batterie descend sous [[threshold]]%",
+          "it": "La batteria scende sotto il [[threshold]]%",
+          "sv": "Batteriet sjunker under [[threshold]]%",
+          "no": "Batteriet faller under [[threshold]]%",
+          "es": "La batería cae por debajo del [[threshold]]%",
+          "da": "Batteriet falder under [[threshold]]%",
+          "ru": "Заряд батареи опускается ниже [[threshold]]%",
+          "pl": "Bateria spada poniżej [[threshold]]%",
+          "ko": "배터리가 [[threshold]]% 아래로 떨어짐",
+          "ar": "تنخفض البطارية إلى أقل من [[threshold]]٪"
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=luba"
+          },
+          {
+            "type": "number",
+            "name": "threshold",
+            "min": 1,
+            "max": 99,
+            "step": 1,
+            "title": {
+              "en": "Percentage",
+              "nl": "Percentage",
+              "de": "Prozent",
+              "fr": "Pourcentage",
+              "it": "Percentuale",
+              "sv": "Procent",
+              "no": "Prosent",
+              "es": "Porcentaje",
+              "da": "Procent",
+              "ru": "Процент",
+              "pl": "Procent",
+              "ko": "퍼센트",
+              "ar": "النسبة المئوية"
+            }
+          }
+        ]
       }
     ],
     "conditions": [
@@ -166,6 +228,93 @@
           "pl": "Kosiarka !{{kosi|nie kosi}}",
           "ko": "잔디깎이가 !{{작업 중|작업 중이 아님}}",
           "ar": "الجزازة !{{تجز|لا تجز}}"
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=luba"
+          }
+        ]
+      },
+      {
+        "id": "battery_above",
+        "title": {
+          "en": "Battery !{{is|isn't}} above [[threshold]]%",
+          "nl": "Batterij !{{is|is niet}} boven [[threshold]]%",
+          "de": "Akku !{{ist|ist nicht}} über [[threshold]]%",
+          "fr": "La batterie !{{est|n'est pas}} au-dessus de [[threshold]]%",
+          "it": "La batteria !{{è|non è}} sopra il [[threshold]]%",
+          "sv": "Batteriet !{{är|är inte}} över [[threshold]]%",
+          "no": "Batteriet !{{er|er ikke}} over [[threshold]]%",
+          "es": "La batería !{{está|no está}} por encima del [[threshold]]%",
+          "da": "Batteriet !{{er|er ikke}} over [[threshold]]%",
+          "ru": "Заряд батареи !{{выше|не выше}} [[threshold]]%",
+          "pl": "Bateria !{{jest|nie jest}} powyżej [[threshold]]%",
+          "ko": "배터리가 [[threshold]]%!{{ 이상|보다 낮음}}",
+          "ar": "البطارية !{{أعلى|ليست أعلى}} من [[threshold]]٪"
+        },
+        "titleFormatted": {
+          "en": "Battery !{{is|isn't}} above [[threshold]]%",
+          "nl": "Batterij !{{is|is niet}} boven [[threshold]]%",
+          "de": "Akku !{{ist|ist nicht}} über [[threshold]]%",
+          "fr": "La batterie !{{est|n'est pas}} au-dessus de [[threshold]]%",
+          "it": "La batteria !{{è|non è}} sopra il [[threshold]]%",
+          "sv": "Batteriet !{{är|är inte}} över [[threshold]]%",
+          "no": "Batteriet !{{er|er ikke}} over [[threshold]]%",
+          "es": "La batería !{{está|no está}} por encima del [[threshold]]%",
+          "da": "Batteriet !{{er|er ikke}} over [[threshold]]%",
+          "ru": "Заряд батареи !{{выше|не выше}} [[threshold]]%",
+          "pl": "Bateria !{{jest|nie jest}} powyżej [[threshold]]%",
+          "ko": "배터리가 [[threshold]]%!{{ 이상|보다 낮음}}",
+          "ar": "البطارية !{{أعلى|ليست أعلى}} من [[threshold]]٪"
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=luba"
+          },
+          {
+            "type": "number",
+            "name": "threshold",
+            "min": 1,
+            "max": 99,
+            "step": 1,
+            "title": {
+              "en": "Percentage",
+              "nl": "Percentage",
+              "de": "Prozent",
+              "fr": "Pourcentage",
+              "it": "Percentuale",
+              "sv": "Procent",
+              "no": "Prosent",
+              "es": "Porcentaje",
+              "da": "Procent",
+              "ru": "Процент",
+              "pl": "Procent",
+              "ko": "퍼센트",
+              "ar": "النسبة المئوية"
+            }
+          }
+        ]
+      },
+      {
+        "id": "gps_signal_good",
+        "title": {
+          "en": "GPS signal !{{is|isn't}} good",
+          "nl": "GPS-signaal !{{is|is niet}} goed",
+          "de": "GPS-Signal !{{ist|ist nicht}} gut",
+          "fr": "Le signal GPS !{{est|n'est pas}} bon",
+          "it": "Il segnale GPS !{{è|non è}} buono",
+          "sv": "GPS-signalen !{{är|är inte}} bra",
+          "no": "GPS-signalet !{{er|er ikke}} bra",
+          "es": "La señal GPS !{{es|no es}} buena",
+          "da": "GPS-signalet !{{er|er ikke}} godt",
+          "ru": "Сигнал GPS !{{хороший|не хороший}}",
+          "pl": "Sygnał GPS !{{jest|nie jest}} dobry",
+          "ko": "GPS 신호가 !{{좋음|좋지 않음}}",
+          "ar": "إشارة GPS !{{جيدة|ليست جيدة}}"
         },
         "args": [
           {
@@ -194,11 +343,92 @@
           "ko": "작업 시작",
           "ar": "بدء الجز"
         },
+        "titleFormatted": {
+          "en": "Start mowing with blade height [[blade_height]] mm, speed [[speed]] m/s, edges first [[edge_mowing]]",
+          "nl": "Start met maaien op maaihoogte [[blade_height]] mm, snelheid [[speed]] m/s, eerst randen [[edge_mowing]]",
+          "de": "Mähen starten mit Schnitthöhe [[blade_height]] mm, Geschwindigkeit [[speed]] m/s, zuerst Kanten [[edge_mowing]]",
+          "fr": "Démarrer la tonte avec hauteur de coupe [[blade_height]] mm, vitesse [[speed]] m/s, bords en premier [[edge_mowing]]",
+          "it": "Avvia il taglio con altezza lama [[blade_height]] mm, velocità [[speed]] m/s, bordi prima [[edge_mowing]]",
+          "sv": "Starta klippning med klipphöjd [[blade_height]] mm, hastighet [[speed]] m/s, kanter först [[edge_mowing]]",
+          "no": "Start klipping med klippehøyde [[blade_height]] mm, hastighet [[speed]] m/s, kanter først [[edge_mowing]]",
+          "es": "Iniciar corte con altura de corte [[blade_height]] mm, velocidad [[speed]] m/s, bordes primero [[edge_mowing]]",
+          "da": "Start klipning med klippehøjde [[blade_height]] mm, hastighed [[speed]] m/s, kanter først [[edge_mowing]]",
+          "ru": "Начать кошение: высота скашивания [[blade_height]] мм, скорость [[speed]] м/с, сначала края [[edge_mowing]]",
+          "pl": "Zacznij koszenie z wysokością koszenia [[blade_height]] mm, prędkością [[speed]] m/s, najpierw krawędzie [[edge_mowing]]",
+          "ko": "칼날 높이 [[blade_height]]mm, 속도 [[speed]]m/s, 가장자리 먼저 [[edge_mowing]]로 작업 시작",
+          "ar": "بدء الجز بارتفاع نصل [[blade_height]] مم وسرعة [[speed]] م/ث وجز الحواف أولاً [[edge_mowing]]"
+        },
         "args": [
           {
             "type": "device",
             "name": "device",
             "filter": "driver_id=luba"
+          },
+          {
+            "type": "number",
+            "name": "blade_height",
+            "required": false,
+            "min": 15,
+            "max": 100,
+            "step": 5,
+            "title": {
+              "en": "Blade height (mm)",
+              "nl": "Maaihoogte (mm)",
+              "de": "Schnitthöhe (mm)",
+              "fr": "Hauteur de coupe (mm)",
+              "it": "Altezza lama (mm)",
+              "sv": "Klipphöjd (mm)",
+              "no": "Klippehøyde (mm)",
+              "es": "Altura de corte (mm)",
+              "da": "Klippehøjde (mm)",
+              "ru": "Высота скашивания (мм)",
+              "pl": "Wysokość koszenia (mm)",
+              "ko": "칼날 높이 (mm)",
+              "ar": "ارتفاع النصل (مم)"
+            }
+          },
+          {
+            "type": "number",
+            "name": "speed",
+            "required": false,
+            "min": 0.2,
+            "max": 1.2,
+            "step": 0.1,
+            "title": {
+              "en": "Speed (m/s)",
+              "nl": "Snelheid (m/s)",
+              "de": "Geschwindigkeit (m/s)",
+              "fr": "Vitesse (m/s)",
+              "it": "Velocità (m/s)",
+              "sv": "Hastighet (m/s)",
+              "no": "Hastighet (m/s)",
+              "es": "Velocidad (m/s)",
+              "da": "Hastighed (m/s)",
+              "ru": "Скорость (м/с)",
+              "pl": "Prędkość (m/s)",
+              "ko": "속도 (m/s)",
+              "ar": "السرعة (م/ث)"
+            }
+          },
+          {
+            "type": "checkbox",
+            "name": "edge_mowing",
+            "required": false,
+            "title": {
+              "en": "Mow edges first",
+              "nl": "Eerst randen maaien",
+              "de": "Zuerst Kanten mähen",
+              "fr": "Tondre les bords en premier",
+              "it": "Taglia prima i bordi",
+              "sv": "Klipp kanterna först",
+              "no": "Klipp kantene først",
+              "es": "Cortar los bordes primero",
+              "da": "Klip kanterne først",
+              "ru": "Сначала косить края",
+              "pl": "Najpierw koś krawędzie",
+              "ko": "가장자리 먼저 깎기",
+              "ar": "جز الحواف أولاً"
+            }
           }
         ]
       },
@@ -251,6 +481,59 @@
             "filter": "driver_id=luba"
           }
         ]
+      },
+      {
+        "id": "stop_mowing",
+        "title": {
+          "en": "Stop mowing",
+          "nl": "Stop met maaien",
+          "de": "Mähen beenden",
+          "fr": "Arrêter la tonte",
+          "it": "Interrompi il taglio",
+          "sv": "Stoppa klippning",
+          "no": "Stopp klipping",
+          "es": "Detener corte",
+          "da": "Stop klipning",
+          "ru": "Остановить кошение",
+          "pl": "Zatrzymaj koszenie",
+          "ko": "작업 정지",
+          "ar": "إيقاف الجز"
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=luba"
+          }
+        ]
+      },
+      {
+        "id": "read_schedule",
+        "title": {
+          "en": "Read mowing schedule",
+          "nl": "Maaischema uitlezen",
+          "de": "Mähplan auslesen",
+          "fr": "Lire le programme de tonte",
+          "it": "Leggi il programma di taglio",
+          "sv": "Läs klippschema",
+          "no": "Les klippeplan",
+          "es": "Leer el horario de corte",
+          "da": "Læs klippeplan",
+          "ru": "Считать расписание кошения",
+          "pl": "Odczytaj harmonogram koszenia",
+          "ko": "잔디깎이 일정 읽기",
+          "ar": "قراءة جدول الجز"
+        },
+        "hint": {
+          "en": "Reads the mower's stored schedule into the app log for diagnostics. Does not change anything on the device."
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=luba"
+          }
+        ]
       }
     ]
   },
@@ -279,7 +562,14 @@
         "mower_status",
         "measure_mow_progress",
         "measure_mow_area",
-        "mow_blade_height"
+        "mow_blade_height",
+        "measure_wifi_rssi",
+        "measure_ble_rssi",
+        "measure_gps_stars",
+        "measure_mowing_speed",
+        "measure_elapsed_time",
+        "measure_left_time",
+        "active_transport"
       ],
       "energy": {
         "batteries": [
@@ -325,10 +615,7 @@
       "pair": [
         {
           "id": "login_credentials",
-          "template": "login_credentials",
-          "navigation": {
-            "next": "list_devices"
-          }
+          "template": "login_credentials"
         },
         {
           "id": "list_devices",
@@ -340,6 +627,74 @@
         {
           "id": "add_devices",
           "template": "add_devices"
+        }
+      ],
+      "repair": [
+        {
+          "id": "login_credentials",
+          "template": "login_credentials"
+        }
+      ],
+      "settings": [
+        {
+          "type": "group",
+          "label": {
+            "en": "Connection",
+            "sv": "Anslutning",
+            "nl": "Verbinding",
+            "de": "Verbindung",
+            "fr": "Connexion"
+          },
+          "children": [
+            {
+              "id": "transport_preference",
+              "type": "dropdown",
+              "label": {
+                "en": "Transport mode",
+                "sv": "Transportläge",
+                "nl": "Transportmodus",
+                "de": "Transportmodus",
+                "fr": "Mode de transport"
+              },
+              "hint": {
+                "en": "Auto uses BLE when the mower is in range and falls back to cloud MQTT when it is not. BLE only and MQTT only force a specific transport.",
+                "sv": "Auto använder BLE när klipparen är i räckvidd och faller tillbaka till MQTT när den inte är det."
+              },
+              "value": "auto",
+              "values": [
+                {
+                  "id": "auto",
+                  "label": {
+                    "en": "Auto (BLE preferred, MQTT fallback)",
+                    "sv": "Auto (BLE föredras, MQTT som reserv)",
+                    "nl": "Auto (BLE voorkeur, MQTT reserv)",
+                    "de": "Auto (BLE bevorzugt, MQTT als Fallback)",
+                    "fr": "Auto (BLE préféré, MQTT secours)"
+                  }
+                },
+                {
+                  "id": "ble_only",
+                  "label": {
+                    "en": "BLE only (local, no cloud needed)",
+                    "sv": "Endast BLE (lokalt, inget moln behövs)",
+                    "nl": "Alleen BLE (lokaal, geen cloud nodig)",
+                    "de": "Nur BLE (lokal, kein Cloud nötig)",
+                    "fr": "BLE uniquement (local, sans cloud)"
+                  }
+                },
+                {
+                  "id": "mqtt_only",
+                  "label": {
+                    "en": "MQTT only (cloud)",
+                    "sv": "Endast MQTT (moln)",
+                    "nl": "Alleen MQTT (cloud)",
+                    "de": "Nur MQTT (Cloud)",
+                    "fr": "MQTT uniquement (cloud)"
+                  }
+                }
+              ]
+            }
+          ]
         }
       ],
       "images": {
@@ -358,6 +713,188 @@
     }
   ],
   "capabilities": {
+    "active_transport": {
+      "type": "enum",
+      "values": [
+        {
+          "id": "ble",
+          "title": {
+            "en": "Bluetooth",
+            "nl": "Bluetooth",
+            "de": "Bluetooth",
+            "fr": "Bluetooth",
+            "it": "Bluetooth",
+            "sv": "Bluetooth",
+            "no": "Bluetooth",
+            "es": "Bluetooth",
+            "da": "Bluetooth",
+            "ru": "Bluetooth",
+            "pl": "Bluetooth",
+            "ko": "블루투스",
+            "ar": "بلوتوث"
+          }
+        },
+        {
+          "id": "mqtt",
+          "title": {
+            "en": "Cloud",
+            "nl": "Cloud",
+            "de": "Cloud",
+            "fr": "Cloud",
+            "it": "Cloud",
+            "sv": "Moln",
+            "no": "Sky",
+            "es": "Nube",
+            "da": "Sky",
+            "ru": "Облако",
+            "pl": "Chmura",
+            "ko": "클라우드",
+            "ar": "السحابة"
+          }
+        },
+        {
+          "id": "none",
+          "title": {
+            "en": "Disconnected",
+            "nl": "Niet verbonden",
+            "de": "Nicht verbunden",
+            "fr": "Déconnecté",
+            "it": "Disconnesso",
+            "sv": "Frånkopplad",
+            "no": "Frakoblet",
+            "es": "Desconectado",
+            "da": "Afbrudt",
+            "ru": "Отключено",
+            "pl": "Rozłączono",
+            "ko": "연결 끊김",
+            "ar": "غير متصل"
+          }
+        }
+      ],
+      "title": {
+        "en": "Connection Type",
+        "nl": "Verbindingstype",
+        "de": "Verbindungstyp",
+        "fr": "Type de connexion",
+        "it": "Tipo di connessione",
+        "sv": "Anslutningstyp",
+        "no": "Tilkoblingstype",
+        "es": "Tipo de conexión",
+        "da": "Forbindelsestype",
+        "ru": "Тип соединения",
+        "pl": "Typ połączenia",
+        "ko": "연결 유형",
+        "ar": "نوع الاتصال"
+      },
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/assets/icon.svg"
+    },
+    "measure_ble_rssi": {
+      "type": "number",
+      "title": {
+        "en": "Bluetooth Signal",
+        "nl": "Bluetooth-signaal",
+        "de": "Bluetooth-Signal",
+        "fr": "Signal Bluetooth",
+        "it": "Segnale Bluetooth",
+        "sv": "Bluetooth-signal",
+        "no": "Bluetooth-signal",
+        "es": "Señal Bluetooth",
+        "da": "Bluetooth-signal",
+        "ru": "Сигнал Bluetooth",
+        "pl": "Sygnał Bluetooth",
+        "ko": "블루투스 신호",
+        "ar": "إشارة Bluetooth"
+      },
+      "units": {
+        "en": "dBm"
+      },
+      "decimals": 0,
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/assets/icon.svg"
+    },
+    "measure_elapsed_time": {
+      "type": "number",
+      "title": {
+        "en": "Elapsed Time",
+        "nl": "Verstreken tijd",
+        "de": "Verstrichene Zeit",
+        "fr": "Temps écoulé",
+        "it": "Tempo trascorso",
+        "sv": "Förfluten tid",
+        "no": "Forløpt tid",
+        "es": "Tiempo transcurrido",
+        "da": "Forløbet tid",
+        "ru": "Прошедшее время",
+        "pl": "Czas, który upłynął",
+        "ko": "경과 시간",
+        "ar": "الوقت المنقضي"
+      },
+      "units": {
+        "en": "min"
+      },
+      "min": 0,
+      "decimals": 0,
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/assets/icon.svg"
+    },
+    "measure_gps_stars": {
+      "type": "number",
+      "title": {
+        "en": "GPS Satellites",
+        "nl": "GPS-satellieten",
+        "de": "GPS-Satelliten",
+        "fr": "Satellites GPS",
+        "it": "Satelliti GPS",
+        "sv": "GPS-satelliter",
+        "no": "GPS-satellitter",
+        "es": "Satélites GPS",
+        "da": "GPS-satellitter",
+        "ru": "Спутники GPS",
+        "pl": "Satelity GPS",
+        "ko": "GPS 위성",
+        "ar": "أقمار GPS"
+      },
+      "min": 0,
+      "decimals": 0,
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/assets/icon.svg"
+    },
+    "measure_left_time": {
+      "type": "number",
+      "title": {
+        "en": "Time Remaining",
+        "nl": "Resterende tijd",
+        "de": "Verbleibende Zeit",
+        "fr": "Temps restant",
+        "it": "Tempo rimanente",
+        "sv": "Återstående tid",
+        "no": "Gjenstående tid",
+        "es": "Tiempo restante",
+        "da": "Resterende tid",
+        "ru": "Оставшееся время",
+        "pl": "Pozostały czas",
+        "ko": "남은 시간",
+        "ar": "الوقت المتبقي"
+      },
+      "units": {
+        "en": "min"
+      },
+      "min": 0,
+      "decimals": 0,
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/assets/icon.svg"
+    },
     "measure_mow_area": {
       "type": "number",
       "title": {
@@ -407,6 +944,59 @@
       },
       "min": 0,
       "max": 100,
+      "decimals": 0,
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/assets/icon.svg"
+    },
+    "measure_mowing_speed": {
+      "type": "number",
+      "title": {
+        "en": "Mowing Speed",
+        "nl": "Maaisnelheid",
+        "de": "Mähgeschwindigkeit",
+        "fr": "Vitesse de tonte",
+        "it": "Velocità di taglio",
+        "sv": "Klipphastighet",
+        "no": "Klippehastighet",
+        "es": "Velocidad de corte",
+        "da": "Klippehastighed",
+        "ru": "Скорость кошения",
+        "pl": "Prędkość koszenia",
+        "ko": "작업 속도",
+        "ar": "سرعة الجز"
+      },
+      "units": {
+        "en": "m/s"
+      },
+      "min": 0,
+      "decimals": 2,
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/assets/icon.svg"
+    },
+    "measure_wifi_rssi": {
+      "type": "number",
+      "title": {
+        "en": "WiFi Signal",
+        "nl": "WiFi-signaal",
+        "de": "WLAN-Signal",
+        "fr": "Signal WiFi",
+        "it": "Segnale WiFi",
+        "sv": "WiFi-signal",
+        "no": "WiFi-signal",
+        "es": "Señal WiFi",
+        "da": "WiFi-signal",
+        "ru": "Сигнал WiFi",
+        "pl": "Sygnał WiFi",
+        "ko": "WiFi 신호",
+        "ar": "إشارة WiFi"
+      },
+      "units": {
+        "en": "dBm"
+      },
       "decimals": 0,
       "getable": true,
       "setable": false,

@@ -1,0 +1,25 @@
+{
+  "type": "number",
+  "title": {
+    "en": "Time Remaining",
+    "nl": "Resterende tijd",
+    "de": "Verbleibende Zeit",
+    "fr": "Temps restant",
+    "it": "Tempo rimanente",
+    "sv": "Återstående tid",
+    "no": "Gjenstående tid",
+    "es": "Tiempo restante",
+    "da": "Resterende tid",
+    "ru": "Оставшееся время",
+    "pl": "Pozostały czas",
+    "ko": "남은 시간",
+    "ar": "الوقت المتبقي"
+  },
+  "units": { "en": "min" },
+  "min": 0,
+  "decimals": 0,
+  "getable": true,
+  "setable": false,
+  "uiComponent": "sensor",
+  "icon": "/assets/icon.svg"
+}

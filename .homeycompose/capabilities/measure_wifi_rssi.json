@@ -1,0 +1,24 @@
+{
+  "type": "number",
+  "title": {
+    "en": "WiFi Signal",
+    "nl": "WiFi-signaal",
+    "de": "WLAN-Signal",
+    "fr": "Signal WiFi",
+    "it": "Segnale WiFi",
+    "sv": "WiFi-signal",
+    "no": "WiFi-signal",
+    "es": "Señal WiFi",
+    "da": "WiFi-signal",
+    "ru": "Сигнал WiFi",
+    "pl": "Sygnał WiFi",
+    "ko": "WiFi 신호",
+    "ar": "إشارة WiFi"
+  },
+  "units": { "en": "dBm" },
+  "decimals": 0,
+  "getable": true,
+  "setable": false,
+  "uiComponent": "sensor",
+  "icon": "/assets/icon.svg"
+}

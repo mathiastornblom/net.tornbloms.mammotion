@@ -1,0 +1,547 @@
+{
+  "name": {
+    "en": "Mammotion Robot Mower",
+    "nl": "Mammotion Robotmaaier",
+    "de": "Mammotion Mähroboter",
+    "fr": "Tondeuse robot Mammotion",
+    "it": "Robot tagliaerba Mammotion",
+    "sv": "Mammotion Robotgräsklippare",
+    "no": "Mammotion Robotgressklipper",
+    "es": "Robot cortacésped Mammotion",
+    "da": "Mammotion Robotplæneklipper",
+    "ru": "Робот-газонокосилка Mammotion",
+    "pl": "Robot koszący Mammotion",
+    "ko": "Mammotion 로봇 잔디깎이",
+    "ar": "جزازة عشب روبوتية من Mammotion"
+  },
+  "class": "other",
+  "capabilities": [
+    "onoff",
+    "measure_battery",
+    "alarm_generic",
+    "mower_status",
+    "measure_mow_progress",
+    "measure_mow_area",
+    "mow_blade_height",
+    "measure_wifi_rssi",
+    "measure_ble_rssi",
+    "measure_gps_stars",
+    "measure_mowing_speed",
+    "measure_elapsed_time",
+    "measure_left_time",
+    "active_transport"
+  ],
+  "energy": {
+    "batteries": ["INTERNAL"]
+  },
+  "capabilitiesOptions": {
+    "onoff": {
+      "title": {
+        "en": "Mowing",
+        "nl": "Maaien",
+        "de": "Mähen",
+        "fr": "Tonte",
+        "it": "Taglio",
+        "sv": "Klippning",
+        "no": "Klipping",
+        "es": "Cortar",
+        "da": "Klipning",
+        "ru": "Кошение",
+        "pl": "Koszenie",
+        "ko": "작업",
+        "ar": "الجز"
+      }
+    },
+    "alarm_generic": {
+      "title": {
+        "en": "Error",
+        "nl": "Fout",
+        "de": "Fehler",
+        "fr": "Erreur",
+        "it": "Errore",
+        "sv": "Fel",
+        "no": "Feil",
+        "es": "Error",
+        "da": "Fejl",
+        "ru": "Ошибка",
+        "pl": "Błąd",
+        "ko": "오류",
+        "ar": "خطأ"
+      }
+    }
+  },
+  "pair": [
+    {
+      "id": "login_credentials",
+      "template": "login_credentials"
+    },
+    {
+      "id": "list_devices",
+      "template": "list_devices",
+      "navigation": {
+        "next": "add_devices"
+      }
+    },
+    {
+      "id": "add_devices",
+      "template": "add_devices"
+    }
+  ],
+  "repair": [
+    {
+      "id": "login_credentials",
+      "template": "login_credentials"
+    }
+  ],
+  "settings": [
+    {
+      "type": "group",
+      "label": { "en": "Connection", "sv": "Anslutning", "nl": "Verbinding", "de": "Verbindung", "fr": "Connexion" },
+      "children": [
+        {
+          "id": "transport_preference",
+          "type": "dropdown",
+          "label": {
+            "en": "Transport mode",
+            "sv": "Transportläge",
+            "nl": "Transportmodus",
+            "de": "Transportmodus",
+            "fr": "Mode de transport"
+          },
+          "hint": {
+            "en": "Auto uses BLE when the mower is in range and falls back to cloud MQTT when it is not. BLE only and MQTT only force a specific transport.",
+            "sv": "Auto använder BLE när klipparen är i räckvidd och faller tillbaka till MQTT när den inte är det."
+          },
+          "value": "auto",
+          "values": [
+            {
+              "id": "auto",
+              "label": {
+                "en": "Auto (BLE preferred, MQTT fallback)",
+                "sv": "Auto (BLE föredras, MQTT som reserv)",
+                "nl": "Auto (BLE voorkeur, MQTT reserv)",
+                "de": "Auto (BLE bevorzugt, MQTT als Fallback)",
+                "fr": "Auto (BLE préféré, MQTT secours)"
+              }
+            },
+            {
+              "id": "ble_only",
+              "label": {
+                "en": "BLE only (local, no cloud needed)",
+                "sv": "Endast BLE (lokalt, inget moln behövs)",
+                "nl": "Alleen BLE (lokaal, geen cloud nodig)",
+                "de": "Nur BLE (lokal, kein Cloud nötig)",
+                "fr": "BLE uniquement (local, sans cloud)"
+              }
+            },
+            {
+              "id": "mqtt_only",
+              "label": {
+                "en": "MQTT only (cloud)",
+                "sv": "Endast MQTT (moln)",
+                "nl": "Alleen MQTT (cloud)",
+                "de": "Nur MQTT (Cloud)",
+                "fr": "MQTT uniquement (cloud)"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "images": {
+    "small": "/drivers/luba/assets/images/small.png",
+    "large": "/drivers/luba/assets/images/large.png",
+    "xlarge": "/drivers/luba/assets/images/xlarge.png"
+  },
+  "$flow": {
+    "triggers": [
+      {
+        "id": "mower_started_mowing",
+        "title": {
+          "en": "Mower started mowing",
+          "nl": "Maaier begon te maaien",
+          "de": "Mäher hat mit dem Mähen begonnen",
+          "fr": "La tondeuse a commencé à tondre",
+          "it": "Il tagliaerba ha iniziato a tagliare",
+          "sv": "Klipparen började klippa",
+          "no": "Klipperen begynte å klippe",
+          "es": "El cortacésped empezó a cortar",
+          "da": "Plæneklipperen begyndte at klippe",
+          "ru": "Газонокосилка начала косить",
+          "pl": "Kosiarka zaczęła kosić",
+          "ko": "잔디깎이가 작업을 시작함",
+          "ar": "بدأت الجزازة بالجز"
+        }
+      },
+      {
+        "id": "mower_docked",
+        "title": {
+          "en": "Mower docked",
+          "nl": "Maaier is gedockt",
+          "de": "Mäher hat angedockt",
+          "fr": "La tondeuse s'est amarrée",
+          "it": "Il tagliaerba si è agganciato alla base",
+          "sv": "Klipparen dockade",
+          "no": "Klipperen dokket",
+          "es": "El cortacésped se acopló",
+          "da": "Plæneklipperen dockede",
+          "ru": "Газонокосилка вернулась на базу",
+          "pl": "Kosiarka wróciła do stacji",
+          "ko": "잔디깎이가 충전소로 복귀함",
+          "ar": "عادت الجزازة إلى القاعدة"
+        }
+      },
+      {
+        "id": "mower_error",
+        "title": {
+          "en": "Mower reported an error",
+          "nl": "Maaier meldde een fout",
+          "de": "Mäher hat einen Fehler gemeldet",
+          "fr": "La tondeuse a signalé une erreur",
+          "it": "Il tagliaerba ha segnalato un errore",
+          "sv": "Klipparen rapporterade ett fel",
+          "no": "Klipperen rapporterte en feil",
+          "es": "El cortacésped reportó un error",
+          "da": "Plæneklipperen rapporterede en fejl",
+          "ru": "Газонокосилка сообщила об ошибке",
+          "pl": "Kosiarka zgłosiła błąd",
+          "ko": "잔디깎이가 오류를 보고함",
+          "ar": "أبلغت الجزازة عن خطأ"
+        }
+      },
+      {
+        "id": "battery_below",
+        "title": {
+          "en": "Battery is low",
+          "nl": "Batterij is laag",
+          "de": "Akku ist niedrig",
+          "fr": "Batterie faible",
+          "it": "Batteria scarica",
+          "sv": "Batteriet är lågt",
+          "no": "Batteriet er lavt",
+          "es": "Batería baja",
+          "da": "Batteriet er lavt",
+          "ru": "Низкий заряд батареи",
+          "pl": "Niski poziom baterii",
+          "ko": "배터리 부족",
+          "ar": "البطارية منخفضة"
+        },
+        "titleFormatted": {
+          "en": "Battery drops below [[threshold]]%",
+          "nl": "Batterij daalt onder [[threshold]]%",
+          "de": "Akku fällt unter [[threshold]]%",
+          "fr": "La batterie descend sous [[threshold]]%",
+          "it": "La batteria scende sotto il [[threshold]]%",
+          "sv": "Batteriet sjunker under [[threshold]]%",
+          "no": "Batteriet faller under [[threshold]]%",
+          "es": "La batería cae por debajo del [[threshold]]%",
+          "da": "Batteriet falder under [[threshold]]%",
+          "ru": "Заряд батареи опускается ниже [[threshold]]%",
+          "pl": "Bateria spada poniżej [[threshold]]%",
+          "ko": "배터리가 [[threshold]]% 아래로 떨어짐",
+          "ar": "تنخفض البطارية إلى أقل من [[threshold]]٪"
+        },
+        "args": [
+          {
+            "type": "number",
+            "name": "threshold",
+            "min": 1,
+            "max": 99,
+            "step": 1,
+            "title": {
+              "en": "Percentage",
+              "nl": "Percentage",
+              "de": "Prozent",
+              "fr": "Pourcentage",
+              "it": "Percentuale",
+              "sv": "Procent",
+              "no": "Prosent",
+              "es": "Porcentaje",
+              "da": "Procent",
+              "ru": "Процент",
+              "pl": "Procent",
+              "ko": "퍼센트",
+              "ar": "النسبة المئوية"
+            }
+          }
+        ]
+      }
+    ],
+    "conditions": [
+      {
+        "id": "is_mowing",
+        "title": {
+          "en": "Mower !{{is|isn't}} mowing",
+          "nl": "Maaier !{{maait|maait niet}}",
+          "de": "Mäher !{{mäht|mäht nicht}}",
+          "fr": "La tondeuse !{{tond|ne tond pas}}",
+          "it": "Il tagliaerba !{{sta tagliando|non sta tagliando}}",
+          "sv": "Klipparen !{{klipper|klipper inte}}",
+          "no": "Klipperen !{{klipper|klipper ikke}}",
+          "es": "El cortacésped !{{está cortando|no está cortando}}",
+          "da": "Plæneklipperen !{{klipper|klipper ikke}}",
+          "ru": "Газонокосилка !{{косит|не косит}}",
+          "pl": "Kosiarka !{{kosi|nie kosi}}",
+          "ko": "잔디깎이가 !{{작업 중|작업 중이 아님}}",
+          "ar": "الجزازة !{{تجز|لا تجز}}"
+        }
+      },
+      {
+        "id": "battery_above",
+        "title": {
+          "en": "Battery !{{is|isn't}} above [[threshold]]%",
+          "nl": "Batterij !{{is|is niet}} boven [[threshold]]%",
+          "de": "Akku !{{ist|ist nicht}} über [[threshold]]%",
+          "fr": "La batterie !{{est|n'est pas}} au-dessus de [[threshold]]%",
+          "it": "La batteria !{{è|non è}} sopra il [[threshold]]%",
+          "sv": "Batteriet !{{är|är inte}} över [[threshold]]%",
+          "no": "Batteriet !{{er|er ikke}} over [[threshold]]%",
+          "es": "La batería !{{está|no está}} por encima del [[threshold]]%",
+          "da": "Batteriet !{{er|er ikke}} over [[threshold]]%",
+          "ru": "Заряд батареи !{{выше|не выше}} [[threshold]]%",
+          "pl": "Bateria !{{jest|nie jest}} powyżej [[threshold]]%",
+          "ko": "배터리가 [[threshold]]%!{{ 이상|보다 낮음}}",
+          "ar": "البطارية !{{أعلى|ليست أعلى}} من [[threshold]]٪"
+        },
+        "titleFormatted": {
+          "en": "Battery !{{is|isn't}} above [[threshold]]%",
+          "nl": "Batterij !{{is|is niet}} boven [[threshold]]%",
+          "de": "Akku !{{ist|ist nicht}} über [[threshold]]%",
+          "fr": "La batterie !{{est|n'est pas}} au-dessus de [[threshold]]%",
+          "it": "La batteria !{{è|non è}} sopra il [[threshold]]%",
+          "sv": "Batteriet !{{är|är inte}} över [[threshold]]%",
+          "no": "Batteriet !{{er|er ikke}} over [[threshold]]%",
+          "es": "La batería !{{está|no está}} por encima del [[threshold]]%",
+          "da": "Batteriet !{{er|er ikke}} over [[threshold]]%",
+          "ru": "Заряд батареи !{{выше|не выше}} [[threshold]]%",
+          "pl": "Bateria !{{jest|nie jest}} powyżej [[threshold]]%",
+          "ko": "배터리가 [[threshold]]%!{{ 이상|보다 낮음}}",
+          "ar": "البطارية !{{أعلى|ليست أعلى}} من [[threshold]]٪"
+        },
+        "args": [
+          {
+            "type": "number",
+            "name": "threshold",
+            "min": 1,
+            "max": 99,
+            "step": 1,
+            "title": {
+              "en": "Percentage",
+              "nl": "Percentage",
+              "de": "Prozent",
+              "fr": "Pourcentage",
+              "it": "Percentuale",
+              "sv": "Procent",
+              "no": "Prosent",
+              "es": "Porcentaje",
+              "da": "Procent",
+              "ru": "Процент",
+              "pl": "Procent",
+              "ko": "퍼센트",
+              "ar": "النسبة المئوية"
+            }
+          }
+        ]
+      },
+      {
+        "id": "gps_signal_good",
+        "title": {
+          "en": "GPS signal !{{is|isn't}} good",
+          "nl": "GPS-signaal !{{is|is niet}} goed",
+          "de": "GPS-Signal !{{ist|ist nicht}} gut",
+          "fr": "Le signal GPS !{{est|n'est pas}} bon",
+          "it": "Il segnale GPS !{{è|non è}} buono",
+          "sv": "GPS-signalen !{{är|är inte}} bra",
+          "no": "GPS-signalet !{{er|er ikke}} bra",
+          "es": "La señal GPS !{{es|no es}} buena",
+          "da": "GPS-signalet !{{er|er ikke}} godt",
+          "ru": "Сигнал GPS !{{хороший|не хороший}}",
+          "pl": "Sygnał GPS !{{jest|nie jest}} dobry",
+          "ko": "GPS 신호가 !{{좋음|좋지 않음}}",
+          "ar": "إشارة GPS !{{جيدة|ليست جيدة}}"
+        }
+      }
+    ],
+    "actions": [
+      {
+        "id": "start_mowing",
+        "title": {
+          "en": "Start mowing",
+          "nl": "Start met maaien",
+          "de": "Mähen starten",
+          "fr": "Démarrer la tonte",
+          "it": "Avvia il taglio",
+          "sv": "Starta klippning",
+          "no": "Start klipping",
+          "es": "Iniciar corte",
+          "da": "Start klipning",
+          "ru": "Начать кошение",
+          "pl": "Zacznij koszenie",
+          "ko": "작업 시작",
+          "ar": "بدء الجز"
+        },
+        "titleFormatted": {
+          "en": "Start mowing with blade height [[blade_height]] mm, speed [[speed]] m/s, edges first [[edge_mowing]]",
+          "nl": "Start met maaien op maaihoogte [[blade_height]] mm, snelheid [[speed]] m/s, eerst randen [[edge_mowing]]",
+          "de": "Mähen starten mit Schnitthöhe [[blade_height]] mm, Geschwindigkeit [[speed]] m/s, zuerst Kanten [[edge_mowing]]",
+          "fr": "Démarrer la tonte avec hauteur de coupe [[blade_height]] mm, vitesse [[speed]] m/s, bords en premier [[edge_mowing]]",
+          "it": "Avvia il taglio con altezza lama [[blade_height]] mm, velocità [[speed]] m/s, bordi prima [[edge_mowing]]",
+          "sv": "Starta klippning med klipphöjd [[blade_height]] mm, hastighet [[speed]] m/s, kanter först [[edge_mowing]]",
+          "no": "Start klipping med klippehøyde [[blade_height]] mm, hastighet [[speed]] m/s, kanter først [[edge_mowing]]",
+          "es": "Iniciar corte con altura de corte [[blade_height]] mm, velocidad [[speed]] m/s, bordes primero [[edge_mowing]]",
+          "da": "Start klipning med klippehøjde [[blade_height]] mm, hastighed [[speed]] m/s, kanter først [[edge_mowing]]",
+          "ru": "Начать кошение: высота скашивания [[blade_height]] мм, скорость [[speed]] м/с, сначала края [[edge_mowing]]",
+          "pl": "Zacznij koszenie z wysokością koszenia [[blade_height]] mm, prędkością [[speed]] m/s, najpierw krawędzie [[edge_mowing]]",
+          "ko": "칼날 높이 [[blade_height]]mm, 속도 [[speed]]m/s, 가장자리 먼저 [[edge_mowing]]로 작업 시작",
+          "ar": "بدء الجز بارتفاع نصل [[blade_height]] مم وسرعة [[speed]] م/ث وجز الحواف أولاً [[edge_mowing]]"
+        },
+        "args": [
+          {
+            "type": "number",
+            "name": "blade_height",
+            "required": false,
+            "min": 15,
+            "max": 100,
+            "step": 5,
+            "title": {
+              "en": "Blade height (mm)",
+              "nl": "Maaihoogte (mm)",
+              "de": "Schnitthöhe (mm)",
+              "fr": "Hauteur de coupe (mm)",
+              "it": "Altezza lama (mm)",
+              "sv": "Klipphöjd (mm)",
+              "no": "Klippehøyde (mm)",
+              "es": "Altura de corte (mm)",
+              "da": "Klippehøjde (mm)",
+              "ru": "Высота скашивания (мм)",
+              "pl": "Wysokość koszenia (mm)",
+              "ko": "칼날 높이 (mm)",
+              "ar": "ارتفاع النصل (مم)"
+            }
+          },
+          {
+            "type": "number",
+            "name": "speed",
+            "required": false,
+            "min": 0.2,
+            "max": 1.2,
+            "step": 0.1,
+            "title": {
+              "en": "Speed (m/s)",
+              "nl": "Snelheid (m/s)",
+              "de": "Geschwindigkeit (m/s)",
+              "fr": "Vitesse (m/s)",
+              "it": "Velocità (m/s)",
+              "sv": "Hastighet (m/s)",
+              "no": "Hastighet (m/s)",
+              "es": "Velocidad (m/s)",
+              "da": "Hastighed (m/s)",
+              "ru": "Скорость (м/с)",
+              "pl": "Prędkość (m/s)",
+              "ko": "속도 (m/s)",
+              "ar": "السرعة (م/ث)"
+            }
+          },
+          {
+            "type": "checkbox",
+            "name": "edge_mowing",
+            "required": false,
+            "title": {
+              "en": "Mow edges first",
+              "nl": "Eerst randen maaien",
+              "de": "Zuerst Kanten mähen",
+              "fr": "Tondre les bords en premier",
+              "it": "Taglia prima i bordi",
+              "sv": "Klipp kanterna först",
+              "no": "Klipp kantene først",
+              "es": "Cortar los bordes primero",
+              "da": "Klip kanterne først",
+              "ru": "Сначала косить края",
+              "pl": "Najpierw koś krawędzie",
+              "ko": "가장자리 먼저 깎기",
+              "ar": "جز الحواف أولاً"
+            }
+          }
+        ]
+      },
+      {
+        "id": "send_to_dock",
+        "title": {
+          "en": "Send to dock",
+          "nl": "Stuur naar dock",
+          "de": "Zur Dockingstation senden",
+          "fr": "Envoyer à la base",
+          "it": "Invia alla base",
+          "sv": "Skicka till dockan",
+          "no": "Send til dokk",
+          "es": "Enviar a la base",
+          "da": "Send til docken",
+          "ru": "Отправить на базу",
+          "pl": "Wyślij do stacji",
+          "ko": "충전소로 보내기",
+          "ar": "إرسال إلى القاعدة"
+        }
+      },
+      {
+        "id": "pause_mowing",
+        "title": {
+          "en": "Pause mowing",
+          "nl": "Maaien onderbreken",
+          "de": "Mähen pausieren",
+          "fr": "Mettre la tonte en pause",
+          "it": "Metti in pausa il taglio",
+          "sv": "Pausa klippning",
+          "no": "Pause klipping",
+          "es": "Pausar corte",
+          "da": "Pause klipning",
+          "ru": "Приостановить кошение",
+          "pl": "Wstrzymaj koszenie",
+          "ko": "작업 일시정지",
+          "ar": "إيقاف الجز مؤقتًا"
+        }
+      },
+      {
+        "id": "stop_mowing",
+        "title": {
+          "en": "Stop mowing",
+          "nl": "Stop met maaien",
+          "de": "Mähen beenden",
+          "fr": "Arrêter la tonte",
+          "it": "Interrompi il taglio",
+          "sv": "Stoppa klippning",
+          "no": "Stopp klipping",
+          "es": "Detener corte",
+          "da": "Stop klipning",
+          "ru": "Остановить кошение",
+          "pl": "Zatrzymaj koszenie",
+          "ko": "작업 정지",
+          "ar": "إيقاف الجز"
+        }
+      },
+      {
+        "id": "read_schedule",
+        "title": {
+          "en": "Read mowing schedule",
+          "nl": "Maaischema uitlezen",
+          "de": "Mähplan auslesen",
+          "fr": "Lire le programme de tonte",
+          "it": "Leggi il programma di taglio",
+          "sv": "Läs klippschema",
+          "no": "Les klippeplan",
+          "es": "Leer el horario de corte",
+          "da": "Læs klippeplan",
+          "ru": "Считать расписание кошения",
+          "pl": "Odczytaj harmonogram koszenia",
+          "ko": "잔디깎이 일정 읽기",
+          "ar": "قراءة جدول الجز"
+        },
+        "hint": {
+          "en": "Reads the mower's stored schedule into the app log for diagnostics. Does not change anything on the device."
+        }
+      }
+    ]
+  },
+  "connectivity": ["lan", "ble"],
+  "platforms": ["local"]
+}

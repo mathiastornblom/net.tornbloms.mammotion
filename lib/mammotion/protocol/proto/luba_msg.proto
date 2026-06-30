@@ -1,0 +1,79 @@
+syntax = "proto3";
+
+// NOTE: This envelope is intentionally trimmed to the oneof branches the Homey app
+// currently uses (net=8, sys=10, nav=11, driver=12) to keep the generated protobuf
+// bundle small. Field numbers are unchanged, so this stays wire-compatible: unknown
+// oneof branches (ota/mul/pept/base/pdt/ctrl) are simply ignored on decode. The full
+// set of .proto files is still vendored alongside this one for reference; restore the
+// imports + branches below when adding maps/OTA/etc. Upstream: mikey0000/PyMammotion.
+// `net` (DevNet) was added back for the BLE sync handshake (todev_ble_sync) — DevNet
+// was already pulled in transitively via mctrl_sys.proto's own import, so this adds
+// no new file to the bundle.
+
+import "dev_net.proto";
+import "mctrl_driver.proto";
+import "mctrl_nav.proto";
+import "mctrl_sys.proto";
+
+message MsgNull {
+}
+
+message LubaMsg {
+  MsgCmdType msgtype = 1;
+  MsgDevice sender = 2;
+  MsgDevice rcver = 3;
+  MsgAttr msgattr = 4;
+  int32 seqs = 5;
+  int32 version = 6;
+  int32 subtype = 7;
+  oneof LubaSubMsg {
+    DevNet net = 8;
+    MctlSys sys = 10;
+    MctlNav nav = 11;
+    MctlDriver driver = 12;
+    MsgNull null = 16;
+  }
+  uint64 timestamp = 15;
+}
+
+enum MsgCmdType {
+  MSG_CMD_TYPE_START = 0;
+  MSG_CMD_TYPE_NAV = 240;
+  MSG_CMD_TYPE_LOCALIZATION = 241;
+  MSG_CMD_TYPE_PLANNING = 242;
+  MSG_CMD_TYPE_EMBED_DRIVER = 243;
+  MSG_CMD_TYPE_EMBED_SYS = 244;
+  MSG_CMD_TYPE_EMBED_MIDWARE = 245;
+  MSG_CMD_TYPE_EMBED_OTA = 246;
+  MSG_CMD_TYPE_APPLICATION = 247;
+  MSG_CMD_TYPE_ESP = 248;
+  MSG_CMD_TYPE_MUL = 249;
+  MSG_CMD_TYPE_PEPT = 250;
+  MSG_CMD_TYPE_BASESTATION = 251;
+  MSG_CMD_TYPE_SPINO_CTRL = 253;
+}
+
+enum MsgAttr {
+  MSG_ATTR_NONE = 0;
+  MSG_ATTR_REQ = 1;
+  MSG_ATTR_RESP = 2;
+  MSG_ATTR_REPORT = 3;
+}
+
+enum MsgDevice {
+  DEV_COMM_ESP = 0;
+  DEV_MAINCTL = 1;
+  DEV_LEFTMOTOR = 2;
+  DEV_RIGHTMOTOR = 3;
+  DEV_BASESTATION = 4;
+  DEV_RTKCLI = 5;
+  DEV_USBHOST = 6;
+  DEV_MOBILEAPP = 7;
+  DEV_IOTSERVER = 8;
+  DEV_BMS = 9;
+  DEV_NAVIGATION = 17;
+  DEV_LOCALIZATION = 18;
+  DEV_PERCEPTION = 19;
+  SOC_MODULE_MULTIMEDIA = 21;
+  DEV_IOTCTRL = 29;
+}

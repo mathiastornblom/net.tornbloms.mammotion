@@ -1,0 +1,25 @@
+{
+  "type": "number",
+  "title": {
+    "en": "Mowing Speed",
+    "nl": "Maaisnelheid",
+    "de": "Mähgeschwindigkeit",
+    "fr": "Vitesse de tonte",
+    "it": "Velocità di taglio",
+    "sv": "Klipphastighet",
+    "no": "Klippehastighet",
+    "es": "Velocidad de corte",
+    "da": "Klippehastighed",
+    "ru": "Скорость кошения",
+    "pl": "Prędkość koszenia",
+    "ko": "작업 속도",
+    "ar": "سرعة الجز"
+  },
+  "units": { "en": "m/s" },
+  "min": 0,
+  "decimals": 2,
+  "getable": true,
+  "setable": false,
+  "uiComponent": "sensor",
+  "icon": "/assets/icon.svg"
+}

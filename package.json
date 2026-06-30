@@ -1,16 +1,25 @@
 {
   "name": "net.tornbloms.mammotion",
-  "version": "1.0.0",
+  "version": "1.6.2",
+  "type": "module",
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "scripts": {
     "build": "tsc",
     "lint": "eslint --ext .js,.ts --ignore-path .gitignore .",
-    "compose": "homey app compose"
+    "compose": "homey app compose",
+    "proto:gen": "node scripts/gen-proto.mjs",
+    "test:proto": "tsc && node --test scripts/proto-roundtrip.test.mjs",
+    "test:ble": "tsc && node --test scripts/blufi-codec.test.mjs",
+    "test:schedule": "tsc && node --test scripts/schedule-roundtrip.test.mjs",
+    "test": "npm run test:proto && npm run test:ble && npm run test:schedule"
   },
   "dependencies": {
-    "mqtt": "^5.10.1"
+    "mqtt": "^5.10.1",
+    "protobufjs": "^7.6.4"
   },
   "devDependencies": {
-    "@tsconfig/node16": "^16.1.8",
     "@types/homey": "npm:homey-apps-sdk-v3-types@^0.3.12",
     "@types/node": "^26.0.1",
     "eslint": "^7.32.0",

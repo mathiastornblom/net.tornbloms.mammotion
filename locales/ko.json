@@ -1,0 +1,24 @@
+{
+  "error": {
+    "missing_credentials": "이메일과 비밀번호를 입력하세요.",
+    "invalid_credentials": "이메일 또는 비밀번호가 올바르지 않습니다. 다시 시도해 주세요.",
+    "not_authenticated": "구성된 Mammotion 계정이 없습니다. 기기를 다시 추가해 주세요.",
+    "device_offline": "잔디깎이가 오프라인 상태입니다",
+    "command_failed": "명령 실행 실패"
+  },
+  "flow": {
+    "triggers": {
+      "mower_started_mowing": { "title": "잔디깎이가 작업을 시작함" },
+      "mower_docked": { "title": "잔디깎이가 충전소로 복귀함" },
+      "mower_error": { "title": "잔디깎이가 오류를 보고함" }
+    },
+    "conditions": {
+      "is_mowing": { "title": "잔디깎이가 작업 중임" }
+    },
+    "actions": {
+      "start_mowing": { "title": "작업 시작" },
+      "send_to_dock": { "title": "충전소로 보내기" },
+      "pause_mowing": { "title": "작업 일시정지" }
+    }
+  }
+}

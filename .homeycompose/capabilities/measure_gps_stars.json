@@ -1,0 +1,24 @@
+{
+  "type": "number",
+  "title": {
+    "en": "GPS Satellites",
+    "nl": "GPS-satellieten",
+    "de": "GPS-Satelliten",
+    "fr": "Satellites GPS",
+    "it": "Satelliti GPS",
+    "sv": "GPS-satelliter",
+    "no": "GPS-satellitter",
+    "es": "Satélites GPS",
+    "da": "GPS-satellitter",
+    "ru": "Спутники GPS",
+    "pl": "Satelity GPS",
+    "ko": "GPS 위성",
+    "ar": "أقمار GPS"
+  },
+  "min": 0,
+  "decimals": 0,
+  "getable": true,
+  "setable": false,
+  "uiComponent": "sensor",
+  "icon": "/assets/icon.svg"
+}

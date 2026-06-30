@@ -1,6 +1,20 @@
 {
   "type": "number",
-  "title": { "en": "Mowed Area" },
+  "title": {
+    "en": "Mowed Area",
+    "nl": "Gemaaid gebied",
+    "de": "Gemähte Fläche",
+    "fr": "Surface tondue",
+    "it": "Area tagliata",
+    "sv": "Klippt yta",
+    "no": "Klippet areal",
+    "es": "Área cortada",
+    "da": "Klippet areal",
+    "ru": "Скошенная площадь",
+    "pl": "Skoszony obszar",
+    "ko": "작업 면적",
+    "ar": "المساحة المجزوزة"
+  },
   "units": { "en": "m²" },
   "min": 0,
   "decimals": 0,

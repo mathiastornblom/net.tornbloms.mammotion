@@ -1,0 +1,24 @@
+{
+  "error": {
+    "missing_credentials": "Indtast din e-mail og adgangskode.",
+    "invalid_credentials": "Ugyldig e-mail eller adgangskode. Prøv igen.",
+    "not_authenticated": "Ingen Mammotion-konto konfigureret. Tilføj enheden igen.",
+    "device_offline": "Plæneklipperen er offline",
+    "command_failed": "Kommandoen mislykkedes"
+  },
+  "flow": {
+    "triggers": {
+      "mower_started_mowing": { "title": "Plæneklipperen begyndte at klippe" },
+      "mower_docked": { "title": "Plæneklipperen vendte tilbage til docken" },
+      "mower_error": { "title": "Plæneklipperen rapporterede en fejl" }
+    },
+    "conditions": {
+      "is_mowing": { "title": "Plæneklipperen klipper" }
+    },
+    "actions": {
+      "start_mowing": { "title": "Start klipning" },
+      "send_to_dock": { "title": "Send plæneklipperen til docken" },
+      "pause_mowing": { "title": "Sæt klipning på pause" }
+    }
+  }
+}

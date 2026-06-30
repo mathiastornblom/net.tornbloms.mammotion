@@ -9,8 +9,8 @@ import {
   TOKEN_ENDPOINT,
   MAMMOTION_DOMAIN,
   MAMMOTION_API_DOMAIN,
-} from '../constants';
-import { ApiError, AuthError, SessionExpiredError } from '../errors';
+} from '../constants.js';
+import { ApiError, AuthError, SessionExpiredError } from '../errors.js';
 import type {
   AuthSession,
   DeviceContext,
@@ -20,7 +20,7 @@ import type {
   MammotionApiResponse,
   MammotionDevice,
   MqttConnection,
-} from './types';
+} from './types.js';
 
 /** Performs all Mammotion cloud HTTP calls: login, token refresh, device list, MQTT credentials. */
 export class MammotionAuth {
@@ -248,15 +248,20 @@ export class MammotionAuth {
     return resp.data;
   }
 
-  /** Resolve a combined device context from device + record, ready for MQTT use. */
-  static mergeDeviceContext(device: MammotionDevice, record: DeviceRecord): DeviceContext {
+  /**
+   * Resolve a combined device context from device + record, ready for MQTT use.
+   * `device` is the owned-devices entry and may be absent for mowers that were
+   * shared (not owned) by this account — `record` alone is then authoritative.
+   */
+  static mergeDeviceContext(device: Partial<MammotionDevice>, record: DeviceRecord): DeviceContext {
+    const iotId = device.iotId ?? record.iotId;
     return {
-      iotId: device.iotId ?? record.iotId,
+      iotId,
       deviceId: device.deviceId ?? record.deviceId ?? '',
-      deviceName: device.deviceName ?? record.deviceName ?? device.iotId,
+      deviceName: device.deviceName ?? record.deviceName ?? iotId,
       productKey: record.productKey ?? '',
       recordDeviceName: record.deviceName ?? '',
-      status: device.status ?? null,
+      status: device.status ?? record.status ?? null,
       deviceType: typeof device.deviceType === 'number'
         ? device.deviceType
         : device.deviceType != null ? Number(device.deviceType) : null,

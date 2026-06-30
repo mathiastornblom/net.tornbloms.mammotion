@@ -1,0 +1,24 @@
+{
+  "error": {
+    "missing_credentials": "Introduce tu correo electrónico y contraseña.",
+    "invalid_credentials": "Correo electrónico o contraseña no válidos. Inténtalo de nuevo.",
+    "not_authenticated": "No hay ninguna cuenta de Mammotion configurada. Vuelve a añadir el dispositivo.",
+    "device_offline": "El cortacésped está sin conexión",
+    "command_failed": "Error al ejecutar el comando"
+  },
+  "flow": {
+    "triggers": {
+      "mower_started_mowing": { "title": "El cortacésped empezó a cortar" },
+      "mower_docked": { "title": "El cortacésped regresó a la base" },
+      "mower_error": { "title": "El cortacésped reportó un error" }
+    },
+    "conditions": {
+      "is_mowing": { "title": "El cortacésped está cortando" }
+    },
+    "actions": {
+      "start_mowing": { "title": "Iniciar corte" },
+      "send_to_dock": { "title": "Enviar el cortacésped a la base" },
+      "pause_mowing": { "title": "Pausar corte" }
+    }
+  }
+}

@@ -1,142 +1,106 @@
-'use strict';
+import protobuf from 'protobufjs';
+import { protoDescriptor } from './generated/descriptor.js';
 
 /**
- * Manual protobuf encoding/decoding primitives.
- * We hand-encode LubaMsg rather than pulling in protobufjs for Phase 1,
- * since the command set is small and the binary format is fully understood
- * from the ioBroker TypeScript reference implementation.
+ * Protobuf codec for the Mammotion LubaMsg envelope, backed by protobufjs reflection
+ * over the vendored .proto definitions (see generated/descriptor.ts). This replaces
+ * the previous hand-rolled byte codec, whose guessed field numbers caused telemetry
+ * to be silently mis-encoded/mis-parsed.
+ *
+ * Field names on encoded/decoded objects are camelCase (protobufjs convention):
+ * proto `todev_report_cfg` → `todevReportCfg`, `toapp_report_data` → `toappReportData`.
  */
 
-export function encodeVarint(value: number | bigint): Buffer {
-  let v = typeof value === 'bigint' ? value : BigInt(Math.trunc(value));
-  if (v < 0n) v = 0n;
-  const bytes: number[] = [];
-  while (v > 127n) {
-    bytes.push(Number(v & 0x7fn) | 0x80);
-    v >>= 7n;
+/** MsgCmdType enum values (luba_msg.proto). */
+export const MsgCmdType = {
+  NAV: 240,
+  PLANNING: 242,
+  EMBED_DRIVER: 243,
+  EMBED_SYS: 244,
+  ESP: 248,
+} as const;
+
+/** MsgDevice enum values (luba_msg.proto). */
+export const MsgDevice = {
+  DEV_COMM_ESP: 0,
+  DEV_MAINCTL: 1,
+  DEV_MOBILEAPP: 7,
+  DEV_NAVIGATION: 17,
+} as const;
+
+/** MsgAttr enum values (luba_msg.proto). */
+export const MsgAttr = {
+  REQ: 1,
+} as const;
+
+/** rpt_act enum values (mctrl_sys.proto). */
+export const RptAct = {
+  RPT_START: 0,
+  RPT_STOP: 1,
+  RPT_KEEP: 2,
+} as const;
+
+/** rpt_info_type enum values (mctrl_sys.proto). */
+export const RptInfoType = {
+  RIT_CONNECT: 0,
+  RIT_DEV_STA: 1,
+  RIT_RTK: 2,
+  RIT_DEV_LOCAL: 3,
+  RIT_WORK: 4,
+  RIT_FW_INFO: 5,
+  RIT_MAINTAIN: 6,
+  RIT_VISION_POINT: 7,
+  RIT_VIO: 8,
+  RIT_VISION_STATISTIC: 9,
+  RIT_BASESTATION_INFO: 10,
+  RIT_CUTTER_INFO: 11,
+} as const;
+
+let cachedRoot: protobuf.Root | null = null;
+let cachedLubaMsg: protobuf.Type | null = null;
+
+/** Lazily build (and cache) the protobuf Root from the embedded descriptor. */
+function getRoot(): protobuf.Root {
+  if (!cachedRoot) {
+    cachedRoot = protobuf.Root.fromJSON(protoDescriptor);
   }
-  bytes.push(Number(v));
-  return Buffer.from(bytes);
+  return cachedRoot;
 }
 
-/** Varint field (wire type 0). */
-export function encodeFieldVarint(fieldNumber: number, value: number | bigint): Buffer {
-  const tag = (fieldNumber << 3) | 0;
-  return Buffer.concat([encodeVarint(tag), encodeVarint(value)]);
-}
-
-/** Signed int32 as varint (handles negatives via two's complement extension to 64-bit). */
-export function encodeFieldInt32(fieldNumber: number, value: number): Buffer {
-  const tag = (fieldNumber << 3) | 0;
-  let v = BigInt(Math.trunc(value));
-  if (v < 0n) v = (1n << 64n) + v;
-  return Buffer.concat([encodeVarint(tag), encodeVarint(v)]);
-}
-
-/** Length-delimited bytes field (wire type 2). */
-export function encodeFieldBytes(fieldNumber: number, value: Buffer): Buffer {
-  const tag = (fieldNumber << 3) | 2;
-  return Buffer.concat([encodeVarint(tag), encodeVarint(value.length), value]);
-}
-
-/** String field (wire type 2). */
-export function encodeFieldString(fieldNumber: number, value: string): Buffer {
-  return encodeFieldBytes(fieldNumber, Buffer.from(value, 'utf8'));
-}
-
-/** Fixed 64-bit little-endian (wire type 1) — used for area hashes. */
-export function encodeFieldFixed64(fieldNumber: number, value: bigint): Buffer {
-  const tag = (fieldNumber << 3) | 1;
-  const payload = Buffer.allocUnsafe(8);
-  payload.writeBigUInt64LE(BigInt.asUintN(64, value), 0);
-  return Buffer.concat([encodeVarint(tag), payload]);
-}
-
-/** 32-bit float little-endian (wire type 5). */
-export function encodeFieldFloat32(fieldNumber: number, value: number): Buffer {
-  const tag = (fieldNumber << 3) | 5;
-  const payload = Buffer.allocUnsafe(4);
-  payload.writeFloatLE(value, 0);
-  return Buffer.concat([encodeVarint(tag), payload]);
-}
-
-/** Concatenate a list of field buffers into a length-prefixed message. */
-export function encodeMessage(fields: Buffer[]): Buffer {
-  const body = Buffer.concat(fields);
-  return Buffer.concat([encodeVarint(body.length), body]);
-}
-
-// ─── Decoding helpers ────────────────────────────────────────────────────────
-
-export interface DecodedField {
-  fieldNumber: number;
-  wireType: number;
-  value: Buffer | bigint;
-}
-
-/** Decode all fields from a protobuf message buffer. Caller decides how to interpret. */
-export function decodeMessage(buf: Buffer): DecodedField[] {
-  const fields: DecodedField[] = [];
-  let offset = 0;
-
-  while (offset < buf.length) {
-    const { value: rawTag, bytesRead: tagBytes } = readVarint(buf, offset);
-    offset += tagBytes;
-    const tag = Number(rawTag);
-    const fieldNumber = tag >> 3;
-    const wireType = tag & 0x07;
-
-    if (wireType === 0) {
-      const { value, bytesRead } = readVarint(buf, offset);
-      offset += bytesRead;
-      fields.push({ fieldNumber, wireType, value });
-    } else if (wireType === 2) {
-      const { value: lenRaw, bytesRead: lenBytes } = readVarint(buf, offset);
-      offset += lenBytes;
-      const len = Number(lenRaw);
-      fields.push({ fieldNumber, wireType, value: buf.slice(offset, offset + len) });
-      offset += len;
-    } else if (wireType === 1) {
-      fields.push({ fieldNumber, wireType, value: buf.readBigUInt64LE(offset) });
-      offset += 8;
-    } else if (wireType === 5) {
-      fields.push({ fieldNumber, wireType, value: BigInt(buf.readUInt32LE(offset)) });
-      offset += 4;
-    } else {
-      break; // unsupported wire type — stop to avoid infinite loop
-    }
+/** Return the LubaMsg message type. */
+export function getLubaMsgType(): protobuf.Type {
+  if (!cachedLubaMsg) {
+    cachedLubaMsg = getRoot().lookupType('LubaMsg');
   }
-  return fields;
+  return cachedLubaMsg;
 }
 
-function readVarint(buf: Buffer, offset: number): { value: bigint; bytesRead: number } {
-  let result = 0n;
-  let shift = 0n;
-  let bytesRead = 0;
-  while (offset + bytesRead < buf.length) {
-    const byte = buf[offset + bytesRead];
-    bytesRead++;
-    result |= BigInt(byte & 0x7f) << shift;
-    shift += 7n;
-    if ((byte & 0x80) === 0) break;
-  }
-  return { value: result, bytesRead };
+/** Encode a LubaMsg plain object to protobuf bytes. */
+export function encodeLubaMsg(payload: Record<string, unknown>): Buffer {
+  const type = getLubaMsgType();
+  const message = type.create(payload);
+  return Buffer.from(type.encode(message).finish());
 }
 
-/** Extract a varint field value as a number from decoded fields. */
-export function getVarintField(fields: DecodedField[], fieldNumber: number): number | null {
-  const f = fields.find(x => x.fieldNumber === fieldNumber && x.wireType === 0);
-  return f ? Number(f.value as bigint) : null;
+/** Encode a LubaMsg and return it base64-encoded (for the MQTT invoke API). */
+export function encodeLubaMsgBase64(payload: Record<string, unknown>): string {
+  return encodeLubaMsg(payload).toString('base64');
 }
 
-/** Extract a bytes/string field from decoded fields. */
-export function getBytesField(fields: DecodedField[], fieldNumber: number): Buffer | null {
-  const f = fields.find(x => x.fieldNumber === fieldNumber && x.wireType === 2);
-  return f ? (f.value as Buffer) : null;
-}
-
-/** Decode a bytes field as a UTF-8 string. */
-export function getStringField(fields: DecodedField[], fieldNumber: number): string | null {
-  const buf = getBytesField(fields, fieldNumber);
-  return buf ? buf.toString('utf8') : null;
+/**
+ * Decode protobuf bytes into a LubaMsg plain object (camelCase fields).
+ *
+ * `defaults: true` is required: proto3 cannot distinguish "field not set" from
+ * "field explicitly 0" on the wire, so protobufjs omits zero-valued fields from
+ * the decoded object unless told otherwise. A legitimate 0 (e.g. man_run_speed=0
+ * while stationary) would otherwise silently vanish instead of being reported.
+ */
+export function decodeLubaMsg(buf: Buffer): Record<string, unknown> {
+  const type = getLubaMsgType();
+  const message = type.decode(buf);
+  return type.toObject(message, {
+    longs: Number,
+    enums: Number,
+    defaults: true,
+  });
 }

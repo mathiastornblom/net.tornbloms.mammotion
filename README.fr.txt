@@ -1,0 +1,1 @@
+Contrôlez et surveillez votre tondeuse robot Mammotion depuis Homey. Démarrez la tonte, mettez-la en pause ou renvoyez la tondeuse à sa base, et suivez son état, son niveau de batterie et la surface tondue.

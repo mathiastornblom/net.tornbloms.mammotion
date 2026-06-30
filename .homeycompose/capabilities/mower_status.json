@@ -1,14 +1,130 @@
 {
   "type": "enum",
   "values": [
-    { "id": "idle",     "title": { "en": "Idle" } },
-    { "id": "mowing",   "title": { "en": "Mowing" } },
-    { "id": "returning","title": { "en": "Returning" } },
-    { "id": "charging", "title": { "en": "Charging" } },
-    { "id": "paused",   "title": { "en": "Paused" } },
-    { "id": "error",    "title": { "en": "Error" } }
+    {
+      "id": "idle",
+      "title": {
+        "en": "Idle",
+        "nl": "Inactief",
+        "de": "Inaktiv",
+        "fr": "Inactif",
+        "it": "Inattivo",
+        "sv": "Inaktiv",
+        "no": "Inaktiv",
+        "es": "Inactivo",
+        "da": "Inaktiv",
+        "ru": "Ожидание",
+        "pl": "Bezczynny",
+        "ko": "대기",
+        "ar": "خامل"
+      }
+    },
+    {
+      "id": "mowing",
+      "title": {
+        "en": "Mowing",
+        "nl": "Maait",
+        "de": "Mäht",
+        "fr": "Tond",
+        "it": "In taglio",
+        "sv": "Klipper",
+        "no": "Klipper",
+        "es": "Cortando",
+        "da": "Klipper",
+        "ru": "Косит",
+        "pl": "Koszenie",
+        "ko": "작업 중",
+        "ar": "يجز"
+      }
+    },
+    {
+      "id": "returning",
+      "title": {
+        "en": "Returning",
+        "nl": "Keert terug",
+        "de": "Kehrt zurück",
+        "fr": "Retour en cours",
+        "it": "Sta tornando",
+        "sv": "Återvänder",
+        "no": "Returnerer",
+        "es": "Regresando",
+        "da": "Returnerer",
+        "ru": "Возвращается",
+        "pl": "Wraca",
+        "ko": "복귀 중",
+        "ar": "عائد"
+      }
+    },
+    {
+      "id": "charging",
+      "title": {
+        "en": "Charging",
+        "nl": "Laadt op",
+        "de": "Lädt",
+        "fr": "En charge",
+        "it": "In carica",
+        "sv": "Laddar",
+        "no": "Lader",
+        "es": "Cargando",
+        "da": "Lader",
+        "ru": "Заряжается",
+        "pl": "Ładowanie",
+        "ko": "충전 중",
+        "ar": "يشحن"
+      }
+    },
+    {
+      "id": "paused",
+      "title": {
+        "en": "Paused",
+        "nl": "Gepauzeerd",
+        "de": "Pausiert",
+        "fr": "En pause",
+        "it": "In pausa",
+        "sv": "Pausad",
+        "no": "Pauset",
+        "es": "En pausa",
+        "da": "Pauset",
+        "ru": "Приостановлено",
+        "pl": "Wstrzymano",
+        "ko": "일시정지",
+        "ar": "متوقف مؤقتًا"
+      }
+    },
+    {
+      "id": "error",
+      "title": {
+        "en": "Error",
+        "nl": "Fout",
+        "de": "Fehler",
+        "fr": "Erreur",
+        "it": "Errore",
+        "sv": "Fel",
+        "no": "Feil",
+        "es": "Error",
+        "da": "Fejl",
+        "ru": "Ошибка",
+        "pl": "Błąd",
+        "ko": "오류",
+        "ar": "خطأ"
+      }
+    }
   ],
-  "title": { "en": "Mower Status" },
+  "title": {
+    "en": "Mower Status",
+    "nl": "Maaierstatus",
+    "de": "Mähstatus",
+    "fr": "État de la tondeuse",
+    "it": "Stato del tagliaerba",
+    "sv": "Klipparstatus",
+    "no": "Klipperstatus",
+    "es": "Estado del cortacésped",
+    "da": "Plæneklipperstatus",
+    "ru": "Статус газонокосилки",
+    "pl": "Status kosiarki",
+    "ko": "잔디깎이 상태",
+    "ar": "حالة الجزازة"
+  },
   "getable": true,
   "setable": false,
   "uiComponent": "sensor"

@@ -1,0 +1,24 @@
+{
+  "error": {
+    "missing_credentials": "Ange din e-postadress och lösenord.",
+    "invalid_credentials": "Ogiltig e-postadress eller lösenord. Försök igen.",
+    "not_authenticated": "Inget Mammotion-konto konfigurerat. Lägg till enheten igen.",
+    "device_offline": "Klipparen är offline",
+    "command_failed": "Kommandot misslyckades"
+  },
+  "flow": {
+    "triggers": {
+      "mower_started_mowing": { "title": "Klipparen började klippa" },
+      "mower_docked": { "title": "Klipparen återvände till dockan" },
+      "mower_error": { "title": "Klipparen rapporterade ett fel" }
+    },
+    "conditions": {
+      "is_mowing": { "title": "Klipparen klipper" }
+    },
+    "actions": {
+      "start_mowing": { "title": "Starta klippning" },
+      "send_to_dock": { "title": "Skicka klipparen till dockan" },
+      "pause_mowing": { "title": "Pausa klippning" }
+    }
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "error": {
+    "missing_credentials": "Voer uw e-mailadres en wachtwoord in.",
+    "invalid_credentials": "Ongeldig e-mailadres of wachtwoord. Probeer het opnieuw.",
+    "not_authenticated": "Geen Mammotion-account geconfigureerd. Voeg het apparaat opnieuw toe.",
+    "device_offline": "Maaier is offline",
+    "command_failed": "Opdracht mislukt"
+  },
+  "flow": {
+    "triggers": {
+      "mower_started_mowing": { "title": "Maaier begon te maaien" },
+      "mower_docked": { "title": "Maaier is teruggekeerd naar het dock" },
+      "mower_error": { "title": "Maaier meldde een fout" }
+    },
+    "conditions": {
+      "is_mowing": { "title": "Maaier is aan het maaien" }
+    },
+    "actions": {
+      "start_mowing": { "title": "Start met maaien" },
+      "send_to_dock": { "title": "Stuur maaier naar dock" },
+      "pause_mowing": { "title": "Maaien onderbreken" }
+    }
+  }
+}

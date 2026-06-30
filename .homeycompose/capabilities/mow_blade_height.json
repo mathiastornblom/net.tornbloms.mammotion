@@ -1,6 +1,20 @@
 {
   "type": "number",
-  "title": { "en": "Blade Height" },
+  "title": {
+    "en": "Blade Height",
+    "nl": "Maaihoogte",
+    "de": "Schnitthöhe",
+    "fr": "Hauteur de coupe",
+    "it": "Altezza lama",
+    "sv": "Klipphöjd",
+    "no": "Klippehøyde",
+    "es": "Altura de corte",
+    "da": "Klippehøjde",
+    "ru": "Высота скашивания",
+    "pl": "Wysokość koszenia",
+    "ko": "칼날 높이",
+    "ar": "ارتفاع النصل"
+  },
   "units": { "en": "mm" },
   "min": 15,
   "max": 100,

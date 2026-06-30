@@ -1,6 +1,20 @@
 {
   "type": "number",
-  "title": { "en": "Mow Progress" },
+  "title": {
+    "en": "Mow Progress",
+    "nl": "Maaivoortgang",
+    "de": "Mähfortschritt",
+    "fr": "Progression de la tonte",
+    "it": "Avanzamento taglio",
+    "sv": "Klippframsteg",
+    "no": "Klippefremdrift",
+    "es": "Progreso del corte",
+    "da": "Klippefremgang",
+    "ru": "Прогресс кошения",
+    "pl": "Postęp koszenia",
+    "ko": "작업 진행률",
+    "ar": "تقدم الجز"
+  },
   "units": { "en": "%" },
   "min": 0,
   "max": 100,

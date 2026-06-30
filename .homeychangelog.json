@@ -13,5 +13,59 @@
   },
   "1.1.1": {
     "en": "Icons"
+  },
+  "1.1.2": {
+    "en": "Fixed duplicate login/continue buttons during pairing"
+  },
+  "1.1.3": {
+    "en": "Fixed shared mowers not showing up during pairing"
+  },
+  "1.1.4": {
+    "en": "Added diagnostic logging for pairing issues"
+  },
+  "1.2.0": {
+    "en": "Added WiFi/Bluetooth/GPS/speed/time sensors, battery and GPS flow cards, and fixed shared mowers not reporting telemetry"
+  },
+  "1.2.1": {
+    "en": "Fixed MQTT connection dropping immediately and looping forever with no data"
+  },
+  "1.2.2": {
+    "en": "Fixed MQTT broker disconnecting due to unauthorized topic subscriptions"
+  },
+  "1.2.3": {
+    "en": "Added diagnostic logging for MQTT messages and sync requests"
+  },
+  "1.2.4": {
+    "en": "Fixed sync command using a wrong endpoint, and fixed telemetry not being decoded from the mower's MQTT messages"
+  },
+  "1.3.0": {
+    "en": "Rebuilt the device protocol on the real protobuf definitions so sensor values (battery, status, signal, GPS, area, progress) are read correctly"
+  },
+  "1.3.1": {
+    "en": "Added end-to-end diagnostic logging (cloud setup, MQTT credentials, applied telemetry) so a single submitted log pinpoints any failure"
+  },
+  "1.3.2": {
+    "en": "Reduced hub load (one-shot polling, only update on change) to fix sluggishness, and ignore an invalid progress value while the mower is idle"
+  },
+  "1.3.3": {
+    "en": "Fixed mowing speed, elapsed time and time remaining showing no data — area and progress fields are packed 16+16 values, not plain numbers"
+  },
+  "1.3.4": {
+    "en": "Fixed mowing speed and other zero-valued readings being silently dropped instead of reported as 0"
+  },
+  "1.4.0": {
+    "en": "Added a Repair flow to update your Mammotion account credentials without deleting the device, and clearer messages when login fails"
+  },
+  "1.5.0": {
+    "en": "Phase 4 BLE foundation: BluFi framing codec (unit-tested), BLE transport skeleton, and BLE sync command — ready to test on real hardware"
+  },
+  "1.6.0": {
+    "en": "Dual-mode transport: BLE preferred when in range, MQTT fallback; transport preference setting added to device settings"
+  },
+  "1.6.1": {
+    "en": "Added a Connection Type sensor (Bluetooth/Cloud) so you can see which transport is active, with full history in Insights"
+  },
+  "1.6.2": {
+    "en": "Added a diagnostic action to read the mower's stored mowing schedule (read-only — see docs/SCHEDULING_PLAN.md for why write support is deferred)"
   }
 }

@@ -1,0 +1,24 @@
+{
+  "type": "number",
+  "title": {
+    "en": "Bluetooth Signal",
+    "nl": "Bluetooth-signaal",
+    "de": "Bluetooth-Signal",
+    "fr": "Signal Bluetooth",
+    "it": "Segnale Bluetooth",
+    "sv": "Bluetooth-signal",
+    "no": "Bluetooth-signal",
+    "es": "Señal Bluetooth",
+    "da": "Bluetooth-signal",
+    "ru": "Сигнал Bluetooth",
+    "pl": "Sygnał Bluetooth",
+    "ko": "블루투스 신호",
+    "ar": "إشارة Bluetooth"
+  },
+  "units": { "en": "dBm" },
+  "decimals": 0,
+  "getable": true,
+  "setable": false,
+  "uiComponent": "sensor",
+  "icon": "/assets/icon.svg"
+}

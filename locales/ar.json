@@ -1,0 +1,24 @@
+{
+  "error": {
+    "missing_credentials": "يرجى إدخال بريدك الإلكتروني وكلمة المرور.",
+    "invalid_credentials": "بريد إلكتروني أو كلمة مرور غير صحيحة. يرجى المحاولة مرة أخرى.",
+    "not_authenticated": "لم يتم تكوين حساب Mammotion. يرجى إعادة إضافة الجهاز.",
+    "device_offline": "الجزازة غير متصلة",
+    "command_failed": "فشل تنفيذ الأمر"
+  },
+  "flow": {
+    "triggers": {
+      "mower_started_mowing": { "title": "بدأت الجزازة بالجز" },
+      "mower_docked": { "title": "عادت الجزازة إلى القاعدة" },
+      "mower_error": { "title": "أبلغت الجزازة عن خطأ" }
+    },
+    "conditions": {
+      "is_mowing": { "title": "الجزازة تعمل حاليًا" }
+    },
+    "actions": {
+      "start_mowing": { "title": "بدء الجز" },
+      "send_to_dock": { "title": "إرسال الجزازة إلى القاعدة" },
+      "pause_mowing": { "title": "إيقاف الجز مؤقتًا" }
+    }
+  }
+}

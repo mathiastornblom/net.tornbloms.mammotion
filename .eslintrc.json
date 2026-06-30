@@ -1,3 +1,12 @@
 {
-  "extends": "athom/homey-app"
+  "extends": "athom/homey-app",
+  "ignorePatterns": [
+    "lib/mammotion/protocol/generated/**",
+    ".homeybuild/**"
+  ],
+  "rules": {
+    "import/extensions": "off",
+    "import/no-unresolved": "off",
+    "node/no-missing-import": "off"
+  }
 }
