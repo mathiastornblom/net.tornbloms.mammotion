@@ -31,8 +31,11 @@ export type BleStatusCallback = (iotId: string, connected: boolean) => void;
  * applies without modification. See docs/BLE_PLAN.md for the full analysis and open
  * questions to verify once tested against a real device.
  *
- * ⚠️  UNVERIFIED on real hardware — loud diagnostic logging is intentional so the
- * first real device test is conclusive rather than silently wrong.
+ * ⚠️  Real-device test (2026-06-30, Homey 3s / homey3s, 90+ min runtime): BLE scan
+ * never found the mower's advertisement even once, while MQTT ran fine in parallel
+ * the whole time. Connect/notify/MTU/BluFi-framing remain unverified — discovery
+ * never got that far. See [[protocol-notes]] memory for the full writeup before
+ * changing scan logic again.
  */
 export class BleTransport {
   private bleManager: BleManager;
@@ -80,7 +83,10 @@ export class BleTransport {
     try {
       const advertisement = await this.discoverMower();
       if (!advertisement) {
-        this.logError(`BLE: device ${this.deviceName} not found in scan`);
+        // Not found is the expected steady state when MQTT is doing the work (or
+        // this hub's BLE radio simply can't see the mower) — log it quietly and
+        // retry. Reserve logError for failures after a successful scan match.
+        this.log(`BLE: device ${this.deviceName} not found in scan`);
         this.scheduleReconnect();
         return;
       }
