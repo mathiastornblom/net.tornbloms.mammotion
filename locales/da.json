@@ -6,6 +6,18 @@
     "device_offline": "Plæneklipperen er offline",
     "command_failed": "Kommandoen mislykkedes"
   },
+  "pair": {
+    "account_setup": {
+      "title": "Opret en Mammotion-konto til Homey",
+      "intro": "Mammotion-appen logger dig ud, så snart en anden app (som Homey) logger ind med den samme konto. For at kunne blive ved med at bruge din egen konto som normalt, skal du oprette en separat konto kun til Homey:",
+      "step1": "Opret en ny Mammotion-konto (en anden e-mailadresse) — dette er den konto, Homey vil bruge.",
+      "step2": "Åbn Mammotion-appen på din telefon, logget ind med din normale konto, og del din/dine plæneklipper(e) med den nye konto.",
+      "step3": "Log ind i Mammotion-appen med den nye konto, og accepter invitationen.",
+      "step4": "Tryk på Fortsæt nedenfor, og log derefter ind her med den nye kontos e-mail og adgangskode.",
+      "note": "Du skal kun gøre dette én gang. Derefter fortsætter din normale konto med at fungere i Mammotion-appen præcis som før.",
+      "continue": "Fortsæt"
+    }
+  },
   "flow": {
     "triggers": {
       "mower_started_mowing": { "title": "Plæneklipperen begyndte at klippe" },

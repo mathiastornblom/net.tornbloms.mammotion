@@ -1,0 +1,44 @@
+<style>
+  .account-setup-intro {
+    margin-bottom: 1em;
+  }
+  .account-setup-steps {
+    margin: 0 0 1.5em 0;
+    padding-left: 1.4em;
+  }
+  .account-setup-steps li {
+    margin-bottom: 0.75em;
+    line-height: 1.4;
+  }
+  .account-setup-note {
+    background: var(--homey-color-mono-100, #f2f2f2);
+    border-radius: 8px;
+    padding: 0.75em 1em;
+    margin-bottom: 1.5em;
+    font-size: 0.9em;
+  }
+</style>
+
+<h1 data-i18n="pair.account_setup.title"></h1>
+
+<p class="account-setup-intro" data-i18n="pair.account_setup.intro"></p>
+
+<ol class="account-setup-steps">
+  <li data-i18n="pair.account_setup.step1"></li>
+  <li data-i18n="pair.account_setup.step2"></li>
+  <li data-i18n="pair.account_setup.step3"></li>
+  <li data-i18n="pair.account_setup.step4"></li>
+</ol>
+
+<p class="account-setup-note" data-i18n="pair.account_setup.note"></p>
+
+<button class="homey-button-primary-full" id="continueButton" data-i18n="pair.account_setup.continue"></button>
+
+<script type="application/javascript">
+  function onHomeyReady(Homey) {
+    document.getElementById('continueButton').addEventListener('click', () => {
+      Homey.nextView();
+    });
+    Homey.ready();
+  }
+</script>

@@ -6,6 +6,18 @@
     "device_offline": "Il tagliaerba è offline",
     "command_failed": "Comando non riuscito"
   },
+  "pair": {
+    "account_setup": {
+      "title": "Configura un account Mammotion per Homey",
+      "intro": "L'app mobile Mammotion ti disconnette non appena un'altra app (come Homey) accede con lo stesso account. Per continuare a usare normalmente il tuo account, crea un account separato solo per Homey:",
+      "step1": "Crea un nuovo account Mammotion (un indirizzo email diverso) — questo è l'account che Homey utilizzerà.",
+      "step2": "Apri l'app Mammotion sul telefono, accedendo con il tuo account normale, e condividi il tuo tagliaerba (o i tagliaerba) con il nuovo account.",
+      "step3": "Accedi all'app Mammotion con il nuovo account e accetta l'invito.",
+      "step4": "Tocca Continua qui sotto, quindi accedi qui con l'email e la password del nuovo account.",
+      "note": "Devi farlo solo una volta. Dopodiché, il tuo account normale continuerà a funzionare nell'app Mammotion esattamente come prima.",
+      "continue": "Continua"
+    }
+  },
   "flow": {
     "triggers": {
       "mower_started_mowing": { "title": "Il tagliaerba ha iniziato a tagliare" },

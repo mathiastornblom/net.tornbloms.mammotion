@@ -109,5 +109,8 @@
   },
   "2.0.2": {
     "en": "Linked the Homey Community forum topic to the app's store page"
+  },
+  "2.1.0": {
+    "en": "Added a new step at the start of pairing that clearly explains how to set up a dedicated Mammotion account for Homey, so your regular Mammotion account is never logged out of the mobile app. Available in all 13 supported languages."
   }
 }

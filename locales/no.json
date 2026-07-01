@@ -6,6 +6,18 @@
     "device_offline": "Klipperen er offline",
     "command_failed": "Kommandoen mislyktes"
   },
+  "pair": {
+    "account_setup": {
+      "title": "Sett opp en Mammotion-konto for Homey",
+      "intro": "Mammotion-appen logger deg ut så snart en annen app (som Homey) logger inn med samme konto. For å fortsette å bruke din egen konto som normalt, sett opp en egen konto kun for Homey:",
+      "step1": "Opprett en ny Mammotion-konto (en annen e-postadresse) — dette er kontoen Homey vil bruke.",
+      "step2": "Åpne Mammotion-appen på telefonen din, logget inn med din vanlige konto, og del klipperen(e) din med den nye kontoen.",
+      "step3": "Logg inn i Mammotion-appen med den nye kontoen og godta invitasjonen.",
+      "step4": "Trykk Fortsett nedenfor, og logg deretter inn her med e-postadressen og passordet til den nye kontoen.",
+      "note": "Du trenger bare å gjøre dette én gang. Etterpå fortsetter din vanlige konto å fungere i Mammotion-appen akkurat som før.",
+      "continue": "Fortsett"
+    }
+  },
   "flow": {
     "triggers": {
       "mower_started_mowing": { "title": "Klipperen begynte å klippe" },

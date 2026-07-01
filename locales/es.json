@@ -6,6 +6,18 @@
     "device_offline": "El cortacésped está sin conexión",
     "command_failed": "Error al ejecutar el comando"
   },
+  "pair": {
+    "account_setup": {
+      "title": "Configura una cuenta de Mammotion para Homey",
+      "intro": "La aplicación móvil de Mammotion te cierra la sesión en cuanto otra aplicación (como Homey) inicia sesión con la misma cuenta. Para seguir usando tu cuenta normalmente, crea una cuenta separada solo para Homey:",
+      "step1": "Crea una nueva cuenta de Mammotion (un correo electrónico diferente) — esta es la cuenta que usará Homey.",
+      "step2": "Abre la aplicación Mammotion en tu teléfono, con la sesión iniciada con tu cuenta habitual, y comparte tu(s) cortacésped(es) con la nueva cuenta.",
+      "step3": "Inicia sesión en la aplicación Mammotion con la nueva cuenta y acepta la invitación.",
+      "step4": "Toca Continuar a continuación y luego inicia sesión aquí con el correo electrónico y la contraseña de la nueva cuenta.",
+      "note": "Solo necesitas hacer esto una vez. Después, tu cuenta habitual seguirá funcionando en la aplicación Mammotion exactamente igual que antes.",
+      "continue": "Continuar"
+    }
+  },
   "flow": {
     "triggers": {
       "mower_started_mowing": { "title": "El cortacésped empezó a cortar" },

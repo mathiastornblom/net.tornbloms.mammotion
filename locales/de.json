@@ -6,6 +6,18 @@
     "device_offline": "Mäher ist offline",
     "command_failed": "Befehl fehlgeschlagen"
   },
+  "pair": {
+    "account_setup": {
+      "title": "Ein Mammotion-Konto für Homey einrichten",
+      "intro": "Die Mammotion-App meldet dich ab, sobald sich eine andere App (wie Homey) mit demselben Konto anmeldet. Damit du dein eigenes Konto weiterhin normal nutzen kannst, richte ein separates Konto nur für Homey ein:",
+      "step1": "Erstelle ein neues Mammotion-Konto (eine andere E-Mail-Adresse) — dieses Konto wird Homey verwenden.",
+      "step2": "Öffne die Mammotion-App auf deinem Telefon, angemeldet mit deinem normalen Konto, und teile deine(n) Mäher mit dem neuen Konto.",
+      "step3": "Melde dich in der Mammotion-App mit dem neuen Konto an und akzeptiere die Einladung.",
+      "step4": "Tippe unten auf Weiter und melde dich dann hier mit der E-Mail-Adresse und dem Passwort des neuen Kontos an.",
+      "note": "Das musst du nur einmal tun. Danach funktioniert dein normales Konto in der Mammotion-App genau wie zuvor weiter.",
+      "continue": "Weiter"
+    }
+  },
   "flow": {
     "triggers": {
       "mower_started_mowing": { "title": "Mäher hat mit dem Mähen begonnen" },

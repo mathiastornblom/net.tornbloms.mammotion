@@ -6,6 +6,18 @@
     "device_offline": "Maaier is offline",
     "command_failed": "Opdracht mislukt"
   },
+  "pair": {
+    "account_setup": {
+      "title": "Stel een Mammotion-account in voor Homey",
+      "intro": "De Mammotion-mobiele app logt je uit zodra een andere app (zoals Homey) inlogt met hetzelfde account. Om je eigen account normaal te blijven gebruiken, stel je een apart account in enkel voor Homey:",
+      "step1": "Maak een nieuw Mammotion-account (een ander e-mailadres) — dit is het account dat Homey zal gebruiken.",
+      "step2": "Open de Mammotion-app op je telefoon, ingelogd met je normale account, en deel je maaier(s) met het nieuwe account.",
+      "step3": "Log in op de Mammotion-app met het nieuwe account en accepteer de uitnodiging.",
+      "step4": "Tik hieronder op Doorgaan en log daarna hier in met het e-mailadres en wachtwoord van het nieuwe account.",
+      "note": "Dit hoef je maar één keer te doen. Daarna blijft je normale account gewoon werken in de Mammotion-app, precies zoals voorheen.",
+      "continue": "Doorgaan"
+    }
+  },
   "flow": {
     "triggers": {
       "mower_started_mowing": { "title": "Maaier begon te maaien" },

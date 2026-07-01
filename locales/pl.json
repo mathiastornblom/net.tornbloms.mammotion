@@ -6,6 +6,18 @@
     "device_offline": "Kosiarka jest offline",
     "command_failed": "Nie udało się wykonać komendy"
   },
+  "pair": {
+    "account_setup": {
+      "title": "Skonfiguruj konto Mammotion dla Homey",
+      "intro": "Aplikacja mobilna Mammotion wylogowuje Cię, gdy tylko inna aplikacja (taka jak Homey) zaloguje się na to samo konto. Aby móc normalnie korzystać z własnego konta, utwórz osobne konto tylko dla Homey:",
+      "step1": "Utwórz nowe konto Mammotion (inny adres e-mail) — to konto będzie używane przez Homey.",
+      "step2": "Otwórz aplikację Mammotion na telefonie, zalogowaną na swoje zwykłe konto, i udostępnij kosiarkę (lub kosiarki) nowemu kontu.",
+      "step3": "Zaloguj się do aplikacji Mammotion nowym kontem i zaakceptuj zaproszenie.",
+      "step4": "Kliknij Dalej poniżej, a następnie zaloguj się tutaj przy użyciu adresu e-mail i hasła nowego konta.",
+      "note": "Musisz to zrobić tylko raz. Później Twoje zwykłe konto będzie nadal działać w aplikacji Mammotion dokładnie tak jak wcześniej.",
+      "continue": "Dalej"
+    }
+  },
   "flow": {
     "triggers": {
       "mower_started_mowing": { "title": "Kosiarka zaczęła kosić" },

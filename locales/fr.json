@@ -6,6 +6,18 @@
     "device_offline": "La tondeuse est hors ligne",
     "command_failed": "Échec de la commande"
   },
+  "pair": {
+    "account_setup": {
+      "title": "Configurer un compte Mammotion pour Homey",
+      "intro": "L'application mobile Mammotion vous déconnecte dès qu'une autre application (comme Homey) se connecte avec le même compte. Pour continuer à utiliser votre compte normalement, créez un compte séparé réservé à Homey :",
+      "step1": "Créez un nouveau compte Mammotion (une autre adresse e-mail) — c'est ce compte que Homey utilisera.",
+      "step2": "Ouvrez l'application Mammotion sur votre téléphone, connecté avec votre compte habituel, et partagez votre/vos tondeuse(s) avec le nouveau compte.",
+      "step3": "Connectez-vous à l'application Mammotion avec le nouveau compte et acceptez l'invitation.",
+      "step4": "Appuyez sur Continuer ci-dessous, puis connectez-vous ici avec l'e-mail et le mot de passe du nouveau compte.",
+      "note": "Vous n'avez besoin de le faire qu'une seule fois. Ensuite, votre compte habituel continue de fonctionner normalement dans l'application Mammotion.",
+      "continue": "Continuer"
+    }
+  },
   "flow": {
     "triggers": {
       "mower_started_mowing": { "title": "La tondeuse a commencé à tondre" },

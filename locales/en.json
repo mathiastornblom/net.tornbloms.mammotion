@@ -6,6 +6,18 @@
     "device_offline": "Mower is offline",
     "command_failed": "Command failed"
   },
+  "pair": {
+    "account_setup": {
+      "title": "Set up a Mammotion account for Homey",
+      "intro": "Mammotion's mobile app signs you out whenever another app (like Homey) logs in with the same account. To keep using your own account normally, set up a separate account just for Homey:",
+      "step1": "Create a new Mammotion account (a different email address) — this is the account Homey will use.",
+      "step2": "Open the Mammotion app on your phone, signed in with your normal account, and share your mower(s) with the new account.",
+      "step3": "Sign in to the Mammotion app with the new account and accept the invitation.",
+      "step4": "Tap Continue below, then log in here with the new account's email and password.",
+      "note": "You only need to do this once. After that, your normal account keeps working in the Mammotion app exactly as before.",
+      "continue": "Continue"
+    }
+  },
   "flow": {
     "triggers": {
       "mower_started_mowing": { "title": "Mower started mowing" },

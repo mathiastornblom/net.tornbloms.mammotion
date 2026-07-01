@@ -28,7 +28,7 @@ npm run build
 npx homey app run
 ```
 
-A dedicated (second) Mammotion account is recommended for cloud/MQTT use — Mammotion's mobile app logs out the account currently used by an external integration, so sharing your primary account isn't practical. Share your mower(s) to the second account from the Mammotion app before pairing it in Homey.
+Pairing walks you through setting up a **dedicated second Mammotion account** before asking for login credentials — Mammotion's mobile app logs you out whenever another app (like Homey) signs in with the same account, so using your primary account isn't practical. The in-app instructions cover: create a new account → invite it from your normal account (sharing your mower) → accept the invite on the new account → come back and log in here with it. You only do this once; your normal account keeps working in the Mammotion app exactly as before.
 
 ## Development
 

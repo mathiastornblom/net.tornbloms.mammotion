@@ -35,8 +35,8 @@ Connects over the cloud by default and switches to a direct Bluetooth connection
 ## Getting started
 
 1. Install the app from the Homey App Store: https://homey.app/a/net.tornbloms.mammotion
-2. **Use a second Mammotion account for pairing.** Mammotion's mobile app logs you out of the account currently used by an external integration, so don't use your daily-driver account. Share your mower(s) to a second account from the Mammotion app first, then pair that account in Homey.
-3. Add the device — Homey will list every mower (owned or shared) visible to that account.
+2. Add a device — the pairing wizard walks you through setting up a **dedicated second Mammotion account** first (Mammotion's mobile app logs you out whenever another app signs in with the same account, so your daily-driver account isn't practical): create a new account → invite it from your normal account (sharing your mower) → accept the invite on the new account → come back and log in here with it. You only do this once.
+3. Homey will then list every mower (owned or shared) visible to that account.
 
 If your account credentials change later, use the device's **Repair** flow instead of deleting and re-adding it — your Flows and Insights history stay intact.
 
