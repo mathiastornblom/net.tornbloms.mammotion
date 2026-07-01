@@ -1,0 +1,22 @@
+{
+  "type": "boolean",
+  "title": {
+    "en": "Send to dock",
+    "nl": "Stuur naar dock",
+    "de": "Zur Dockingstation senden",
+    "fr": "Envoyer à la base",
+    "it": "Invia alla base",
+    "sv": "Skicka till dockan",
+    "no": "Send til dokk",
+    "es": "Enviar a la base",
+    "da": "Send til docken",
+    "ru": "Отправить на базу",
+    "pl": "Wyślij do stacji",
+    "ko": "충전소로 보내기",
+    "ar": "إرسال إلى القاعدة"
+  },
+  "getable": false,
+  "setable": true,
+  "uiComponent": "button",
+  "icon": "/assets/icon.svg"
+}

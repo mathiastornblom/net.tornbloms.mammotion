@@ -98,6 +98,10 @@ export default class LubaDevice extends Homey.Device {
       await this.actionSetRainProtection(value);
     });
 
+    this.registerCapabilityListener('mow_send_to_dock', async () => {
+      await this.actionDock();
+    });
+
     // Ensure sensor shows "Disconnected" immediately rather than blank until a transport connects.
     this.setCapabilityValue('active_transport', 'none').catch(this.error.bind(this));
     // mow_cutter_mode has no read-back from telemetry, so default to standard on init.

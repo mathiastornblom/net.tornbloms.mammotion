@@ -36,7 +36,8 @@
     "mow_pos_level",
     "mow_rain_protection",
     "measure_battery_cycles",
-    "measure_blade_used_time"
+    "measure_blade_used_time",
+    "mow_send_to_dock"
   ],
   "energy": {
     "batteries": ["INTERNAL"]
@@ -74,6 +75,40 @@
         "pl": "Błąd",
         "ko": "오류",
         "ar": "خطأ"
+      }
+    },
+    "mow_blade_height": {
+      "title": {
+        "en": "Blade Height",
+        "nl": "Maaihoogte",
+        "de": "Schnitthöhe",
+        "fr": "Hauteur de coupe",
+        "it": "Altezza lama",
+        "sv": "Klipphöjd",
+        "no": "Klippehøyde",
+        "es": "Altura de corte",
+        "da": "Klippehøjde",
+        "ru": "Высота скашивания",
+        "pl": "Wysokość koszenia",
+        "ko": "칼날 높이",
+        "ar": "ارتفاع النصل"
+      }
+    },
+    "mow_send_to_dock": {
+      "title": {
+        "en": "Send to dock",
+        "nl": "Stuur naar dock",
+        "de": "Zur Dockingstation senden",
+        "fr": "Envoyer à la base",
+        "it": "Invia alla base",
+        "sv": "Skicka till dockan",
+        "no": "Send til dokk",
+        "es": "Enviar a la base",
+        "da": "Send til docken",
+        "ru": "Отправить на базу",
+        "pl": "Wyślij do stacji",
+        "ko": "충전소로 보내기",
+        "ar": "إرسال إلى القاعدة"
       }
     }
   },
