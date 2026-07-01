@@ -118,5 +118,8 @@
   },
   "2.2.1": {
     "en": "Fixed the pairing account-setup screen showing a duplicate Continue button and an unreadable note box"
+  },
+  "2.2.2": {
+    "en": "Added custom icons for most sensors and controls, corrected the blade height range to match the real 25-70mm hardware limit, and fixed a broken icon reference"
   }
 }

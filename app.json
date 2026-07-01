@@ -1,7 +1,7 @@
 {
   "_comment": "This file is generated. Please edit .homeycompose/app.json instead.",
   "id": "net.tornbloms.mammotion",
-  "version": "2.2.1",
+  "version": "2.2.2",
   "homeyCommunityTopicId": 156754,
   "compatibility": ">=12.9.0",
   "sdk": 3,
@@ -371,9 +371,9 @@
             "type": "number",
             "name": "blade_height",
             "required": false,
-            "min": 15,
-            "max": 100,
-            "step": 5,
+            "min": 25,
+            "max": 70,
+            "step": 1,
             "title": {
               "en": "Blade height (mm)",
               "nl": "Maaihoogte (mm)",
@@ -1115,7 +1115,7 @@
       "getable": true,
       "setable": false,
       "uiComponent": "sensor",
-      "icon": "/assets/icon.svg"
+      "icon": "/assets/connection.svg"
     },
     "measure_battery_cycles": {
       "type": "number",
@@ -1138,7 +1138,7 @@
       "setable": false,
       "uiComponent": "sensor",
       "decimals": 0,
-      "icon": "/assets/icon.svg"
+      "icon": "/assets/battery.svg"
     },
     "measure_blade_used_time": {
       "type": "number",
@@ -1162,7 +1162,7 @@
       "uiComponent": "sensor",
       "units": "h",
       "decimals": 1,
-      "icon": "/assets/icon.svg"
+      "icon": "/assets/timer.svg"
     },
     "measure_ble_rssi": {
       "type": "number",
@@ -1186,7 +1186,7 @@
       "getable": true,
       "setable": false,
       "uiComponent": "sensor",
-      "icon": "/assets/icon.svg"
+      "icon": "/assets/ble.svg"
     },
     "measure_elapsed_time": {
       "type": "number",
@@ -1211,7 +1211,7 @@
       "getable": true,
       "setable": false,
       "uiComponent": "sensor",
-      "icon": "/assets/icon.svg"
+      "icon": "/assets/timer.svg"
     },
     "measure_gps_stars": {
       "type": "number",
@@ -1235,7 +1235,7 @@
       "getable": true,
       "setable": false,
       "uiComponent": "sensor",
-      "icon": "/assets/icon.svg"
+      "icon": "/assets/gps.svg"
     },
     "measure_left_time": {
       "type": "number",
@@ -1260,7 +1260,7 @@
       "getable": true,
       "setable": false,
       "uiComponent": "sensor",
-      "icon": "/assets/icon.svg"
+      "icon": "/assets/timer.svg"
     },
     "measure_mow_area": {
       "type": "number",
@@ -1285,7 +1285,7 @@
       "getable": true,
       "setable": false,
       "uiComponent": "sensor",
-      "icon": "/assets/icon.svg"
+      "icon": "/assets/area.svg"
     },
     "measure_mow_progress": {
       "type": "number",
@@ -1311,7 +1311,7 @@
       "getable": true,
       "setable": false,
       "uiComponent": "sensor",
-      "icon": "/assets/icon.svg"
+      "icon": "/assets/progress.svg"
     },
     "measure_mowing_speed": {
       "type": "number",
@@ -1336,7 +1336,7 @@
       "getable": true,
       "setable": false,
       "uiComponent": "sensor",
-      "icon": "/assets/icon.svg"
+      "icon": "/assets/speed.svg"
     },
     "measure_wifi_rssi": {
       "type": "number",
@@ -1360,7 +1360,7 @@
       "getable": true,
       "setable": false,
       "uiComponent": "sensor",
-      "icon": "/assets/icon.svg"
+      "icon": "/assets/wifi.svg"
     },
     "mow_blade_height": {
       "type": "number",
@@ -1380,14 +1380,14 @@
         "ar": "ارتفاع النصل"
       },
       "units": "mm",
-      "min": 15,
-      "max": 100,
-      "step": 5,
+      "min": 25,
+      "max": 70,
+      "step": 1,
       "decimals": 0,
       "getable": true,
       "setable": true,
       "uiComponent": "slider",
-      "icon": "/assets/icon.svg"
+      "icon": "/assets/hight.svg"
     },
     "mow_cutter_mode": {
       "type": "enum",
@@ -1487,7 +1487,7 @@
       "getable": true,
       "setable": true,
       "uiComponent": "toggle",
-      "icon": "/assets/icon.svg"
+      "icon": "/assets/headlight.svg"
     },
     "mow_pos_level": {
       "type": "enum",
@@ -1605,7 +1605,7 @@
       "getable": true,
       "setable": true,
       "uiComponent": "toggle",
-      "icon": "/assets/icon.svg"
+      "icon": "/assets/rain.svg"
     },
     "mow_send_to_dock": {
       "type": "boolean",
@@ -1627,7 +1627,7 @@
       "getable": false,
       "setable": true,
       "uiComponent": "button",
-      "icon": "/assets/icon.svg"
+      "icon": "/assets/home.svg"
     },
     "mow_side_led": {
       "type": "boolean",
