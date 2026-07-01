@@ -106,5 +106,8 @@
   },
   "2.0.1": {
     "en": "Fixed newly paired mowers missing several sensors and controls added in recent versions (blade speed, headlamp, side LED, rain protection, RTK position, battery cycles, blade wear). Completed translations for all 13 supported languages across every setting and Flow card."
+  },
+  "2.0.2": {
+    "en": "Linked the Homey Community forum topic to the app's store page"
   }
 }
