@@ -115,5 +115,8 @@
   },
   "2.2.0": {
     "en": "Added a dedicated Send to Dock button alongside the mowing toggle, and gave the mowing and blade height controls clearer titles on the device screen"
+  },
+  "2.2.1": {
+    "en": "Fixed the pairing account-setup screen showing a duplicate Continue button and an unreadable note box"
   }
 }
