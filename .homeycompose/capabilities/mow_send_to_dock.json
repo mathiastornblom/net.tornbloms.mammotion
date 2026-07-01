@@ -18,5 +18,5 @@
   "getable": false,
   "setable": true,
   "uiComponent": "button",
-  "icon": "/assets/icon.svg"
+  "icon": "/assets/home.svg"
 }

@@ -20,5 +20,5 @@
   "uiComponent": "sensor",
   "units": "h",
   "decimals": 1,
-  "icon": "/assets/icon.svg"
+  "icon": "/assets/timer.svg"
 }

@@ -18,5 +18,5 @@
   "getable": true,
   "setable": true,
   "uiComponent": "toggle",
-  "icon": "/assets/icon.svg"
+  "icon": "/assets/rain.svg"
 }
