@@ -159,6 +159,9 @@ export default class LubaDriver extends Homey.Driver {
 
     session.setHandler('list_devices', async (): Promise<PairedDeviceResult[]> => {
       const session = pendingSession ?? await this.getValidSession();
+      // The records endpoint is authoritative (it includes shared-not-owned mowers) —
+      // if it fails, surface the error to the user rather than showing an empty list.
+      // The owned-devices endpoint only backfills identifiers, so its failure is tolerable.
       const [devices, records] = await Promise.all([
         MammotionAuth.fetchDevices(session).catch((err) => {
           this.error('fetchDevices failed:', err);
@@ -166,7 +169,7 @@ export default class LubaDriver extends Homey.Driver {
         }),
         MammotionAuth.fetchDeviceRecords(session).catch((err) => {
           this.error('fetchDeviceRecords failed:', err);
-          return [];
+          throw new Error(`${this.homey.__('error.no_devices_found')} (${err instanceof Error ? err.message : String(err)})`);
         }),
       ]);
       this.log(`list_devices: owned=${devices.length} records=${records.length}`,
@@ -174,7 +177,14 @@ export default class LubaDriver extends Homey.Driver {
           owned: devices.map(d => ({ iotId: d.iotId, deviceName: d.deviceName })),
           records: records.map(r => ({ iotId: r.iotId, deviceName: r.deviceName, productKey: r.productKey })),
         }));
-      return this.buildDeviceList(devices, records);
+      const list = this.buildDeviceList(devices, records);
+      if (list.length === 0) {
+        // Zero devices usually means the sharing invitation hasn't been accepted yet
+        // (or hasn't propagated) — tell the user what to check instead of showing
+        // Homey's generic "no new devices found".
+        throw new Error(this.homey.__('error.no_devices_found'));
+      }
+      return list;
     });
   }
 

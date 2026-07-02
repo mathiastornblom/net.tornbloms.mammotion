@@ -4,7 +4,8 @@
     "invalid_credentials": "Email o password non valide. Riprova.",
     "not_authenticated": "Nessun account Mammotion configurato. Aggiungi nuovamente il dispositivo.",
     "device_offline": "Il tagliaerba è offline",
-    "command_failed": "Comando non riuscito"
+    "command_failed": "Comando non riuscito",
+    "no_devices_found": "Nessun robot tagliaerba trovato su questo account. Apri l'app Mammotion e verifica che l'invito di condivisione sia stato accettato, poi riprova — dopo l'accettazione possono servire alcuni minuti prima che il tagliaerba appaia."
   },
   "pair": {
     "account_setup": {
@@ -20,17 +21,31 @@
   },
   "flow": {
     "triggers": {
-      "mower_started_mowing": { "title": "Il tagliaerba ha iniziato a tagliare" },
-      "mower_docked": { "title": "Il tagliaerba è tornato alla base" },
-      "mower_error": { "title": "Il tagliaerba ha segnalato un errore" }
+      "mower_started_mowing": {
+        "title": "Il tagliaerba ha iniziato a tagliare"
+      },
+      "mower_docked": {
+        "title": "Il tagliaerba è tornato alla base"
+      },
+      "mower_error": {
+        "title": "Il tagliaerba ha segnalato un errore"
+      }
     },
     "conditions": {
-      "is_mowing": { "title": "Il tagliaerba sta tagliando" }
+      "is_mowing": {
+        "title": "Il tagliaerba sta tagliando"
+      }
     },
     "actions": {
-      "start_mowing": { "title": "Avvia il taglio" },
-      "send_to_dock": { "title": "Invia il tagliaerba alla base" },
-      "pause_mowing": { "title": "Metti in pausa il taglio" }
+      "start_mowing": {
+        "title": "Avvia il taglio"
+      },
+      "send_to_dock": {
+        "title": "Invia il tagliaerba alla base"
+      },
+      "pause_mowing": {
+        "title": "Metti in pausa il taglio"
+      }
     }
   }
 }

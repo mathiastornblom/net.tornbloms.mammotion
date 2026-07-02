@@ -4,7 +4,8 @@
     "invalid_credentials": "Ugyldig e-post eller passord. Vennligst prøv igjen.",
     "not_authenticated": "Ingen Mammotion-konto konfigurert. Legg til enheten på nytt.",
     "device_offline": "Klipperen er offline",
-    "command_failed": "Kommandoen mislyktes"
+    "command_failed": "Kommandoen mislyktes",
+    "no_devices_found": "Ingen gressklippere funnet på denne kontoen. Åpne Mammotion-appen og sjekk at delingsinvitasjonen er akseptert, og prøv deretter på nytt — det kan ta noen minutter etter aksept før gressklipperen vises."
   },
   "pair": {
     "account_setup": {
@@ -20,17 +21,31 @@
   },
   "flow": {
     "triggers": {
-      "mower_started_mowing": { "title": "Klipperen begynte å klippe" },
-      "mower_docked": { "title": "Klipperen returnerte til dokken" },
-      "mower_error": { "title": "Klipperen rapporterte en feil" }
+      "mower_started_mowing": {
+        "title": "Klipperen begynte å klippe"
+      },
+      "mower_docked": {
+        "title": "Klipperen returnerte til dokken"
+      },
+      "mower_error": {
+        "title": "Klipperen rapporterte en feil"
+      }
     },
     "conditions": {
-      "is_mowing": { "title": "Klipperen klipper" }
+      "is_mowing": {
+        "title": "Klipperen klipper"
+      }
     },
     "actions": {
-      "start_mowing": { "title": "Start klipping" },
-      "send_to_dock": { "title": "Send klipperen til dokken" },
-      "pause_mowing": { "title": "Pause klipping" }
+      "start_mowing": {
+        "title": "Start klipping"
+      },
+      "send_to_dock": {
+        "title": "Send klipperen til dokken"
+      },
+      "pause_mowing": {
+        "title": "Pause klipping"
+      }
     }
   }
 }

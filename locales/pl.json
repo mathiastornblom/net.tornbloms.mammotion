@@ -4,7 +4,8 @@
     "invalid_credentials": "Nieprawidłowy adres e-mail lub hasło. Spróbuj ponownie.",
     "not_authenticated": "Nie skonfigurowano konta Mammotion. Dodaj urządzenie ponownie.",
     "device_offline": "Kosiarka jest offline",
-    "command_failed": "Nie udało się wykonać komendy"
+    "command_failed": "Nie udało się wykonać komendy",
+    "no_devices_found": "Nie znaleziono kosiarek na tym koncie. Otwórz aplikację Mammotion i sprawdź, czy zaproszenie do udostępnienia zostało zaakceptowane, a następnie spróbuj ponownie — po zaakceptowaniu może minąć kilka minut, zanim kosiarka się pojawi."
   },
   "pair": {
     "account_setup": {
@@ -20,17 +21,31 @@
   },
   "flow": {
     "triggers": {
-      "mower_started_mowing": { "title": "Kosiarka zaczęła kosić" },
-      "mower_docked": { "title": "Kosiarka wróciła do stacji dokującej" },
-      "mower_error": { "title": "Kosiarka zgłosiła błąd" }
+      "mower_started_mowing": {
+        "title": "Kosiarka zaczęła kosić"
+      },
+      "mower_docked": {
+        "title": "Kosiarka wróciła do stacji dokującej"
+      },
+      "mower_error": {
+        "title": "Kosiarka zgłosiła błąd"
+      }
     },
     "conditions": {
-      "is_mowing": { "title": "Kosiarka kosi" }
+      "is_mowing": {
+        "title": "Kosiarka kosi"
+      }
     },
     "actions": {
-      "start_mowing": { "title": "Zacznij koszenie" },
-      "send_to_dock": { "title": "Wyślij kosiarkę do stacji dokującej" },
-      "pause_mowing": { "title": "Wstrzymaj koszenie" }
+      "start_mowing": {
+        "title": "Zacznij koszenie"
+      },
+      "send_to_dock": {
+        "title": "Wyślij kosiarkę do stacji dokującej"
+      },
+      "pause_mowing": {
+        "title": "Wstrzymaj koszenie"
+      }
     }
   }
 }

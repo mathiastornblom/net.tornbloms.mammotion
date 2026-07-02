@@ -4,7 +4,8 @@
     "invalid_credentials": "Ongeldig e-mailadres of wachtwoord. Probeer het opnieuw.",
     "not_authenticated": "Geen Mammotion-account geconfigureerd. Voeg het apparaat opnieuw toe.",
     "device_offline": "Maaier is offline",
-    "command_failed": "Opdracht mislukt"
+    "command_failed": "Opdracht mislukt",
+    "no_devices_found": "Geen maaiers gevonden op dit account. Open de Mammotion-app en controleer of de deeluitnodiging is geaccepteerd, en probeer het daarna opnieuw — het kan na het accepteren enkele minuten duren voordat de maaier verschijnt."
   },
   "pair": {
     "account_setup": {
@@ -20,17 +21,31 @@
   },
   "flow": {
     "triggers": {
-      "mower_started_mowing": { "title": "Maaier begon te maaien" },
-      "mower_docked": { "title": "Maaier is teruggekeerd naar het dock" },
-      "mower_error": { "title": "Maaier meldde een fout" }
+      "mower_started_mowing": {
+        "title": "Maaier begon te maaien"
+      },
+      "mower_docked": {
+        "title": "Maaier is teruggekeerd naar het dock"
+      },
+      "mower_error": {
+        "title": "Maaier meldde een fout"
+      }
     },
     "conditions": {
-      "is_mowing": { "title": "Maaier is aan het maaien" }
+      "is_mowing": {
+        "title": "Maaier is aan het maaien"
+      }
     },
     "actions": {
-      "start_mowing": { "title": "Start met maaien" },
-      "send_to_dock": { "title": "Stuur maaier naar dock" },
-      "pause_mowing": { "title": "Maaien onderbreken" }
+      "start_mowing": {
+        "title": "Start met maaien"
+      },
+      "send_to_dock": {
+        "title": "Stuur maaier naar dock"
+      },
+      "pause_mowing": {
+        "title": "Maaien onderbreken"
+      }
     }
   }
 }

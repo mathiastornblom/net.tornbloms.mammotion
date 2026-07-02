@@ -4,7 +4,8 @@
     "invalid_credentials": "Correo electrónico o contraseña no válidos. Inténtalo de nuevo.",
     "not_authenticated": "No hay ninguna cuenta de Mammotion configurada. Vuelve a añadir el dispositivo.",
     "device_offline": "El cortacésped está sin conexión",
-    "command_failed": "Error al ejecutar el comando"
+    "command_failed": "Error al ejecutar el comando",
+    "no_devices_found": "No se encontraron cortacéspedes en esta cuenta. Abre la aplicación Mammotion y comprueba que la invitación de uso compartido ha sido aceptada, luego inténtalo de nuevo — tras aceptarla pueden pasar unos minutos antes de que aparezca el cortacésped."
   },
   "pair": {
     "account_setup": {
@@ -20,17 +21,31 @@
   },
   "flow": {
     "triggers": {
-      "mower_started_mowing": { "title": "El cortacésped empezó a cortar" },
-      "mower_docked": { "title": "El cortacésped regresó a la base" },
-      "mower_error": { "title": "El cortacésped reportó un error" }
+      "mower_started_mowing": {
+        "title": "El cortacésped empezó a cortar"
+      },
+      "mower_docked": {
+        "title": "El cortacésped regresó a la base"
+      },
+      "mower_error": {
+        "title": "El cortacésped reportó un error"
+      }
     },
     "conditions": {
-      "is_mowing": { "title": "El cortacésped está cortando" }
+      "is_mowing": {
+        "title": "El cortacésped está cortando"
+      }
     },
     "actions": {
-      "start_mowing": { "title": "Iniciar corte" },
-      "send_to_dock": { "title": "Enviar el cortacésped a la base" },
-      "pause_mowing": { "title": "Pausar corte" }
+      "start_mowing": {
+        "title": "Iniciar corte"
+      },
+      "send_to_dock": {
+        "title": "Enviar el cortacésped a la base"
+      },
+      "pause_mowing": {
+        "title": "Pausar corte"
+      }
     }
   }
 }

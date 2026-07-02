@@ -4,7 +4,8 @@
     "invalid_credentials": "E-mail ou mot de passe invalide. Veuillez réessayer.",
     "not_authenticated": "Aucun compte Mammotion configuré. Veuillez ajouter à nouveau l'appareil.",
     "device_offline": "La tondeuse est hors ligne",
-    "command_failed": "Échec de la commande"
+    "command_failed": "Échec de la commande",
+    "no_devices_found": "Aucune tondeuse trouvée sur ce compte. Ouvrez l'application Mammotion et vérifiez que l'invitation de partage a été acceptée, puis réessayez — après l'acceptation, quelques minutes peuvent s'écouler avant que la tondeuse n'apparaisse."
   },
   "pair": {
     "account_setup": {
@@ -20,17 +21,31 @@
   },
   "flow": {
     "triggers": {
-      "mower_started_mowing": { "title": "La tondeuse a commencé à tondre" },
-      "mower_docked": { "title": "La tondeuse est retournée à sa base" },
-      "mower_error": { "title": "La tondeuse a signalé une erreur" }
+      "mower_started_mowing": {
+        "title": "La tondeuse a commencé à tondre"
+      },
+      "mower_docked": {
+        "title": "La tondeuse est retournée à sa base"
+      },
+      "mower_error": {
+        "title": "La tondeuse a signalé une erreur"
+      }
     },
     "conditions": {
-      "is_mowing": { "title": "La tondeuse tond" }
+      "is_mowing": {
+        "title": "La tondeuse tond"
+      }
     },
     "actions": {
-      "start_mowing": { "title": "Démarrer la tonte" },
-      "send_to_dock": { "title": "Envoyer la tondeuse à la base" },
-      "pause_mowing": { "title": "Mettre la tonte en pause" }
+      "start_mowing": {
+        "title": "Démarrer la tonte"
+      },
+      "send_to_dock": {
+        "title": "Envoyer la tondeuse à la base"
+      },
+      "pause_mowing": {
+        "title": "Mettre la tonte en pause"
+      }
     }
   }
 }

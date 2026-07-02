@@ -127,5 +127,8 @@
   },
   "2.2.4": {
     "en": "Bluetooth being out of range is normal, not an error — connection retries no longer log as errors at all, just quietly less often over time, since cloud control isn't affected"
+  },
+  "2.2.5": {
+    "en": "Pairing now shows a helpful message when no mowers are found (check that the sharing invitation was accepted in the Mammotion app) instead of an empty list, and the mower driver got its own icon distinct from the app icon"
   }
 }
