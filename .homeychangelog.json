@@ -133,5 +133,8 @@
   },
   "2.2.6": {
     "en": "The app icon is now the Mammotion brand logo, making the app easier to recognize in the App Store and on your Homey"
+  },
+  "2.2.7": {
+    "en": "Added a homepage link to the App Store page with feature overview and step-by-step account setup instructions"
   }
 }

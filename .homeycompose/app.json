@@ -1,7 +1,8 @@
 {
   "id": "net.tornbloms.mammotion",
-  "version": "2.2.6",
+  "version": "2.2.7",
   "homeyCommunityTopicId": 156754,
+  "homepage": "https://mathiastornblom.github.io/net.tornbloms.mammotion/",
   "compatibility": ">=12.9.0",
   "sdk": 3,
   "runtime": "nodejs",
