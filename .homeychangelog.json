@@ -121,5 +121,8 @@
   },
   "2.2.2": {
     "en": "Added custom icons for most sensors and controls, corrected the blade height range to match the real 25-70mm hardware limit, and fixed a broken icon reference"
+  },
+  "2.2.3": {
+    "en": "Fixed Bluetooth connection failures flooding the diagnostic log with errors forever on hubs/mowers where BLE never connects — after a few failed attempts it now retries much less often and stops logging them as errors, since cloud control keeps working regardless"
   }
 }

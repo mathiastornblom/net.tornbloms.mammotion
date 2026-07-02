@@ -19,6 +19,14 @@ const BLE_CHUNK_SIZE = 20;
 const BLE_RECONNECT_BASE_MS = 15_000;
 const BLE_RECONNECT_MAX_MS  = 4 * 60_000; // 4 min
 
+/** After this many consecutive failures, BLE is treated as persistently unreachable for
+ *  this device/hub combo (weak signal, firmware pairing issue, etc). MQTT is already
+ *  carrying telemetry in that case, so we back off much further and stop logging at
+ *  error level — otherwise a device that will simply never connect over BLE floods the
+ *  diagnostic report with an identical error every few minutes, forever. */
+const BLE_PERSISTENT_FAILURE_THRESHOLD = 5;
+const BLE_RECONNECT_MAX_MS_QUIET = 30 * 60_000; // 30 min
+
 /** Max time to wait for post-connect GATT setup before giving up and retrying.
  *  Homey's own BLE operation timeout is ~30s — too slow to wait on when the
  *  peripheral has already silently disconnected (observed on weak-signal links). */
@@ -140,7 +148,7 @@ export class BleTransport {
         throw new Error(`GATT setup timed out after ${BLE_SETUP_TIMEOUT_MS}ms`);
       }
       if (result === 'no-service') {
-        this.logError(`BLE: service ${UUID_SERVICE} not found on ${this.deviceName}`);
+        this.reportFailure(`BLE: service ${UUID_SERVICE} not found on ${this.deviceName}`);
         await this.disconnectPeripheral();
         this.scheduleReconnect();
         return;
@@ -154,11 +162,22 @@ export class BleTransport {
       this.log('BLE: sent todev_ble_sync(2)');
 
     } catch (err) {
-      this.consecutiveFailures++;
-      this.logError(`BLE: connect failed: ${err instanceof Error ? err.message : String(err)}`);
+      this.reportFailure(`BLE: connect failed: ${err instanceof Error ? err.message : String(err)}`);
       this.onStatus(this.iotId, false);
       await this.disconnectPeripheral();
       this.scheduleReconnect();
+    }
+  }
+
+  /** Counts a failed connect attempt and logs it — at error level for the first few
+   *  consecutive failures, then quietly (info level) once BLE looks persistently
+   *  unreachable, per BLE_PERSISTENT_FAILURE_THRESHOLD. */
+  private reportFailure(message: string): void {
+    this.consecutiveFailures++;
+    if (this.consecutiveFailures > BLE_PERSISTENT_FAILURE_THRESHOLD) {
+      this.log(message);
+    } else {
+      this.logError(message);
     }
   }
 
@@ -299,7 +318,10 @@ export class BleTransport {
   /** Schedules the next connect() attempt with exponential backoff based on consecutive failures. */
   private scheduleReconnect(): void {
     if (this.stopped || this.reconnectTimer) return;
-    const delay = Math.min(BLE_RECONNECT_BASE_MS * (2 ** this.consecutiveFailures), BLE_RECONNECT_MAX_MS);
+    const cap = this.consecutiveFailures > BLE_PERSISTENT_FAILURE_THRESHOLD
+      ? BLE_RECONNECT_MAX_MS_QUIET
+      : BLE_RECONNECT_MAX_MS;
+    const delay = Math.min(BLE_RECONNECT_BASE_MS * (2 ** this.consecutiveFailures), cap);
     this.log(`BLE: scheduling reconnect in ${Math.round(delay / 1000)}s (failure #${this.consecutiveFailures})`);
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null;
