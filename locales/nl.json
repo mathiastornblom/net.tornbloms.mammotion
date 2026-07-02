@@ -47,5 +47,12 @@
         "title": "Maaien onderbreken"
       }
     }
+  },
+  "settings": {
+    "title": "Privacy",
+    "crash_reporting": {
+      "label": "Anonieme crashrapporten versturen",
+      "hint": "Indien ingeschakeld stuurt de app een anoniem technisch rapport naar de ontwikkelaar als deze crasht, zodat problemen sneller kunnen worden opgelost. Rapporten bevatten alleen foutdetails — nooit je account, locatie of persoonlijke gegevens."
+    }
   }
 }

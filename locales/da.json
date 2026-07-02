@@ -47,5 +47,12 @@
         "title": "Sæt klipning på pause"
       }
     }
+  },
+  "settings": {
+    "title": "Privatliv",
+    "crash_reporting": {
+      "label": "Send anonyme nedbrudsrapporter",
+      "hint": "Når dette er aktiveret, sender appen en anonym teknisk rapport til udvikleren, hvis den går ned, hvilket hjælper med at løse problemer hurtigere. Rapporter indeholder kun fejldetaljer — aldrig din konto, placering eller personlige data."
+    }
   }
 }

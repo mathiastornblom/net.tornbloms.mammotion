@@ -47,5 +47,12 @@
         "title": "Wstrzymaj koszenie"
       }
     }
+  },
+  "settings": {
+    "title": "Prywatność",
+    "crash_reporting": {
+      "label": "Wysyłaj anonimowe raporty o awariach",
+      "hint": "Po włączeniu aplikacja wysyła anonimowy raport techniczny do dewelopera w przypadku awarii, co pomaga szybciej rozwiązywać problemy. Raporty zawierają wyłącznie szczegóły błędu — nigdy Twojego konta, lokalizacji ani danych osobowych."
+    }
   }
 }

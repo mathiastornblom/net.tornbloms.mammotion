@@ -47,5 +47,12 @@
         "title": "Mähen pausieren"
       }
     }
+  },
+  "settings": {
+    "title": "Datenschutz",
+    "crash_reporting": {
+      "label": "Anonyme Absturzberichte senden",
+      "hint": "Wenn aktiviert, sendet die App bei einem Absturz einen anonymen technischen Bericht an den Entwickler, um Probleme schneller zu beheben. Berichte enthalten nur Fehlerdetails — niemals Ihr Konto, Ihren Standort oder persönliche Daten."
+    }
   }
 }

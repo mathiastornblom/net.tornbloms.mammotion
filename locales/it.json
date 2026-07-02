@@ -47,5 +47,12 @@
         "title": "Metti in pausa il taglio"
       }
     }
+  },
+  "settings": {
+    "title": "Privacy",
+    "crash_reporting": {
+      "label": "Invia segnalazioni anonime di arresto anomalo",
+      "hint": "Se attivata, l'app invia una segnalazione tecnica anonima allo sviluppatore in caso di arresto anomalo, aiutando a risolvere i problemi più rapidamente. Le segnalazioni contengono solo dettagli sugli errori — mai il tuo account, la tua posizione o dati personali."
+    }
   }
 }

@@ -47,5 +47,12 @@
         "title": "Mettre la tonte en pause"
       }
     }
+  },
+  "settings": {
+    "title": "Confidentialité",
+    "crash_reporting": {
+      "label": "Envoyer des rapports d'incident anonymes",
+      "hint": "Lorsque cette option est activée, l'application envoie un rapport technique anonyme au développeur en cas de plantage, ce qui aide à corriger les problèmes plus rapidement. Les rapports ne contiennent que des détails d'erreur — jamais votre compte, votre position ou vos données personnelles."
+    }
   }
 }

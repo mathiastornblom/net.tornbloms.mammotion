@@ -47,5 +47,12 @@
         "title": "Pause mowing"
       }
     }
+  },
+  "settings": {
+    "title": "Privacy",
+    "crash_reporting": {
+      "label": "Send anonymous crash reports",
+      "hint": "When enabled, the app sends an anonymous technical report to the developer if it crashes, helping fix problems faster. Reports contain error details only — never your account, location or personal data."
+    }
   }
 }

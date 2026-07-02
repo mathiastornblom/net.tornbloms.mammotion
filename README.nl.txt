@@ -3,3 +3,5 @@ Bedien en monitor je Mammotion-robotmaaier (Luba 2, Luba 3) vanuit Homey. Start,
 Houd het batterijniveau, de batterijcycli, het mesgebruik, het gemaaide gebied en de voortgang, WiFi-/Bluetooth-signaal, het aantal GPS-satellieten en de nauwkeurigheid van de RTK-positionering in de gaten — alles wordt live gerapporteerd en bijgehouden in Insights.
 
 Maakt standaard verbinding via de cloud en schakelt automatisch over op een directe Bluetooth-verbinding wanneer je maaier binnen bereik is, voor snellere en meer lokale bediening. Gebruik Flow-kaarten om te maaien met een aangepaste maaihoogte en snelheid, een melding te krijgen wanneer het maaien start of stopt, of te reageren op een laag batterijniveau of foutmeldingen.
+
+Privacy: als de app crasht, kan deze een anoniem technisch crashrapport naar de ontwikkelaar sturen om het probleem sneller op te lossen. Er worden geen account-, locatie- of persoonsgegevens meegestuurd, en dit kan worden uitgeschakeld in de instellingen van de app.

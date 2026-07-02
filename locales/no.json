@@ -47,5 +47,12 @@
         "title": "Pause klipping"
       }
     }
+  },
+  "settings": {
+    "title": "Personvern",
+    "crash_reporting": {
+      "label": "Send anonyme krasjrapporter",
+      "hint": "Når dette er aktivert, sender appen en anonym teknisk rapport til utvikleren hvis den krasjer, noe som hjelper med å fikse problemer raskere. Rapportene inneholder kun feildetaljer — aldri kontoen din, posisjonen din eller personopplysninger."
+    }
   }
 }

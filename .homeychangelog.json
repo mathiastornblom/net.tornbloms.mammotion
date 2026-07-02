@@ -136,5 +136,8 @@
   },
   "2.2.7": {
     "en": "Added a homepage link to the App Store page with feature overview and step-by-step account setup instructions"
+  },
+  "2.3.0": {
+    "en": "Added anonymous crash reporting so app crashes can be found and fixed proactively. Reports contain technical error details only — no account, location or personal data — and can be turned off in the new app settings page"
   }
 }

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script type="text/javascript" src="/homey.js" data-origin="settings"></script>
+</head>
+<body>
+
+  <header class="homey-header">
+    <h1 class="homey-title" data-i18n="settings.title"></h1>
+  </header>
+
+  <fieldset class="homey-form-fieldset">
+    <div class="homey-form-group">
+      <label class="homey-form-checkbox">
+        <input class="homey-form-checkbox-input" type="checkbox" id="crashReporting">
+        <span class="homey-form-checkbox-checkmark"></span>
+        <span class="homey-form-checkbox-text" data-i18n="settings.crash_reporting.label"></span>
+      </label>
+      <p class="homey-form-help" data-i18n="settings.crash_reporting.hint"></p>
+    </div>
+  </fieldset>
+
+  <script type="text/javascript">
+    function onHomeyReady(Homey) {
+      var checkbox = document.getElementById('crashReporting');
+      Homey.get('crashReporting', function (err, value) {
+        // Default is on: only an explicit false means the user opted out.
+        checkbox.checked = value !== false;
+        Homey.ready();
+      });
+      checkbox.addEventListener('change', function () {
+        Homey.set('crashReporting', checkbox.checked);
+      });
+    }
+  </script>
+
+</body>
+</html>

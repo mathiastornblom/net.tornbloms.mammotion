@@ -47,5 +47,12 @@
         "title": "Pausa klippning"
       }
     }
+  },
+  "settings": {
+    "title": "Integritet",
+    "crash_reporting": {
+      "label": "Skicka anonyma kraschrapporter",
+      "hint": "När detta är aktiverat skickar appen en anonym teknisk rapport till utvecklaren om den kraschar, vilket hjälper till att åtgärda problem snabbare. Rapporterna innehåller endast felinformation — aldrig ditt konto, din plats eller personuppgifter."
+    }
   }
 }

@@ -47,5 +47,12 @@
         "title": "Pausar corte"
       }
     }
+  },
+  "settings": {
+    "title": "Privacidad",
+    "crash_reporting": {
+      "label": "Enviar informes de fallos anónimos",
+      "hint": "Si está activado, la aplicación envía un informe técnico anónimo al desarrollador cuando falla, lo que ayuda a solucionar los problemas más rápido. Los informes solo contienen detalles del error — nunca tu cuenta, ubicación o datos personales."
+    }
   }
 }
