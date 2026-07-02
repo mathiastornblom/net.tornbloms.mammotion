@@ -130,5 +130,8 @@
   },
   "2.2.5": {
     "en": "Pairing now shows a helpful message when no mowers are found (check that the sharing invitation was accepted in the Mammotion app) instead of an empty list, and the mower driver got its own icon distinct from the app icon"
+  },
+  "2.2.6": {
+    "en": "The app icon is now the Mammotion brand logo, making the app easier to recognize in the App Store and on your Homey"
   }
 }
