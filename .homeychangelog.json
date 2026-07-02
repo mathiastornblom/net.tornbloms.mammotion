@@ -124,5 +124,8 @@
   },
   "2.2.3": {
     "en": "Fixed Bluetooth connection failures flooding the diagnostic log with errors forever on hubs/mowers where BLE never connects — after a few failed attempts it now retries much less often and stops logging them as errors, since cloud control keeps working regardless"
+  },
+  "2.2.4": {
+    "en": "Bluetooth being out of range is normal, not an error — connection retries no longer log as errors at all, just quietly less often over time, since cloud control isn't affected"
   }
 }

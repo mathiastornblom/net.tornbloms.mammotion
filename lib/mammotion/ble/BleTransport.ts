@@ -20,10 +20,9 @@ const BLE_RECONNECT_BASE_MS = 15_000;
 const BLE_RECONNECT_MAX_MS  = 4 * 60_000; // 4 min
 
 /** After this many consecutive failures, BLE is treated as persistently unreachable for
- *  this device/hub combo (weak signal, firmware pairing issue, etc). MQTT is already
- *  carrying telemetry in that case, so we back off much further and stop logging at
- *  error level — otherwise a device that will simply never connect over BLE floods the
- *  diagnostic report with an identical error every few minutes, forever. */
+ *  this device/hub combo — most commonly just distance/signal (the mower is out of BLE
+ *  range of the hub), not a fault. MQTT is already carrying telemetry in that case, so we
+ *  back off much further to avoid hammering the radio for a connection that isn't coming. */
 const BLE_PERSISTENT_FAILURE_THRESHOLD = 5;
 const BLE_RECONNECT_MAX_MS_QUIET = 30 * 60_000; // 30 min
 
@@ -124,8 +123,8 @@ export class BleTransport {
       const advertisement = await this.discoverMower();
       if (!advertisement) {
         // Not found is the expected steady state when MQTT is doing the work (or
-        // this hub's BLE radio simply can't see the mower) — log it quietly and
-        // retry. Reserve logError for failures after a successful scan match.
+        // the mower is simply out of BLE range of the hub) — log it quietly and
+        // retry. logError is reserved for genuine protocol bugs, not range/signal.
         this.log(`BLE: device ${this.deviceName} not found in scan`);
         this.scheduleReconnect();
         return;
@@ -169,16 +168,13 @@ export class BleTransport {
     }
   }
 
-  /** Counts a failed connect attempt and logs it — at error level for the first few
-   *  consecutive failures, then quietly (info level) once BLE looks persistently
-   *  unreachable, per BLE_PERSISTENT_FAILURE_THRESHOLD. */
+  /** Counts a failed connect attempt. BLE is best-effort: failing to connect is most often
+   *  just the mower being out of range of the hub, not a fault, so it's logged at info
+   *  level rather than error — an error-level entry every few minutes for a mower that's
+   *  simply parked at the far end of the garden would be misleading noise. */
   private reportFailure(message: string): void {
     this.consecutiveFailures++;
-    if (this.consecutiveFailures > BLE_PERSISTENT_FAILURE_THRESHOLD) {
-      this.log(message);
-    } else {
-      this.logError(message);
-    }
+    this.log(message);
   }
 
   /** Discover the GATT service/characteristics and subscribe to notifications.
