@@ -31,9 +31,12 @@ const TELEMETRY_POLL_INTERVAL_MS = 5_000;
 const SYNC_ON_CONNECT_DELAY_MS = 2_000;
 // Once the mower has confirmed itself offline (DeviceOfflineError, not just a transient
 // send failure), polling every 5s indefinitely is wasted cloud traffic for a mower that
-// could be powered off for hours — back off, same shape as BleTransport's own backoff.
+// could be powered off for a while — back off, but cap low (60s, matching
+// scheduleMqttReconnect's own cap below) rather than minutes: a user coming home and
+// switching the mower back on expects Homey to notice within well under a minute, not
+// however long a looser cap would allow.
 const OFFLINE_POLL_BASE_MS = 10_000;
-const OFFLINE_POLL_MAX_MS = 5 * 60_000; // 5 min
+const OFFLINE_POLL_MAX_MS = 60_000; // 1 min
 
 /** Maps raw work mode integers to Homey mower_status enum values. */
 function workModeToStatus(mode: number): MowerStatus {

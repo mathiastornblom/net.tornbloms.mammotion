@@ -163,5 +163,8 @@
   },
   "2.5.0": {
     "en": "Added two new Flow triggers: Mower went offline and Mower came back online. Also made status checks back off automatically the longer a mower stays offline, instead of checking every 5 seconds indefinitely"
+  },
+  "2.5.1": {
+    "en": "Lowered how long offline status checks can back off to at most once a minute (was up to 5 minutes), so Homey notices your mower coming back online much sooner"
   }
 }
