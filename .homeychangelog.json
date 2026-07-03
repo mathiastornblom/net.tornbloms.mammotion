@@ -139,5 +139,8 @@
   },
   "2.3.0": {
     "en": "Added anonymous crash reporting so app crashes can be found and fixed proactively. Reports contain technical error details only — no account, location or personal data — and can be turned off in the new app settings page"
+  },
+  "2.3.1": {
+    "en": "Improved diagnostics for the 'no mowers found during pairing' issue some shared-account users are hitting, to help pinpoint whether it's a Mammotion account/sharing problem or a bug on our side"
   }
 }

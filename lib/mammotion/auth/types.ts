@@ -45,6 +45,17 @@ export interface DevicePageData {
   total: number;
 }
 
+/** DeviceRecord list plus the raw pagination/response metadata, for pairing diagnostics. */
+export interface DeviceRecordsResult {
+  records: DeviceRecord[];
+  /** Server-reported total, when the response is a DevicePageData wrapper. `null` if the
+   *  response was a bare array (no pagination metadata) — distinguishes "API said 0 total"
+   *  from "API doesn't report totals for this shape of response". */
+  total: number | null;
+  /** Response envelope's own message, e.g. "success" — useful when total/records disagree. */
+  msg: string;
+}
+
 /** Device entry from the device/list endpoint — owned devices only (absent for shared-not-owned mowers). */
 export interface MammotionDevice {
   iotId: string;

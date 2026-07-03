@@ -29,22 +29,26 @@ async function testAccount({ label, email, password }: AccountConfig): Promise<v
     const session = await MammotionAuth.login(email, password);
     console.log(`  login: ok (userId=${session.userId}, iotDomain=${session.iotDomain})`);
 
-    const [devices, records] = await Promise.all([
+    const [devices, recordsResult] = await Promise.all([
       MammotionAuth.fetchDevices(session).catch((err: unknown) => {
         console.log(`  fetchDevices: FAILED — ${String(err)}`);
         return [];
       }),
       MammotionAuth.fetchDeviceRecords(session).catch((err: unknown) => {
         console.log(`  fetchDeviceRecords: FAILED — ${String(err)}`);
-        return [];
+        return { records: [], total: null, msg: '' };
       }),
     ]);
+    const records = recordsResult.records;
 
     console.log(`  fetchDevices (owned only): ${devices.length} device(s)`);
     for (const d of devices) console.log(`    - iotId=${d.iotId} deviceName=${d.deviceName}`);
 
-    console.log(`  fetchDeviceRecords (owned + shared): ${records.length} record(s)`);
+    console.log(`  fetchDeviceRecords (owned + shared): ${records.length} record(s), server-reported total=${recordsResult.total}, msg=${JSON.stringify(recordsResult.msg)}`);
     for (const r of records) console.log(`    - iotId=${r.iotId} deviceName=${r.deviceName} productKey=${r.productKey}`);
+    if (records.length === 0 && recordsResult.total !== null && recordsResult.total > 0) {
+      console.log('  ⚠ total>0 but records=0 — a pagination/parsing bug, not "account has no devices"');
+    }
   } catch (err) {
     console.log(`  login: FAILED — ${String(err)}`);
   }

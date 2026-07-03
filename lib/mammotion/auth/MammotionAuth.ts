@@ -16,6 +16,7 @@ import type {
   DeviceContext,
   DevicePageData,
   DeviceRecord,
+  DeviceRecordsResult,
   LoginResponse,
   MammotionApiResponse,
   MammotionDevice,
@@ -219,8 +220,14 @@ export class MammotionAuth {
     return resp.data;
   }
 
-  /** Fetch device records including productKey and recordDeviceName needed for MQTT. */
-  static async fetchDeviceRecords(session: AuthSession): Promise<DeviceRecord[]> {
+  /**
+   * Fetch device records including productKey and recordDeviceName needed for MQTT.
+   * Returns the raw `total`/`msg` alongside the parsed records — an account that shows
+   * `records=0` with `total=0` genuinely has no devices server-side (a sharing/acceptance
+   * problem upstream of this app); `records=0` with `total>0` would instead point to a
+   * pagination or parsing bug in this call. See [[project-overview]] pairing troubleshooting.
+   */
+  static async fetchDeviceRecords(session: AuthSession): Promise<DeviceRecordsResult> {
     const authHeader = { Authorization: `Bearer ${session.accessToken}`, 'Client-Id': session.clientId, 'Client-Type': '1' };
     const resp = await MammotionAuth.request<MammotionApiResponse<DevicePageData | DeviceRecord[]>>(
       `${session.iotDomain}/v1/user/device/page`,
@@ -233,9 +240,13 @@ export class MammotionAuth {
     if (resp.code !== 0 || !resp.data) {
       throw new ApiError(resp.code, resp.msg ?? 'Failed to fetch device records');
     }
-    if (Array.isArray(resp.data)) return resp.data;
-    if (Array.isArray((resp.data as DevicePageData).records)) return (resp.data as DevicePageData).records;
-    return [];
+    const msg = resp.msg ?? '';
+    if (Array.isArray(resp.data)) return { records: resp.data, total: null, msg };
+    if (Array.isArray((resp.data as DevicePageData).records)) {
+      const page = resp.data as DevicePageData;
+      return { records: page.records, total: page.total ?? null, msg };
+    }
+    return { records: [], total: null, msg };
   }
 
   /** Fetch JWT-based MQTT connection credentials. */

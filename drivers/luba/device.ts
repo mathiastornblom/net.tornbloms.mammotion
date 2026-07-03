@@ -248,10 +248,11 @@ export default class LubaDevice extends Homey.Device {
       });
       this.log(`cloud session OK (iotDomain=${session.iotDomain}, userAccount=${session.userAccount})`);
 
-      const [devices, records] = await Promise.all([
+      const [devices, recordsResult] = await Promise.all([
         MammotionAuth.fetchDevices(session).catch((err) => { throw new Error(`fetchDevices: ${err instanceof Error ? err.message : String(err)}`); }),
         MammotionAuth.fetchDeviceRecords(session).catch((err) => { throw new Error(`fetchDeviceRecords: ${err instanceof Error ? err.message : String(err)}`); }),
       ]);
+      const records = recordsResult.records;
 
       const ownedByIotId = new Map(devices.map(d => [d.iotId, d]));
       const contexts = records.map(r => MammotionAuth.mergeDeviceContext(ownedByIotId.get(r.iotId) ?? {}, r));

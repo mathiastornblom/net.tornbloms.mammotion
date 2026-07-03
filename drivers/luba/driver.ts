@@ -162,7 +162,7 @@ export default class LubaDriver extends Homey.Driver {
       // The records endpoint is authoritative (it includes shared-not-owned mowers) —
       // if it fails, surface the error to the user rather than showing an empty list.
       // The owned-devices endpoint only backfills identifiers, so its failure is tolerable.
-      const [devices, records] = await Promise.all([
+      const [devices, recordsResult] = await Promise.all([
         MammotionAuth.fetchDevices(session).catch((err) => {
           this.error('fetchDevices failed:', err);
           return [];
@@ -172,7 +172,11 @@ export default class LubaDriver extends Homey.Driver {
           throw new Error(`${this.homey.__('error.no_devices_found')} (${err instanceof Error ? err.message : String(err)})`);
         }),
       ]);
-      this.log(`list_devices: owned=${devices.length} records=${records.length}`,
+      const records = recordsResult.records;
+      // total/msg let a submitted diagnostic report tell "API genuinely has 0 devices for
+      // this account" (total=0) apart from "API knows about devices but withheld them"
+      // (total>0, records=0) — see the recurring shared-account pairing bug in memory.
+      this.log(`list_devices: owned=${devices.length} records=${records.length} total=${recordsResult.total} msg=${JSON.stringify(recordsResult.msg)}`,
         JSON.stringify({
           owned: devices.map(d => ({ iotId: d.iotId, deviceName: d.deviceName })),
           records: records.map(r => ({ iotId: r.iotId, deviceName: r.deviceName, productKey: r.productKey })),
@@ -226,11 +230,11 @@ export default class LubaDriver extends Homey.Driver {
   /** Simple drivers that need no custom login can use this. */
   async onPairListDevices(): Promise<PairedDeviceResult[]> {
     const session = await this.getValidSession();
-    const [devices, records] = await Promise.all([
+    const [devices, recordsResult] = await Promise.all([
       MammotionAuth.fetchDevices(session),
       MammotionAuth.fetchDeviceRecords(session),
     ]);
-    return this.buildDeviceList(devices, records);
+    return this.buildDeviceList(devices, recordsResult.records);
   }
 
   /**
