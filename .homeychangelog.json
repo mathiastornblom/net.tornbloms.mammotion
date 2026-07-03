@@ -154,5 +154,8 @@
   },
   "2.3.5": {
     "en": "Pairing now checks for mowers registered under Mammotion's older cloud system when none are found normally, and tells you clearly if that's the case — support for actually adding those mowers is still being worked on"
+  },
+  "2.4.0": {
+    "en": "Mowers registered under Mammotion's older cloud system can now be paired and controlled, not just detected — this is brand new and hasn't been tested on real hardware yet, so please report any issues; Bluetooth keeps working as a fallback regardless"
   }
 }

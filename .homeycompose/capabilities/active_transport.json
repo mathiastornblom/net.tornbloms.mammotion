@@ -38,6 +38,24 @@
       }
     },
     {
+      "id": "aliyun_legacy",
+      "title": {
+        "en": "Cloud (legacy)",
+        "nl": "Cloud (verouderd)",
+        "de": "Cloud (veraltet)",
+        "fr": "Cloud (ancien)",
+        "it": "Cloud (legacy)",
+        "sv": "Moln (äldre)",
+        "no": "Sky (eldre)",
+        "es": "Nube (antigua)",
+        "da": "Sky (ældre)",
+        "ru": "Облако (устар.)",
+        "pl": "Chmura (starsza)",
+        "ko": "클라우드(레거시)",
+        "ar": "السحابة (قديم)"
+      }
+    },
+    {
       "id": "none",
       "title": {
         "en": "Disconnected",

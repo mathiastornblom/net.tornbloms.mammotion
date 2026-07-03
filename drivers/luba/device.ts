@@ -18,11 +18,12 @@ import {
   CUTTER_MODE_MAP,
   type StartMowOptions,
 } from '../../lib/mammotion/commands/LubaCommands.js';
-import { MammotionError } from '../../lib/mammotion/errors.js';
+import { MammotionError, AliyunCommandError } from '../../lib/mammotion/errors.js';
+import { sendAliyunCloudCommand } from '../../lib/mammotion/aliyun/commands.js';
 import type LubaDriver from './driver.js';
 
 type MowerStatus = 'idle' | 'mowing' | 'returning' | 'charging' | 'paused' | 'error';
-type TransportName = 'ble' | 'mqtt' | 'none';
+type TransportName = 'ble' | 'mqtt' | 'aliyun_legacy' | 'none';
 type TransportPreference = 'auto' | 'ble_only' | 'mqtt_only';
 
 // Re-arm the one-shot report subscription every 5s, matching Mammotion-HA.
@@ -141,16 +142,23 @@ export default class LubaDevice extends Homey.Device {
     return (this.getSetting('transport_preference') as TransportPreference | null) ?? 'auto';
   }
 
-  /** Starts BLE and/or MQTT according to the current transport preference. */
+  /** Starts BLE and/or the cloud transport (Mammotion MQTT, or the legacy Aliyun connection
+   *  for 'aliyun_legacy'-flagged devices) according to the current transport preference.
+   *  'mqtt_only' is interpreted as "cloud only" for either device type — there's no
+   *  separate preference value for the legacy cloud, since users can't tell which system
+   *  their mower uses (see docs/ALIYUN_MQTT_TRANSPORT_PLAN.md §1). */
   private async startTransports(): Promise<void> {
     const pref = this.transportPreference();
-    this.log(`startTransports: preference=${pref}`);
+    const isLegacy = this.getContext().transportKind === 'aliyun_legacy';
+    this.log(`startTransports: preference=${pref} transportKind=${isLegacy ? 'aliyun_legacy' : 'mammotion'}`);
 
     const useBle = pref === 'auto' || pref === 'ble_only';
-    const useMqtt = pref === 'auto' || pref === 'mqtt_only';
+    const useCloud = pref === 'auto' || pref === 'mqtt_only';
 
     if (useBle) await this.connectBle();
-    if (useMqtt) {
+    if (useCloud && isLegacy) {
+      await this.connectAliyunLegacy();
+    } else if (useCloud) {
       await this.connectMqtt();
       this.startPollTimer();
     }
@@ -339,6 +347,58 @@ export default class LubaDevice extends Homey.Device {
     }, delayMs);
   }
 
+  // ─── Legacy Aliyun transport ──────────────────────────────────────────────
+  // 'aliyun_legacy'-flagged devices only — a completely different cloud system from the
+  // Mammotion MQTT above. The connection itself is owned/shared by LubaDriver across every
+  // legacy device on the account (see docs/ALIYUN_MQTT_TRANSPORT_PLAN.md §1/§3); this
+  // device only registers itself onto it and reacts to routed callbacks.
+
+  /** Registers this device on the driver's shared AliyunMqttTransport (creating/connecting
+   *  it on first use). Failure here is logged, not fatal — BLE (if in range) still works,
+   *  and startTransports()'s BLE branch runs independently of this one. */
+  private async connectAliyunLegacy(): Promise<void> {
+    const driver = this.driver as unknown as LubaDriver;
+    try {
+      await driver.registerAliyunDevice(
+        this.getData().id as string,
+        (decoded) => this.handleAliyunMessage(decoded),
+        (online) => this.handleAliyunStatus(online),
+      );
+      this.log('[Aliyun] registered on shared transport');
+    } catch (err) {
+      this.error(`[Aliyun] registerAliyunDevice failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  /** Routes a decoded legacy-Aliyun LubaMsg to telemetry handling and raw-message dispatch —
+   *  mirrors handleBleMessage, minus the iotId filter (the shared transport already routes
+   *  by iotId before invoking this callback). */
+  private handleAliyunMessage(decoded: Record<string, unknown>): void {
+    const iotId = this.getData().id as string;
+    const telemetry = extractTelemetry(decoded);
+    if (telemetry) {
+      if (this.activeTransport !== 'ble') this.switchActiveTransport('aliyun_legacy');
+      this.handleTelemetry(iotId, telemetry, 'aliyun_legacy');
+    }
+    this.handleRawMessage(iotId, decoded);
+  }
+
+  /** Updates active transport/availability based on the shared Aliyun connection's status —
+   *  mirrors handleMqttStatus's "don't override BLE if it's already primary" logic. */
+  private handleAliyunStatus(online: boolean): void {
+    if (online) {
+      if (this.activeTransport === 'none') {
+        this.log('[Aliyun] online — switching active transport to aliyun_legacy');
+        this.switchActiveTransport('aliyun_legacy');
+        this.setAvailable().catch(this.error.bind(this));
+      }
+    } else if (this.activeTransport === 'aliyun_legacy') {
+      this.log('[Aliyun] offline');
+      this.switchActiveTransport('none');
+      this.setUnavailable(this.homey.__('error.device_offline')).catch(this.error.bind(this));
+    }
+  }
+
   // ─── Transport switching ──────────────────────────────────────────────────
 
   /** Updates the active_transport capability and internal state when the primary transport changes. */
@@ -439,14 +499,21 @@ export default class LubaDevice extends Homey.Device {
 
   // ─── Commands ─────────────────────────────────────────────────────────────
 
-  /** Choose which transport to route a raw-bytes command through. */
+  /** Choose which transport to route a raw-bytes command through. BLE is tried first
+   *  whenever it's actually connected, regardless of transportKind — it's local and
+   *  protocol-identical either way. Below that, branch by transportKind: legacy-Aliyun
+   *  devices send via the REST invoke gateway (independent of the shared MQTT connection's
+   *  status — sending doesn't need the read/telemetry connection up), everything else uses
+   *  the primary Mammotion MQTT client. */
   private async sendRaw(bytes: Buffer, label: string): Promise<void> {
+    const context = this.getContext();
     if (this.activeTransport === 'ble' && this.ble?.isConnected) {
       this.log(`[BLE] sending command: ${label}`);
       await this.ble.send(bytes);
+    } else if (context.transportKind === 'aliyun_legacy') {
+      await this.sendAliyunRaw(bytes, label, context.iotId);
     } else if (this.mqtt?.isConnected) {
       const session = await this.getSession();
-      const context = this.getContext();
       this.log(`[MQTT] sending command: ${label}`);
       const b64 = bytes.toString('base64');
       const result = await Promise.race([
@@ -456,6 +523,29 @@ export default class LubaDevice extends Homey.Device {
       this.log(`[MQTT] command ${label} response: ${String(result).substring(0, 100)}`);
     } else {
       throw new MammotionError(`No transport available for command: ${label}`);
+    }
+  }
+
+  /** Sends a command via the legacy Aliyun REST invoke gateway. On an auth-expiry error
+   *  (460/29003 — see AliyunCommandError), drops the driver's cached credentials and
+   *  retries exactly once with a freshly re-derived set, rather than failing permanently
+   *  on a stale cached iotToken (full refresh-before-expiry isn't implemented yet — see
+   *  docs/ALIYUN_MQTT_TRANSPORT_PLAN.md Stage 3). */
+  private async sendAliyunRaw(bytes: Buffer, label: string, iotId: string): Promise<void> {
+    const driver = this.driver as unknown as LubaDriver;
+    this.log(`[Aliyun] sending command: ${label}`);
+    const credentials = await driver.getAliyunCredentials();
+    try {
+      const messageId = await sendAliyunCloudCommand(credentials, iotId, bytes);
+      this.log(`[Aliyun] command ${label} sent (messageId=${messageId})`);
+    } catch (err) {
+      const isAuthExpired = err instanceof AliyunCommandError && (err.code === 460 || err.code === 29003);
+      if (!isAuthExpired) throw err;
+      this.log(`[Aliyun] command ${label} failed with auth-expiry (code=${(err as AliyunCommandError).code}) — retrying once with fresh credentials`);
+      driver.invalidateAliyunCredentials();
+      const freshCredentials = await driver.getAliyunCredentials();
+      const messageId = await sendAliyunCloudCommand(freshCredentials, iotId, bytes);
+      this.log(`[Aliyun] command ${label} sent on retry (messageId=${messageId})`);
     }
   }
 
@@ -536,7 +626,7 @@ export default class LubaDevice extends Homey.Device {
 
   // ─── Cleanup ──────────────────────────────────────────────────────────────
 
-  /** Stops timers and disconnects both transports. */
+  /** Stops timers and disconnects all transports. */
   private cleanup(): void {
     if (this.pollTimer) { clearInterval(this.pollTimer); this.pollTimer = null; }
     if (this.mqttReconnectTimer) { clearTimeout(this.mqttReconnectTimer); this.mqttReconnectTimer = null; }
@@ -544,6 +634,11 @@ export default class LubaDevice extends Homey.Device {
     this.mqtt = null;
     void this.ble?.disconnect();
     this.ble = null;
+    // Only unregisters this device from the driver's SHARED connection — never tears down
+    // the connection itself, since other legacy devices on the account may still need it.
+    if (this.getContext()?.transportKind === 'aliyun_legacy') {
+      (this.driver as unknown as LubaDriver).unregisterAliyunDevice(this.getData().id as string);
+    }
     this.activeTransport = 'none';
   }
 

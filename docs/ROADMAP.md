@@ -1,26 +1,29 @@
 # Roadmap & prioritized backlog
 
-Last reviewed: 2026-07-03, app version v2.3.5. This is the single source of truth for "what's
+Last reviewed: 2026-07-03, app version v2.4.0. This is the single source of truth for "what's
 next" — check here before starting new work. Update this file (not just memory) whenever
 priority shifts, since it's versioned with the code and visible to anyone reading the repo.
 
 ## P0 — Active / blocking
 
-- **Legacy Aliyun IoT device support — CONFIRMED, implementation plan ready, not yet built.**
-  v2.3.5's read-only diagnostic probe found `bound=1 shareNotifications=2` on a real affected
-  account (Anders_Gregow / mammotion_homey@gregow.se) — hypothesis confirmed, and all three
-  hand-transcribed signing algorithms proven working against a live Aliyun server for the
-  first time. Full read+write implementation plan (same-driver decision, write path via the
-  already-proven signing scheme, new `AliyunMqttTransport` for telemetry, staged rollout,
-  risk assessment): `docs/ALIYUN_MQTT_TRANSPORT_PLAN.md` (companion to
-  `docs/ALIYUN_LEGACY_PLAN.md`, which has the background).
-  **Recommendation:** same `luba` driver, internal `transportKind` flag — not a separate
-  driver (see plan doc §1 for reasoning).
-  **Next action:** Stage 0 (small, near-zero risk — retain already-fetched credentials,
-  extract shared signing helper) can start anytime. Stage 1 (write path) and Stage 2 (MQTT
-  read path) both have zero live-server verification — reaching out to the confirmed
-  affected user for test access before enabling broadly would close that gap and is worth
-  pursuing in parallel, not a blocker for starting Stage 0/1.
+- **Legacy Aliyun IoT device support — BUILT (v2.4.0), needs live verification.**
+  Full read+write support shipped: pairing now returns real, pairable devices for
+  legacy-bound mowers; a shared `AliyunMqttTransport` (one connection per account) delivers
+  telemetry; commands send via the same proven CA-signature gateway. Built via two parallel
+  implementation passes on the independent write/read modules
+  (`lib/mammotion/aliyun/commands.ts`, `lib/mammotion/aliyun/AliyunMqttTransport.ts`), then
+  integrated centrally into `drivers/luba/{driver,device}.ts`. Full writeup:
+  `docs/ALIYUN_MQTT_TRANSPORT_PLAN.md`.
+  **What's NOT done:** Stage 3 (credential refresh before expiry, full rate-limit handling)
+  and Stage 4 (live verification) — this shipped with **zero live-server testing** of the
+  write and MQTT-read paths specifically (the read-only *listing* path was proven live in
+  v2.3.5; sending commands and receiving telemetry were not). Designed to fail safely: BLE
+  keeps working independently regardless, and Aliyun-specific failures are caught/logged,
+  never propagated.
+  **Next action:** reach out to the confirmed affected user (Anders_Gregow /
+  mammotion_homey@gregow.se) for a live test — a single `dock`/`pause` command first (low
+  risk, easily reversible), then telemetry. Watch for diagnostic reports from that account
+  on v2.4.0+ in the meantime.
 
 ## P1 — High value, unblocked, ready to scope
 

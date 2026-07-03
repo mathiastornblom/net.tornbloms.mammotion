@@ -14,6 +14,24 @@ The zero-live-verification risk flagged in `ALIYUN_LEGACY_PLAN.md` is resolved f
 **read (listing)** path. It is **not yet** resolved for the write (command invoke) or
 telemetry (MQTT) paths — see Risks.
 
+**IMPLEMENTED (v2.4.0, 2026-07-03):** Stages 0-2 shipped — write path
+(`lib/mammotion/aliyun/commands.ts`), shared MQTT read path
+(`lib/mammotion/aliyun/AliyunMqttTransport.ts`), and full `driver.ts`/`device.ts`
+integration (pairing now returns real, pairable devices for legacy-bound mowers;
+`transportKind` flag on `DeviceContext`; `LubaDriver` owns the one shared
+`AliyunMqttTransport` per account). Built via two parallel implementation passes on the
+independent write/read modules, then integrated centrally. All existing tests pass, plus
+10 new unit tests (`scripts/aliyun-commands.test.mjs`,
+`scripts/aliyun-mqtt-credentials.test.mjs`). **Still true:** zero live-server verification
+of the write and MQTT-read paths (Stage 4, live testing with the confirmed affected
+account, has not happened yet) — shipped anyway because the design fails safely: BLE
+keeps working as an independent fallback regardless of whether the Aliyun paths work, and
+every Aliyun-specific failure is caught/logged rather than propagating. Stage 3
+(credential refresh, rate-limit awareness) was NOT implemented — the driver caches
+credentials indefinitely per app session and retries once on an auth-expiry error, which
+is a reasonable but incomplete substitute; see `driver.ts`'s `ensureAliyunCredentials`/
+`invalidateAliyunCredentials` and `device.ts`'s `sendAliyunRaw`.
+
 ## Source verification note
 
 `ALIYUN_LEGACY_PLAN.md` describes reading `mikey0000/pymammotion` at a point where no

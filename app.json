@@ -1,7 +1,7 @@
 {
   "_comment": "This file is generated. Please edit .homeycompose/app.json instead.",
   "id": "net.tornbloms.mammotion",
-  "version": "2.3.5",
+  "version": "2.4.0",
   "homeyCommunityTopicId": 156754,
   "homepage": "https://mathiastornblom.github.io/net.tornbloms.mammotion/",
   "compatibility": ">=12.9.0",
@@ -1077,6 +1077,24 @@
             "pl": "Chmura",
             "ko": "클라우드",
             "ar": "السحابة"
+          }
+        },
+        {
+          "id": "aliyun_legacy",
+          "title": {
+            "en": "Cloud (legacy)",
+            "nl": "Cloud (verouderd)",
+            "de": "Cloud (veraltet)",
+            "fr": "Cloud (ancien)",
+            "it": "Cloud (legacy)",
+            "sv": "Moln (äldre)",
+            "no": "Sky (eldre)",
+            "es": "Nube (antigua)",
+            "da": "Sky (ældre)",
+            "ru": "Облако (устар.)",
+            "pl": "Chmura (starsza)",
+            "ko": "클라우드(레거시)",
+            "ar": "السحابة (قديم)"
           }
         },
         {

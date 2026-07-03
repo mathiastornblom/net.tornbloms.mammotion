@@ -4,7 +4,9 @@ import { MammotionAuth } from '../../lib/mammotion/auth/MammotionAuth.js';
 import type { AuthSession, DeviceContext, MammotionDevice, DeviceRecord } from '../../lib/mammotion/auth/types.js';
 import { DEVICE_TYPE_NAMES } from '../../lib/mammotion/constants.js';
 import { AuthError } from '../../lib/mammotion/errors.js';
-import { probeLegacyAliyunDevices } from '../../lib/mammotion/aliyun/AliyunLegacyProbe.js';
+import { probeLegacyAliyunDevices, type AliyunLegacyCredentials } from '../../lib/mammotion/aliyun/AliyunLegacyProbe.js';
+import type { AliyunAccountDevice } from '../../lib/mammotion/aliyun/types.js';
+import { AliyunMqttTransport } from '../../lib/mammotion/aliyun/AliyunMqttTransport.js';
 
 const SESSION_SETTINGS_KEY = 'mammotion_session';
 const CREDENTIALS_SETTINGS_KEY = 'mammotion_credentials';
@@ -32,10 +34,23 @@ export default class LubaDriver extends Homey.Driver {
   private errorTrigger!: Homey.FlowCardTriggerDevice;
   private batteryBelowTrigger!: Homey.FlowCardTriggerDevice;
 
+  // ─── Legacy Aliyun IoT support ────────────────────────────────────────────
+  // ONE shared connection/credential set per account, not per device — see
+  // docs/ALIYUN_MQTT_TRANSPORT_PLAN.md §1/§3. Every 'aliyun_legacy'-flagged LubaDevice
+  // registers itself here rather than owning a private transport instance.
+  private aliyunTransport: AliyunMqttTransport | null = null;
+  private aliyunCredentials: AliyunLegacyCredentials | null = null;
+  private aliyunCredentialsPromise: Promise<AliyunLegacyCredentials> | null = null;
+
   /** Registers all Flow trigger/condition/action cards for this driver. */
   async onInit(): Promise<void> {
     this.log('LubaDriver initialized');
     this.registerFlowCards();
+  }
+
+  /** Tears down the shared Aliyun legacy transport, if one was ever created. */
+  async onUninit(): Promise<void> {
+    this.aliyunTransport?.disconnect();
   }
 
   /** Wires up every Flow card's run listener to the corresponding device method. */
@@ -135,6 +150,77 @@ export default class LubaDriver extends Homey.Driver {
     this.batteryBelowTrigger.trigger(device, {}, { battery: batteryPercent }).catch(this.error.bind(this));
   }
 
+  // ─── Legacy Aliyun IoT support ────────────────────────────────────────────
+
+  /** Lazily fetches (or reuses cached) account-level Aliyun legacy credentials, re-running
+   *  the 6-step handshake on first use. Concurrent callers (multiple devices initializing
+   *  at once) share the same in-flight probe rather than each starting their own.
+   *  Credentials are cached indefinitely within a running app session — there's no
+   *  refresh-on-expiry yet (docs/ALIYUN_MQTT_TRANSPORT_PLAN.md Stage 3); a caller that gets
+   *  an auth-expiry error back from Aliyun should call invalidateAliyunCredentials() and
+   *  retry once. */
+  private async ensureAliyunCredentials(): Promise<AliyunLegacyCredentials> {
+    if (this.aliyunCredentials) return this.aliyunCredentials;
+    if (!this.aliyunCredentialsPromise) {
+      this.aliyunCredentialsPromise = (async () => {
+        const session = await this.getValidSession();
+        const result = await probeLegacyAliyunDevices(session);
+        if (!result.credentials) throw new Error('Aliyun legacy handshake succeeded but returned no credentials');
+        this.aliyunCredentials = result.credentials;
+        return result.credentials;
+      })().finally(() => {
+        this.aliyunCredentialsPromise = null;
+      });
+    }
+    return this.aliyunCredentialsPromise;
+  }
+
+  /** Public accessor for LubaDevice's Aliyun command-sending path (sendAliyunCloudCommand). */
+  async getAliyunCredentials(): Promise<AliyunLegacyCredentials> {
+    return this.ensureAliyunCredentials();
+  }
+
+  /** Seeds the credential cache from a probe result the caller already has (e.g. pairing's
+   *  list_devices, which runs the full handshake anyway) — avoids an unnecessary second
+   *  handshake the moment the first newly-paired legacy device initializes. */
+  private cacheAliyunCredentials(credentials: AliyunLegacyCredentials): void {
+    this.aliyunCredentials = credentials;
+  }
+
+  /** Drops the cached Aliyun credentials so the next call re-runs the handshake — call this
+   *  after a command/connection fails with an auth-expiry code (460/29003, see
+   *  AliyunCommandError) before retrying, rather than retrying with the same stale token. */
+  invalidateAliyunCredentials(): void {
+    this.aliyunCredentials = null;
+  }
+
+  /** Registers a legacy-bound device onto the shared AliyunMqttTransport, creating and
+   *  connecting it on first use. Safe to call for multiple devices — they share one
+   *  connection (see docs/ALIYUN_MQTT_TRANSPORT_PLAN.md's "one connection per account"
+   *  correction, not one per device). */
+  async registerAliyunDevice(
+    iotId: string,
+    onMessage: (decoded: Record<string, unknown>) => void,
+    onStatus: (online: boolean) => void,
+  ): Promise<void> {
+    const credentials = await this.ensureAliyunCredentials();
+    if (!this.aliyunTransport) {
+      this.aliyunTransport = new AliyunMqttTransport({
+        config: credentials,
+        log: (msg) => this.log(`[Aliyun] ${msg}`),
+        logError: (msg) => this.error(`[Aliyun] ${msg}`),
+      });
+    }
+    this.aliyunTransport.registerDevice(iotId, onMessage, onStatus);
+    if (!this.aliyunTransport.isConnected) this.aliyunTransport.connect();
+  }
+
+  /** Removes a device from the shared transport's routing table on cleanup/deletion — does
+   *  not tear down the connection itself, since other legacy devices may still be registered. */
+  unregisterAliyunDevice(iotId: string): void {
+    this.aliyunTransport?.unregisterDevice(iotId);
+  }
+
   /**
    * onPair is called when a pairing session starts.
    * We register handlers for the login_credentials and list_devices templates.
@@ -210,7 +296,17 @@ export default class LubaDriver extends Homey.Driver {
         this.log(`list_devices: legacy Aliyun probe — bound=${legacyResult.boundDevices.length} shareNotifications=${legacyResult.shareNotifications}`,
           JSON.stringify(legacyResult.boundDevices.map(d => ({ iotId: d.iotId, deviceName: d.deviceName, productKey: d.productKey, owned: d.owned }))));
       }
-      if (legacyResult && (legacyResult.boundDevices.length > 0 || legacyResult.shareNotifications > 0)) {
+      if (legacyResult && legacyResult.boundDevices.length > 0) {
+        // Real, listable devices via the legacy system — pair them for real now that
+        // read+write support exists (docs/ALIYUN_MQTT_TRANSPORT_PLAN.md). Cache the
+        // credentials this same probe call already fetched so the driver doesn't need to
+        // re-run the handshake the moment the first legacy device initializes.
+        if (legacyResult.credentials) this.cacheAliyunCredentials(legacyResult.credentials);
+        return this.buildLegacyDeviceList(legacyResult.boundDevices);
+      }
+      if (legacyResult && legacyResult.shareNotifications > 0) {
+        // Evidence of legacy sharing activity but nothing actually bound/listable yet —
+        // still an informative message rather than the generic one.
         throw new Error(this.homey.__('error.legacy_devices_found'));
       }
 
@@ -282,22 +378,53 @@ export default class LubaDriver extends Homey.Driver {
       return {
         name: context.deviceName || context.iotId,
         data: { id: context.iotId },
-        store: { context },
-        // Keep in sync with driver.compose.json's top-level "capabilities" array — Homey
-        // uses this list (not the compose manifest) to set up a newly paired device's
-        // capabilities, so any capability missing here is silently absent until repair.
-        capabilities: [
-          'onoff', 'measure_battery', 'alarm_generic',
-          'mower_status', 'measure_mow_progress', 'measure_mow_area', 'mow_blade_height',
-          'measure_wifi_rssi', 'measure_ble_rssi', 'measure_gps_stars',
-          'measure_mowing_speed', 'measure_elapsed_time', 'measure_left_time',
-          'active_transport', 'mow_cutter_mode', 'mow_headlamp', 'mow_side_led',
-          'mow_pos_level', 'mow_rain_protection', 'measure_battery_cycles', 'measure_blade_used_time',
-          'mow_send_to_dock',
-        ],
+        store: { context: { ...context, transportKind: 'mammotion' } },
+        capabilities: LubaDriver.PAIRING_CAPABILITIES,
       };
     });
   }
+
+  /**
+   * Builds the paired-device list for mowers only visible through the legacy Aliyun IoT
+   * Link Platform system (docs/ALIYUN_LEGACY_PLAN.md) — same capability set as
+   * buildDeviceList's normal path, since legacy devices expose the identical Homey
+   * capability surface; only the transport underneath differs (see
+   * docs/ALIYUN_MQTT_TRANSPORT_PLAN.md §1's same-driver decision).
+   */
+  private buildLegacyDeviceList(boundDevices: AliyunAccountDevice[]): PairedDeviceResult[] {
+    return boundDevices.map((device): PairedDeviceResult => {
+      const context: DeviceContext = {
+        iotId: device.iotId,
+        deviceId: device.iotId,
+        deviceName: device.deviceName,
+        productKey: device.productKey,
+        recordDeviceName: device.deviceName,
+        status: null,
+        deviceType: null,
+        transportKind: 'aliyun_legacy',
+      };
+      return {
+        name: device.nickName || context.deviceName || context.iotId,
+        data: { id: context.iotId },
+        store: { context },
+        capabilities: LubaDriver.PAIRING_CAPABILITIES,
+      };
+    });
+  }
+
+  /** Capabilities assigned to every newly paired device, regardless of transport kind — Homey
+   *  uses THIS pairing-time list (not driver.compose.json's manifest) to set up a new
+   *  device's capabilities, so anything missing here is silently absent until repair.
+   *  Keep in sync with driver.compose.json's top-level "capabilities" array by hand. */
+  private static readonly PAIRING_CAPABILITIES: string[] = [
+    'onoff', 'measure_battery', 'alarm_generic',
+    'mower_status', 'measure_mow_progress', 'measure_mow_area', 'mow_blade_height',
+    'measure_wifi_rssi', 'measure_ble_rssi', 'measure_gps_stars',
+    'measure_mowing_speed', 'measure_elapsed_time', 'measure_left_time',
+    'active_transport', 'mow_cutter_mode', 'mow_headlamp', 'mow_side_led',
+    'mow_pos_level', 'mow_rain_protection', 'measure_battery_cycles', 'measure_blade_used_time',
+    'mow_send_to_dock',
+  ];
 
   /**
    * Retrieve a valid session, refreshing or re-logging in if needed.

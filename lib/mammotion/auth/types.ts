@@ -124,4 +124,13 @@ export interface DeviceContext {
   recordDeviceName: string;
   status: number | null;
   deviceType: number | null;
+  /** Which cloud device system this mower is bound through, set once at pairing time.
+   *  `'mammotion'` (the default/implicit value for devices paired before this field
+   *  existed — always treat a missing value as `'mammotion'`, never as an error) uses the
+   *  primary JWT/user-server cloud this app was originally built on. `'aliyun_legacy'`
+   *  devices are only visible/controllable through the separate Alibaba Cloud IoT Link
+   *  Platform system — see docs/ALIYUN_LEGACY_PLAN.md and
+   *  docs/ALIYUN_MQTT_TRANSPORT_PLAN.md for why this exists. Deliberately NOT a separate
+   *  Homey driver — see that second doc's §1 for the reasoning. */
+  transportKind?: 'mammotion' | 'aliyun_legacy';
 }
