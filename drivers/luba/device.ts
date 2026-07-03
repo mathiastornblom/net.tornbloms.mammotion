@@ -18,7 +18,7 @@ import {
   CUTTER_MODE_MAP,
   type StartMowOptions,
 } from '../../lib/mammotion/commands/LubaCommands.js';
-import { MammotionError, AliyunCommandError } from '../../lib/mammotion/errors.js';
+import { MammotionError, AliyunCommandError, DeviceOfflineError } from '../../lib/mammotion/errors.js';
 import { sendAliyunCloudCommand } from '../../lib/mammotion/aliyun/commands.js';
 import type LubaDriver from './driver.js';
 
@@ -430,7 +430,25 @@ export default class LubaDevice extends Homey.Device {
     const session = await this.getSession();
     const context = this.getContext();
     const cmd = buildRequestIotSyncCommand(session.userAccount, false, this.seq);
-    await this.mqtt?.sendCommand(session, context, cmd);
+    try {
+      await this.mqtt?.sendCommand(session, context, cmd);
+    } catch (err) {
+      this.handleMqttCommandError(err);
+    }
+  }
+
+  /** Reacts to an MQTT command failure — if the mower itself reported it's offline
+   *  (DeviceOfflineError), reflect that on Homey immediately rather than waiting for a
+   *  status/telemetry signal that will never arrive from an offline device (BLE-out-of-
+   *  range mowers can otherwise sit "available" indefinitely — see the diagnostic report
+   *  that prompted this). Always re-throws so callers still see/log the original failure. */
+  private handleMqttCommandError(err: unknown): never {
+    if (err instanceof DeviceOfflineError) {
+      this.log(`[MQTT] device reported offline: ${err.message}`);
+      if (this.activeTransport === 'mqtt') this.switchActiveTransport('none');
+      this.setUnavailable(this.homey.__('error.device_offline')).catch(this.error.bind(this));
+    }
+    throw err;
   }
 
   /** Writes a capability value only if it differs from the current one, to avoid redundant Homey updates. */
@@ -516,11 +534,15 @@ export default class LubaDevice extends Homey.Device {
       const session = await this.getSession();
       this.log(`[MQTT] sending command: ${label}`);
       const b64 = bytes.toString('base64');
-      const result = await Promise.race([
-        this.mqtt.sendCommand(session, context, b64),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error(`Command timeout: ${label}`)), 10_000)),
-      ]);
-      this.log(`[MQTT] command ${label} response: ${String(result).substring(0, 100)}`);
+      try {
+        const result = await Promise.race([
+          this.mqtt.sendCommand(session, context, b64),
+          new Promise<never>((_, reject) => setTimeout(() => reject(new Error(`Command timeout: ${label}`)), 10_000)),
+        ]);
+        this.log(`[MQTT] command ${label} response: ${String(result).substring(0, 100)}`);
+      } catch (err) {
+        this.handleMqttCommandError(err);
+      }
     } else {
       throw new MammotionError(`No transport available for command: ${label}`);
     }

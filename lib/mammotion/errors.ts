@@ -24,11 +24,27 @@ export class SessionExpiredError extends AuthError {
   }
 }
 
-/** Device is offline on the cloud. */
+/** Device is offline on the cloud — the mower itself reported this via an MQTT invoke
+ *  response's `code` field (50104), not a transport-level failure. Callers should reflect
+ *  this on the Homey device's availability immediately rather than waiting for a
+ *  status/telemetry signal that will never arrive from an offline device. */
 export class DeviceOfflineError extends MammotionError {
   constructor(deviceName: string) {
     super(`Device ${deviceName} is offline`);
     this.name = 'DeviceOfflineError';
+  }
+}
+
+/** A command sent via the primary Mammotion MQTT invoke endpoint failed with a non-zero
+ *  `code` in the JSON response body that ISN'T the device-offline case (see
+ *  DeviceOfflineError for that one) — e.g. an unrecognized command, a malformed payload,
+ *  or a cloud-side error unrelated to device reachability. */
+export class MqttCommandError extends MammotionError {
+  readonly code: number;
+  constructor(code: number, message: string) {
+    super(`MQTT command error ${code}: ${message}`);
+    this.name = 'MqttCommandError';
+    this.code = code;
   }
 }
 

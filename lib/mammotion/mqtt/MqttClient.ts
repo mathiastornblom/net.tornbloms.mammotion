@@ -7,6 +7,13 @@ import type { MqttConnection, AuthSession, DeviceContext } from '../auth/types.j
 import { decodeLubaMsg } from '../protocol/Codec.js';
 import { extractTelemetry } from '../protocol/TelemetryParser.js';
 import { MQTT_CONNECT_TIMEOUT_MS } from '../constants.js';
+import { DeviceOfflineError, MqttCommandError } from '../errors.js';
+
+/** Mammotion's own invoke-response code for "the mower is offline" — confirmed via a
+ *  real user's diagnostic report (2026-07-03): `{"code":50104,"msg":"The device is
+ *  offline"}`. Matches pymammotion's http.py `mqtt_invoke` convention of code=0 meaning
+ *  success and any other code carrying a specific meaning in `msg`. */
+const MQTT_DEVICE_OFFLINE_CODE = 50104;
 
 /** Decoded mower telemetry fields, as extracted from a LubaMsg report by TelemetryParser. */
 export interface TelemetryState {
@@ -40,6 +47,26 @@ const MQTT_INVOKE_PATH = '/v1/mqtt/rpc/thing/service/invoke';
 /** Random 21-digit request id, as sent by the official app on every invoke call. */
 function buildRequestId(): string {
   return Array.from({ length: 21 }, () => Math.floor(Math.random() * 10)).join('');
+}
+
+/** Pure response-inspection step of sendCommand, split out for independent unit testing
+ *  (mirrors how buildInvokeParams/deriveAliyunMqttCredentials are made testable elsewhere
+ *  in this codebase — no network I/O here). Resolves with `raw` unchanged on success or a
+ *  codeless/non-JSON response (treated as opaque success, matching this method's
+ *  pre-existing behavior for response shapes not otherwise seen in practice); throws
+ *  DeviceOfflineError or MqttCommandError on a non-zero `code`. */
+export function checkInvokeResponse(raw: string, deviceLabel: string): string {
+  let parsed: { code?: number; msg?: string };
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return raw;
+  }
+  if (parsed.code === undefined || parsed.code === 0) return raw;
+  if (parsed.code === MQTT_DEVICE_OFFLINE_CODE) {
+    throw new DeviceOfflineError(deviceLabel);
+  }
+  throw new MqttCommandError(parsed.code, parsed.msg ?? `MQTT invoke returned code ${parsed.code}`);
 }
 
 /** Wraps the Mammotion JWT-based MQTT connection and provides send / receive APIs. */
@@ -231,7 +258,11 @@ export class MqttClient {
     this.onRawMessage?.(iotId, msg);
   }
 
-  /** Send a base64-encoded protobuf command via the IoT REST invoke endpoint. */
+  /** Send a base64-encoded protobuf command via the IoT REST invoke endpoint. Resolves with
+   *  the raw response body on success (`code: 0`) — throws DeviceOfflineError if the mower
+   *  itself reports it's offline (`code: 50104`), or MqttCommandError for any other
+   *  non-zero code. A non-JSON or codeless response is treated as opaque success, matching
+   *  this method's pre-existing behavior for response shapes not yet seen in practice. */
   async sendCommand(
     session: AuthSession,
     context: DeviceContext,
@@ -247,7 +278,7 @@ export class MqttClient {
       args: { content: contentBase64 },
     });
 
-    return new Promise((resolve, reject) => {
+    const raw = await new Promise<string>((resolve, reject) => {
       const url = new URL(`${session.iotDomain}${MQTT_INVOKE_PATH}`);
       const req = https.request(
         {
@@ -276,6 +307,8 @@ export class MqttClient {
       req.write(body);
       req.end();
     });
+
+    return checkInvokeResponse(raw, context.recordDeviceName || context.iotId);
   }
 
   /** Tears down the MQTT connection and removes all listeners. */

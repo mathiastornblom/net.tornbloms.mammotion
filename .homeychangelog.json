@@ -157,5 +157,8 @@
   },
   "2.4.0": {
     "en": "Mowers registered under Mammotion's older cloud system can now be paired and controlled, not just detected — this is brand new and hasn't been tested on real hardware yet, so please report any issues; Bluetooth keeps working as a fallback regardless"
+  },
+  "2.4.1": {
+    "en": "Fixed the device not being marked unavailable in Homey when the mower itself reports being offline (e.g. powered off) — a command sent while the mower is off is no longer silently treated as successful"
   }
 }
