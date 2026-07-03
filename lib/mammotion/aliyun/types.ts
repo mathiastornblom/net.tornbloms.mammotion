@@ -43,7 +43,26 @@ export interface AliyunAepResponse {
 
 export interface AliyunSessionByAuthCodeResponse {
   code: number;
-  data?: { identityId: string; iotToken: string; iotTokenExpire: number };
+  data?: {
+    identityId: string;
+    iotToken: string;
+    iotTokenExpire: number;
+    /** Refresh credential pair for POST /account/checkOrRefreshSession — not yet used by
+     *  this app (see docs/ALIYUN_MQTT_TRANSPORT_PLAN.md Stage 3); a long-running session
+     *  re-runs the full 6-step handshake on iotToken expiry instead, for now. */
+    refreshToken: string;
+    refreshTokenExpire: number;
+  };
+}
+
+/** Response envelope for POST /thing/service/invoke — sending a command to a legacy-bound
+ *  device. Shape inferred from the same {code, data} convention every other Aliyun gateway
+ *  response in this file follows (unverified against a live invoke call — see
+ *  docs/ALIYUN_MQTT_TRANSPORT_PLAN.md §2 risk notes). */
+export interface AliyunInvokeResponse {
+  code: number;
+  data?: unknown;
+  message?: string;
 }
 
 /** One device from /uc/listBindingByAccount — `owned: 1` for owned, `0` for shared-to-you. */

@@ -1,11 +1,9 @@
 'use strict';
 
-import https from 'https';
-import { createHash, createHmac, randomUUID } from 'crypto';
+import { createHash, createHmac } from 'crypto';
 
-import {
-  getCaSignature, getContentMd5, getDateUtcString, getNonce,
-} from './signing.js';
+import { getCaSignature, getDateUtcString, getNonce } from './signing.js';
+import { httpsRequestJson, signedGatewayRequest } from './gateway.js';
 import {
   ALIYUN_APP_KEY, ALIYUN_APP_SECRET, ALIYUN_APP_VERSION, ALIYUN_CONNECT_DOMAIN,
   ALIYUN_DOMAIN, ALIYUN_SDK_VERSION,
@@ -25,90 +23,6 @@ function generateHardwareString(length: number, seed: string): string {
   let out = '';
   while (out.length < length) out += hash;
   return out.slice(0, length);
-}
-
-/** Minimal HTTPS POST-and-parse-JSON helper, independent of MammotionAuth's (different
- *  header/auth shape entirely — no Bearer token, Aliyun's own signature headers instead). */
-function httpsRequestJson<T>(opts: {
-  hostname: string;
-  path: string;
-  method: string;
-  headers: Record<string, string>;
-  body?: string;
-}): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const req = https.request(
-      {
-        hostname: opts.hostname, path: opts.path, method: opts.method, headers: opts.headers,
-      },
-      (res) => {
-        const chunks: Buffer[] = [];
-        res.on('data', (c: Buffer) => chunks.push(c));
-        res.on('end', () => {
-          try {
-            resolve(JSON.parse(Buffer.concat(chunks).toString('utf8')) as T);
-          } catch (e) {
-            reject(new Error(`Aliyun response was not valid JSON (status ${res.statusCode}): ${String(e)}`));
-          }
-        });
-      },
-    );
-    req.on('error', reject);
-    if (opts.body) req.write(opts.body);
-    req.end();
-  });
-}
-
-/** Builds and signs one IoTApiRequest-shaped call through the Aliyun API Gateway CA-signature
- *  scheme (region/aep/session/list/notice calls only — connect() and loginByOAuth() use their
- *  own bespoke signing and are implemented separately below). */
-async function signedGatewayRequest<T>(opts: {
-  domain: string;
-  pathname: string;
-  apiVer: string;
-  params: Record<string, unknown>;
-  iotToken?: string;
-}): Promise<T> {
-  const {
-    domain, pathname, apiVer, params, iotToken,
-  } = opts;
-  const requestBody = {
-    id: randomUUID(),
-    version: '1.0',
-    params,
-    request: { apiVer, iotToken, language: 'en-US' },
-  };
-  const bodyJson = JSON.stringify(requestBody);
-  const contentMd5 = getContentMd5(bodyJson);
-  const requestId = randomUUID();
-
-  const headers: Record<string, string> = {
-    host: domain,
-    date: getDateUtcString(),
-    'x-ca-nonce': getNonce(),
-    'x-ca-key': ALIYUN_APP_KEY,
-    'x-ca-signaturemethod': 'HmacSHA256',
-    accept: 'application/json; charset=utf-8',
-    'x-ca-timestamp': `${Date.now()}000000`,
-    'content-type': 'application/octet-stream',
-    'content-md5': contentMd5,
-    'user-agent': 'ALIYUN-ANDROID-DEMO',
-  };
-  const { signature, signatureHeaders } = getCaSignature({
-    method: 'POST', pathname, headers, query: { 'x-ca-request-id': requestId }, secret: ALIYUN_APP_SECRET,
-  });
-  headers['x-ca-signature'] = signature;
-  headers['x-ca-signature-headers'] = signatureHeaders;
-  headers.ca_version = '1';
-  headers['content-length'] = String(Buffer.byteLength(bodyJson));
-
-  return httpsRequestJson<T>({
-    hostname: domain,
-    path: `${pathname}?x-ca-request-id=${requestId}`,
-    method: 'POST',
-    headers,
-    body: bodyJson,
-  });
 }
 
 // ─── Step 1: region lookup ───────────────────────────────────────────────────
@@ -294,15 +208,43 @@ async function getShareNoticeList(region: AliyunRegionResponse, iotToken: string
  * network traffic.
  *
  * Ported by reading pymammotion's `aliyun/cloud_gateway.py` + `aliyun/client.py` source
- * (no vendored Python, no live legacy-bound test account to verify against) — a bug in the
- * signing here fails closed (probe result treated as "not legacy", see acceptPendingShares
- * callers), never blocks normal pairing.
+ * (no vendored Python originally, since confirmed working against a live legacy-bound
+ * account — see docs/ALIYUN_LEGACY_PLAN.md "hypothesis confirmed" and
+ * docs/ALIYUN_MQTT_TRANSPORT_PLAN.md for the read+write implementation built on top of
+ * this). A bug in the signing here fails closed (probe result treated as "not legacy",
+ * see acceptPendingShares callers), never blocks normal pairing.
  */
 export interface LegacyProbeResult {
   /** Devices visible via /uc/listBindingByAccount (owned + already-accepted shares). */
   boundDevices: AliyunAccountDevice[];
   /** Devices with an outstanding (any status) share notification, from /uc/getShareNoticeList. */
   shareNotifications: number;
+  /** Account-level credentials needed to build the shared AliyunMqttTransport / send
+   *  commands via sendAliyunCloudCommand — undefined only if aepHandle's response was
+   *  somehow missing required fields (treat as "legacy support unavailable this attempt"). */
+  credentials?: AliyunLegacyCredentials;
+}
+
+/** Everything device.ts / LubaDriver needs to construct the shared AliyunMqttTransport and
+ *  send commands, without re-running the full 6-step handshake each time. `iotToken` is
+ *  short-lived (see AliyunSessionByAuthCodeResponse.iotTokenExpire) — callers that hold
+ *  onto this across a long-lived session must re-probe or implement token refresh
+ *  (docs/ALIYUN_MQTT_TRANSPORT_PLAN.md Stage 3), not assume it stays valid indefinitely. */
+export interface AliyunLegacyCredentials {
+  /** apiGatewayEndpoint for this account's region — base domain for signedGatewayRequest
+   *  calls (list/notice/invoke) and for deriving the MQTT broker host. */
+  apiGatewayEndpoint: string;
+  /** Aliyun region id (e.g. "cn-shanghai") — used to build the MQTT broker hostname
+   *  `${productKey}.iot-as-mqtt.${regionId}.aliyuncs.com`. */
+  regionId: string;
+  /** This ACCOUNT's own AEP-registered identity (not any individual mower's) — used for
+   *  both the account-level MQTT connection credentials and topic namespace. See
+   *  docs/ALIYUN_MQTT_TRANSPORT_PLAN.md's "one connection per account" correction. */
+  deviceSecret: string;
+  productKey: string;
+  deviceName: string;
+  /** Short-lived session token for signedGatewayRequest calls and the MQTT bind message. */
+  iotToken: string;
 }
 
 /** Runs the full legacy handshake and returns what it found. Throws on any step failure —
@@ -318,17 +260,26 @@ export async function probeLegacyAliyunDevices(session: AuthSession): Promise<Le
   const region = await getRegion(countryCode, session.authorizationCode);
   const connect = await connectDevice(utdid);
   const oauth = await loginByOAuth(countryCode, session.authorizationCode, region, connect, utdid);
-  // aep_handle is run for parity with the reference sequence (some accounts' session step
-  // depends on the device-registration side effect it has server-side) — its own response
-  // (device credentials) isn't needed for a read-only listing call, so it's discarded.
-  await aepHandle(region, clientId, deviceSn);
+  const aep = await aepHandle(region, clientId, deviceSn);
   const iotToken = await sessionByAuthCode(region, oauth);
 
   const bound = await listBindingByAccount(region, iotToken);
   const notices = await getShareNoticeList(region, iotToken).catch(() => ({ code: 0, data: null }));
 
+  const credentials: AliyunLegacyCredentials | undefined = aep.data
+    ? {
+      apiGatewayEndpoint: region.data.apiGatewayEndpoint,
+      regionId: region.data.regionId,
+      deviceSecret: aep.data.deviceSecret,
+      productKey: aep.data.productKey,
+      deviceName: aep.data.deviceName,
+      iotToken,
+    }
+    : undefined;
+
   return {
     boundDevices: bound.data?.data ?? [],
     shareNotifications: notices.data?.total ?? 0,
+    credentials,
   };
 }

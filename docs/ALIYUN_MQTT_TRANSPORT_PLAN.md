@@ -88,11 +88,14 @@ transport-kind flag on `DeviceContext`. Do not create a `luba-legacy` driver.**
 - `device.ts`'s `startTransports()` (`device.ts:145-157`): branch on
   `context.transportKind`. `'mammotion'` devices keep exactly today's BLE+MQTT logic
   unchanged. `'aliyun_legacy'` devices skip `connectMqtt()` (there is no Mammotion JWT
-  session for them — `fetchMqttCredentials` would 404/error) and instead call a new
-  `connectAliyunLegacy()`, but **BLE stays available unconditionally** — BLE pairing is
-  purely local and protocol-identical regardless of which cloud system owns the device,
-  so a legacy-bound mower still benefits from BLE-primary/cloud-fallback exactly like
-  today.
+  session for them — `fetchMqttCredentials` would 404/error) and instead call
+  `this.driver.registerAliyunDevice(this.iotId, onMessage, onStatus)` — see the
+  correction above: `AliyunMqttTransport` is ONE connection owned and lazily
+  created/shared by `LubaDriver` across every legacy-flagged device on the account, not a
+  private per-device instance. **BLE stays available unconditionally** regardless — BLE
+  pairing is purely local and protocol-identical regardless of which cloud system owns
+  the device, so a legacy-bound mower still benefits from BLE-primary/cloud-fallback
+  exactly like today.
 - `sendRaw()` (`device.ts:443-460`): add a third branch —
   `this.activeTransport === 'aliyun_legacy'` routes through the new Aliyun transport's
   send path instead of `this.mqtt`. `active_transport` capability gains a third enum
@@ -280,39 +283,71 @@ without a custom CA, skip vendoring a CA bundle; if not, a `ca.pem` will need to
 fetched from pymammotion's `pymammotion/resources/ca.pem` and bundled (adds a small
 static asset, not a new dependency).
 
+### CORRECTION (2026-07-03, before implementation started): one connection per ACCOUNT, not per device
+
+The sketch below (originally written) assumed one `AliyunMqttTransport` instance per Homey
+device, matching `BleTransport`/`MqttClient`'s existing per-device pattern. **That's wrong.**
+Re-verified against `pymammotion/client.py:1364-1176` (`_setup_aliyun_transport`,
+`_register_aliyun_device`): pymammotion builds **exactly one `AliyunMQTTTransport` per
+account**, using the account-level `aep_response` identity (our own app's registered
+productKey/deviceName/deviceSecret — NOT any individual mower's), then loops over every
+legacy-bound device on the account and calls `_register_aliyun_device(device_name, iot_id,
+transport, ...)` against that **same shared transport**. `_register_aliyun_device` does
+**not** subscribe any per-device topics — it only adds a bookkeeping entry (`iot_id` →
+device handle) so incoming messages get routed to the right Homey device object. This
+implies Aliyun's IoT relay fans all of an account's bound-device events into the one
+registered virtual identity's fixed topic set, disambiguated by content (the message
+payload itself carries the target device's identity), not by per-device topic paths.
+
+**Design implication:** `AliyunMqttTransport` must be a connection shared across every
+`'aliyun_legacy'`-flagged device on the account, not owned by an individual `device.ts`
+instance. Homey's `LubaDriver` (one instance per app/account, already a natural singleton)
+is the right owner — lazily create the shared transport when the first legacy device inits,
+reuse it for subsequent ones, tear it down when the last one uninits. This mirrors
+pymammotion's `acct_session.aliyun_transport` singleton exactly.
+
 ### New file: `lib/mammotion/aliyun/AliyunMqttTransport.ts`
 
-Following the existing transport contract shape both `MqttClient.ts` and
-`BleTransport.ts` already use (constructor options with `onMessage`/`onStatus`/`log`/
-`logError` callbacks, `connect()`/`disconnect()`, an `isConnected` getter) — see
-`BleTransport.ts:90-113, 208-226` and `MqttClient.ts:60-133, 281-293` for the pattern to
-match:
+One connection, many registered devices — a small registry instead of a single
+`onMessage`/`onStatus` pair, otherwise following the same shape convention
+`MqttClient.ts`/`BleTransport.ts` use (`connect()`/`disconnect()`, `isConnected`, `log`/
+`logError` callbacks) — see `BleTransport.ts:90-113, 208-226` and `MqttClient.ts:60-133,
+281-293` for the pattern to match:
 
 ```typescript
 export interface AliyunMqttConfig {
   host: string;          // `${productKey}.iot-as-mqtt.${regionId}.aliyuncs.com`
   clientIdBase: string;  // pymammotion default: `${productKey}&${deviceName}`
   username: string;      // `${deviceName}&${productKey}`
-  deviceName: string;
-  productKey: string;
+  deviceName: string;    // from the ACCOUNT's aep_response, not any mower's
+  productKey: string;    // from the ACCOUNT's aep_response, not any mower's
   deviceSecret: string;  // from AepResponse, retained (not discarded) from aepHandle()
   iotToken: string;      // from sessionByAuthCode()
 }
 
 export class AliyunMqttTransport {
   constructor(opts: {
-    iotId: string;
     config: AliyunMqttConfig;
-    onMessage: (iotId: string, decoded: Record<string, unknown>) => void;
-    onStatus: (iotId: string, online: boolean) => void;
     log: (msg: string) => void;
     logError: (msg: string) => void;
   });
+  /** Registers one device to receive routed messages/status on this shared connection.
+   *  Safe to call before or after connect(); safe to call multiple times (multiple mowers). */
+  registerDevice(iotId: string, onMessage: (decoded: Record<string, unknown>) => void, onStatus: (online: boolean) => void): void;
+  unregisterDevice(iotId: string): void;
   connect(): void;    // derives fresh HMAC creds, mqtt.connect(), subscribes 9 topics, publishes bind
   disconnect(): void;
   get isConnected(): boolean;
 }
 ```
+
+Message routing: since the exact field carrying the target device's identity inside each
+JSON envelope hasn't been pinned down from source yet (verify against
+`_route_device_message`/`_route_device_status` call sites and whatever field they key on —
+`pymammotion/client.py` around lines 2020-2070 has the dispatch), the implementer must
+confirm this before finishing — don't guess. Most likely candidates given the topic/payload
+shapes already documented: an `iotId` field in the envelope's `params`, or the topic itself
+carrying it despite the shared-identity theory above (re ‑verify, don't assume either way).
 
 Internals: mirror `MqttClient.connect()`'s mqtt.js usage
 (`lib/mammotion/mqtt/MqttClient.ts:90-133`) — `mqtt.connect(brokerUrl, {clientId,
@@ -323,7 +358,8 @@ a `timestamp` that Aliyun likely rejects if stale, same reasoning that already j
 `reconnectPeriod: 0` in the existing code, comment at `MqttClient.ts:86-89`). On close,
 re-derive credentials via `_build_credentials()`-equivalent and reconnect — same
 reconnect-with-backoff shape as `device.ts`'s `scheduleMqttReconnect()`
-(`device.ts:330-340`), reused via a similar `scheduleAliyunReconnect()`.
+(`device.ts:330-340`), reused via a similar `scheduleAliyunReconnect()`. On reconnect,
+re-notify ALL registered devices' `onStatus(false)` then re-subscribe once back up.
 
 **Command routing note:** since `send()` on the Python side delegates to the REST invoke
 (Section 2), the TS `AliyunMqttTransport` does *not* need a `send()` method at all — keep
