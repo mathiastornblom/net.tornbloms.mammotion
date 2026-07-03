@@ -33,6 +33,8 @@ export default class LubaDriver extends Homey.Driver {
   private dockedTrigger!: Homey.FlowCardTriggerDevice;
   private errorTrigger!: Homey.FlowCardTriggerDevice;
   private batteryBelowTrigger!: Homey.FlowCardTriggerDevice;
+  private offlineTrigger!: Homey.FlowCardTriggerDevice;
+  private onlineTrigger!: Homey.FlowCardTriggerDevice;
 
   // ─── Legacy Aliyun IoT support ────────────────────────────────────────────
   // ONE shared connection/credential set per account, not per device — see
@@ -68,6 +70,12 @@ export default class LubaDriver extends Homey.Driver {
     this.batteryBelowTrigger.registerRunListener(
       (args: { threshold: number }, state: { battery: number }) => state.battery < args.threshold,
     );
+
+    this.offlineTrigger = this.homey.flow.getDeviceTriggerCard('mower_offline');
+    this.offlineTrigger.registerRunListener(() => true);
+
+    this.onlineTrigger = this.homey.flow.getDeviceTriggerCard('mower_online');
+    this.onlineTrigger.registerRunListener(() => true);
 
     this.homey.flow.getActionCard('start_mowing')
       .registerRunListener(async (args: {
@@ -148,6 +156,18 @@ export default class LubaDriver extends Homey.Driver {
   /** Called by LubaDevice on every battery telemetry update. */
   triggerBatteryBelow(device: Homey.Device, batteryPercent: number): void {
     this.batteryBelowTrigger.trigger(device, {}, { battery: batteryPercent }).catch(this.error.bind(this));
+  }
+
+  /** Called by LubaDevice when it transitions from available to unavailable (mower
+   *  confirmed offline — either the mower reported it via the cloud, or the transport
+   *  itself dropped). Fired at most once per transition, not on every retry. */
+  triggerMowerOffline(device: Homey.Device): void {
+    this.offlineTrigger.trigger(device, {}, {}).catch(this.error.bind(this));
+  }
+
+  /** Called by LubaDevice when it transitions from unavailable back to available. */
+  triggerMowerOnline(device: Homey.Device): void {
+    this.onlineTrigger.trigger(device, {}, {}).catch(this.error.bind(this));
   }
 
   // ─── Legacy Aliyun IoT support ────────────────────────────────────────────

@@ -160,5 +160,8 @@
   },
   "2.4.1": {
     "en": "Fixed the device not being marked unavailable in Homey when the mower itself reports being offline (e.g. powered off) — a command sent while the mower is off is no longer silently treated as successful"
+  },
+  "2.5.0": {
+    "en": "Added two new Flow triggers: Mower went offline and Mower came back online. Also made status checks back off automatically the longer a mower stays offline, instead of checking every 5 seconds indefinitely"
   }
 }

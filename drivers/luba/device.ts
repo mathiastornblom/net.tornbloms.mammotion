@@ -29,6 +29,11 @@ type TransportPreference = 'auto' | 'ble_only' | 'mqtt_only';
 // Re-arm the one-shot report subscription every 5s, matching Mammotion-HA.
 const TELEMETRY_POLL_INTERVAL_MS = 5_000;
 const SYNC_ON_CONNECT_DELAY_MS = 2_000;
+// Once the mower has confirmed itself offline (DeviceOfflineError, not just a transient
+// send failure), polling every 5s indefinitely is wasted cloud traffic for a mower that
+// could be powered off for hours — back off, same shape as BleTransport's own backoff.
+const OFFLINE_POLL_BASE_MS = 10_000;
+const OFFLINE_POLL_MAX_MS = 5 * 60_000; // 5 min
 
 /** Maps raw work mode integers to Homey mower_status enum values. */
 function workModeToStatus(mode: number): MowerStatus {
@@ -65,6 +70,9 @@ export default class LubaDevice extends Homey.Device {
   private pollTimer: NodeJS.Timeout | null = null;
   private mqttReconnectTimer: NodeJS.Timeout | null = null;
   private mqttFailureCount = 0;
+  /** Consecutive confirmed-offline poll results — drives OFFLINE_POLL_* backoff. Reset to 0
+   *  the moment a poll succeeds or any online-transition callback fires (markOnline). */
+  private offlinePollFailureCount = 0;
 
   private seq = { value: 0 };
   private currentStatus: MowerStatus = 'idle';
@@ -116,6 +124,7 @@ export default class LubaDevice extends Homey.Device {
   /** Called by the driver after a successful Repair — retries with fresh cloud session. */
   async retryAfterRepair(): Promise<void> {
     this.mqttFailureCount = 0;
+    this.offlinePollFailureCount = 0;
     this.log('Retrying all transports after repair');
     await this.startTransports();
   }
@@ -185,7 +194,7 @@ export default class LubaDevice extends Homey.Device {
         if (connected) {
           this.log('BLE: connected — switching active transport to BLE');
           this.switchActiveTransport('ble');
-          this.setAvailable().catch(this.error.bind(this));
+          this.markOnline();
         } else {
           this.log(`BLE: disconnected (active was ${this.activeTransport})`);
           if (this.activeTransport === 'ble') {
@@ -279,7 +288,7 @@ export default class LubaDevice extends Homey.Device {
             if (this.activeTransport === 'ble') return; // BLE is primary; discard MQTT telemetry
             if (this.activeTransport !== 'mqtt') {
               this.switchActiveTransport('mqtt');
-              this.setAvailable().catch(this.error.bind(this));
+              this.markOnline();
             }
             this.handleTelemetry(iotId, state, 'mqtt');
           },
@@ -322,16 +331,14 @@ export default class LubaDevice extends Homey.Device {
       if (this.activeTransport === 'none') {
         this.log('MQTT: online — switching active transport to MQTT');
         this.switchActiveTransport('mqtt');
-        this.setAvailable().catch(this.error.bind(this));
+        this.markOnline();
       } else {
         this.log(`MQTT: online (BLE=${this.activeTransport === 'ble'} remains primary)`);
       }
-    } else {
-      if (this.activeTransport === 'mqtt') {
-        this.log('MQTT: offline');
-        this.switchActiveTransport('none');
-        this.setUnavailable(this.homey.__('error.device_offline')).catch(this.error.bind(this));
-      }
+    } else if (this.activeTransport === 'mqtt') {
+      this.log('MQTT: offline');
+      this.switchActiveTransport('none');
+      this.markOffline();
     }
   }
 
@@ -390,12 +397,12 @@ export default class LubaDevice extends Homey.Device {
       if (this.activeTransport === 'none') {
         this.log('[Aliyun] online — switching active transport to aliyun_legacy');
         this.switchActiveTransport('aliyun_legacy');
-        this.setAvailable().catch(this.error.bind(this));
+        this.markOnline();
       }
     } else if (this.activeTransport === 'aliyun_legacy') {
       this.log('[Aliyun] offline');
       this.switchActiveTransport('none');
-      this.setUnavailable(this.homey.__('error.device_offline')).catch(this.error.bind(this));
+      this.markOffline();
     }
   }
 
@@ -415,13 +422,38 @@ export default class LubaDevice extends Homey.Device {
 
   /** Starts the periodic re-arm of the one-shot telemetry report subscription (MQTT mode only). */
   private startPollTimer(): void {
-    this.pollTimer = setInterval(async () => {
-      try {
-        await this.requestSync();
-      } catch (err) {
+    this.schedulePoll(TELEMETRY_POLL_INTERVAL_MS);
+  }
+
+  /** Schedules the next poll tick — a plain setTimeout, not setInterval, so the delay can
+   *  vary per tick (normal cadence while reachable, backed off once confirmed offline). */
+  private schedulePoll(delayMs: number): void {
+    this.pollTimer = setTimeout(() => {
+      void this.runPollTick();
+    }, delayMs);
+  }
+
+  /** Runs one requestSync() attempt and reschedules the next one. A confirmed
+   *  DeviceOfflineError backs off exponentially (OFFLINE_POLL_BASE_MS → _MAX_MS, same
+   *  backoff shape as BleTransport) instead of hammering the cloud every 5s for a mower
+   *  that could be powered off for hours; any other outcome (success, or a
+   *  non-offline error, which is likely transient) keeps the normal fast cadence. */
+  private async runPollTick(): Promise<void> {
+    try {
+      await this.requestSync();
+      this.offlinePollFailureCount = 0;
+      this.schedulePoll(TELEMETRY_POLL_INTERVAL_MS);
+    } catch (err) {
+      if (err instanceof DeviceOfflineError) {
+        this.offlinePollFailureCount += 1;
+        const delay = Math.min(OFFLINE_POLL_BASE_MS * (2 ** this.offlinePollFailureCount), OFFLINE_POLL_MAX_MS);
+        this.log(`Poll: mower still offline — next check in ${Math.round(delay / 1000)}s (failure #${this.offlinePollFailureCount})`);
+        this.schedulePoll(delay);
+      } else {
         this.error(`Poll sync failed: ${err instanceof Error ? err.message : String(err)}`);
+        this.schedulePoll(TELEMETRY_POLL_INTERVAL_MS);
       }
-    }, TELEMETRY_POLL_INTERVAL_MS);
+    }
   }
 
   /** Re-arms the one-shot telemetry report subscription over MQTT. No-op while BLE is primary. */
@@ -446,9 +478,27 @@ export default class LubaDevice extends Homey.Device {
     if (err instanceof DeviceOfflineError) {
       this.log(`[MQTT] device reported offline: ${err.message}`);
       if (this.activeTransport === 'mqtt') this.switchActiveTransport('none');
-      this.setUnavailable(this.homey.__('error.device_offline')).catch(this.error.bind(this));
+      this.markOffline();
     }
     throw err;
+  }
+
+  /** Marks the device available and fires the mower_online Flow trigger, but only on an
+   *  actual offline→online transition — safe to call repeatedly (e.g. from every telemetry
+   *  update) without re-firing the trigger each time. */
+  private markOnline(): void {
+    const wasAvailable = this.getAvailable();
+    this.setAvailable().catch(this.error.bind(this));
+    if (!wasAvailable) (this.driver as unknown as LubaDriver).triggerMowerOnline(this);
+  }
+
+  /** Marks the device unavailable and fires the mower_offline Flow trigger, but only on an
+   *  actual online→offline transition — safe to call repeatedly (e.g. from a poll that
+   *  keeps confirming the mower is still offline) without spamming the trigger. */
+  private markOffline(): void {
+    const wasAvailable = this.getAvailable();
+    this.setUnavailable(this.homey.__('error.device_offline')).catch(this.error.bind(this));
+    if (wasAvailable) (this.driver as unknown as LubaDriver).triggerMowerOffline(this);
   }
 
   /** Writes a capability value only if it differs from the current one, to avoid redundant Homey updates. */
@@ -650,7 +700,7 @@ export default class LubaDevice extends Homey.Device {
 
   /** Stops timers and disconnects all transports. */
   private cleanup(): void {
-    if (this.pollTimer) { clearInterval(this.pollTimer); this.pollTimer = null; }
+    if (this.pollTimer) { clearTimeout(this.pollTimer); this.pollTimer = null; }
     if (this.mqttReconnectTimer) { clearTimeout(this.mqttReconnectTimer); this.mqttReconnectTimer = null; }
     this.mqtt?.disconnect();
     this.mqtt = null;
