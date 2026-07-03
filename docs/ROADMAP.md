@@ -6,20 +6,21 @@ priority shifts, since it's versioned with the code and visible to anyone readin
 
 ## P0 — Active / blocking
 
-- **Legacy Aliyun IoT device support (in progress, blocked on external signal).**
-  v2.3.5 shipped a read-only diagnostic probe (`lib/mammotion/aliyun/AliyunLegacyProbe.ts`)
-  for a second, independent Mammotion cloud device system that this app has never supported.
-  **Waiting on:** an invite to test against a real affected account (Anders_Gregow /
-  mammotion_homey@gregow.se, 2 mowers, confirmed visible in the Android app but invisible to
-  this app), or the next diagnostic report from that account on v2.3.5+.
-  **Next step once confirmed:** build `AliyunMQTTTransport` — a second, fully separate MQTT
-  transport (different broker, topics, credential scheme) to actually control legacy-bound
-  devices. Real, bounded-but-nontrivial effort; the wire payload reuses the existing protobuf
-  `LubaMsg` codec, so this is "new transport/auth layer," not "new protocol from scratch."
-  Full technical detail: `docs/ALIYUN_LEGACY_PLAN.md`.
-  **If the probe turns out wrong** (finds nothing, or throws due to a signing bug): re-verify
-  the three signing algorithms against pymammotion's Python source step by step before
-  concluding the whole hypothesis is wrong.
+- **Legacy Aliyun IoT device support — CONFIRMED, implementation plan ready, not yet built.**
+  v2.3.5's read-only diagnostic probe found `bound=1 shareNotifications=2` on a real affected
+  account (Anders_Gregow / mammotion_homey@gregow.se) — hypothesis confirmed, and all three
+  hand-transcribed signing algorithms proven working against a live Aliyun server for the
+  first time. Full read+write implementation plan (same-driver decision, write path via the
+  already-proven signing scheme, new `AliyunMqttTransport` for telemetry, staged rollout,
+  risk assessment): `docs/ALIYUN_MQTT_TRANSPORT_PLAN.md` (companion to
+  `docs/ALIYUN_LEGACY_PLAN.md`, which has the background).
+  **Recommendation:** same `luba` driver, internal `transportKind` flag — not a separate
+  driver (see plan doc §1 for reasoning).
+  **Next action:** Stage 0 (small, near-zero risk — retain already-fetched credentials,
+  extract shared signing helper) can start anytime. Stage 1 (write path) and Stage 2 (MQTT
+  read path) both have zero live-server verification — reaching out to the confirmed
+  affected user for test access before enabling broadly would close that gap and is worth
+  pursuing in parallel, not a blocker for starting Stage 0/1.
 
 ## P1 — High value, unblocked, ready to scope
 

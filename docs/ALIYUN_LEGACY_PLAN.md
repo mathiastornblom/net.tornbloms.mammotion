@@ -110,3 +110,14 @@ Wait for a diagnostic report from an affected user on v2.3.5+. Grep for
 - **Probe succeeds but finds nothing either** → hypothesis is wrong; the real root cause is
   still unknown and needs fresh investigation (e.g. region mismatch on the *primary* system's
   JWT, an account-linking issue specific to this user, or something not yet considered).
+
+## Update: hypothesis confirmed (v2.3.5, real account)
+
+A diagnostic report (log ID `b9f2c3ba-6e48-4f64-b34b-73b532078b65`) confirmed the first
+bullet above: `bound=1 shareNotifications=2`, one device (`Luba-MNJR4AS3`) visible only
+via the legacy Aliyun system. The read-only handshake and all three signing schemes are
+now proven against a real server, not just self-consistent. The full read+write
+implementation plan (same-driver decision, write-path via the CA-signature gateway,
+new `AliyunMqttTransport` for telemetry, staged rollout, and risk assessment) lives in
+[`ALIYUN_MQTT_TRANSPORT_PLAN.md`](./ALIYUN_MQTT_TRANSPORT_PLAN.md) — read that doc before
+starting the `AliyunMQTTTransport` work referenced above.
