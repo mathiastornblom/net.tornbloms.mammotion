@@ -79,6 +79,8 @@ export default class LubaDevice extends Homey.Device {
 
   private seq = { value: 0 };
   private currentStatus: MowerStatus = 'idle';
+  /** Last logged headlampStatusRaw value — diagnostic change-gating only, not a capability. */
+  private lastHeadlampStatusRaw: number | null = null;
 
   // ─── Init / teardown ─────────────────────────────────────────────────────
 
@@ -547,6 +549,14 @@ export default class LubaDevice extends Homey.Device {
       // bladeUsedTime is in minutes; expose as hours with 1 decimal
       const hours = Math.round(state.bladeUsedTime / 6) / 10;
       if (this.setCapIfChanged('measure_blade_used_time', hours)) changed.push(`blade=${hours}h`);
+    }
+    // Diagnostic-only, not a capability yet — see TelemetryParser.ts's comment on
+    // headlampStatusRaw. Logging every observed value (change-gated like everything
+    // else here) so real device data can be collected before mapping this to
+    // mow_headlamp/mow_side_led.
+    if (state.headlampStatusRaw != null && state.headlampStatusRaw !== this.lastHeadlampStatusRaw) {
+      this.lastHeadlampStatusRaw = state.headlampStatusRaw;
+      changed.push(`headlampStatusRaw=${state.headlampStatusRaw} [diagnostic, not yet mapped]`);
     }
 
     if (changed.length > 0) this.log(`[${via}] telemetry changed: ${changed.join(' ')}`);

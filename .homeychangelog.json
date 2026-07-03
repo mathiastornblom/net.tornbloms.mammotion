@@ -166,5 +166,8 @@
   },
   "2.5.1": {
     "en": "Lowered how long offline status checks can back off to at most once a minute (was up to 5 minutes), so Homey notices your mower coming back online much sooner"
+  },
+  "2.5.2": {
+    "en": "Blade height now shows the value actually reported by the mower instead of only what was last set, so it stays accurate even if changed another way. Also added groundwork logging for headlight status ahead of adding it as a proper reading"
   }
 }

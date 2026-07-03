@@ -35,6 +35,11 @@ export interface TelemetryState {
   // maintain report (RIT_MAINTAIN)
   batteryCycles: number | null;
   bladeUsedTime: number | null;
+  /** Raw rpt_dev_status.headlamp_status wire value — diagnostic only, not yet mapped to a
+   *  capability. Encoding (on/off vs. a bitmask for headlamp + side LED) is unverified
+   *  since Mammotion-HA never reads this field either; logged so real values can be
+   *  collected before implementing. See docs/ROADMAP.md. */
+  headlampStatusRaw: number | null;
 }
 
 /** Fired with the changed telemetry fields whenever a report is decoded. */

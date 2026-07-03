@@ -30,6 +30,13 @@ export function extractTelemetry(msg: Record<string, unknown>): Partial<Telemetr
   if (dev) {
     if (typeof dev.sysStatus === 'number') telemetry.workMode = dev.sysStatus;
     if (typeof dev.batteryVal === 'number') telemetry.batteryPercent = dev.batteryVal;
+    // Diagnostic-only for now: rpt_dev_status.headlamp_status exists on the wire (same
+    // sub-message as sysStatus/batteryVal above) but is never read by Mammotion-HA, so its
+    // encoding (simple on/off vs. a bitmask distinguishing headlamp from side LED — our
+    // own SetHeadlamp command uses a set_ids selector for that distinction) is unverified.
+    // Logged via device.ts's telemetry-changed line so we can collect real values before
+    // mapping this to mow_headlamp/mow_side_led. See docs/ROADMAP.md.
+    if (typeof dev.headlampStatus === 'number') telemetry.headlampStatusRaw = dev.headlampStatus;
   }
 
   const rtk = report.rtk as Record<string, number> | undefined;
@@ -51,6 +58,11 @@ export function extractTelemetry(msg: Record<string, unknown>): Partial<Telemetr
       telemetry.elapsedTime = Math.max(0, totalTime - leftTime);
     }
     if (typeof work.manRunSpeed === 'number') telemetry.mowingSpeed = work.manRunSpeed / 100;
+    // rpt_work.knife_height — a plain mm value, confirmed against Mammotion-HA's
+    // sensor.py (report_data.work.knife_height, DISTANCE/MILLIMETERS), not packed like
+    // area/progress above. Previously only ever set optimistically from our own SET
+    // commands (never confirmed by the mower) — this closes that gap.
+    if (typeof work.knifeHeight === 'number') telemetry.bladeHeight = work.knifeHeight;
   }
 
   const maintain = report.maintain as Record<string, unknown> | undefined;
