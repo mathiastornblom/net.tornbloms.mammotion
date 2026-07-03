@@ -4,6 +4,7 @@ import { MammotionAuth } from '../../lib/mammotion/auth/MammotionAuth.js';
 import type { AuthSession, DeviceContext, MammotionDevice, DeviceRecord } from '../../lib/mammotion/auth/types.js';
 import { DEVICE_TYPE_NAMES } from '../../lib/mammotion/constants.js';
 import { AuthError } from '../../lib/mammotion/errors.js';
+import { probeLegacyAliyunDevices } from '../../lib/mammotion/aliyun/AliyunLegacyProbe.js';
 
 const SESSION_SETTINGS_KEY = 'mammotion_session';
 const CREDENTIALS_SETTINGS_KEY = 'mammotion_credentials';
@@ -194,13 +195,29 @@ export default class LubaDriver extends Homey.Driver {
           records: records.map(r => ({ iotId: r.iotId, deviceName: r.deviceName, productKey: r.productKey })),
         }));
       const list = this.buildDeviceList(devices, records);
-      if (list.length === 0) {
-        // Zero devices usually means the sharing invitation hasn't been accepted yet
-        // (or hasn't propagated) — tell the user what to check instead of showing
-        // Homey's generic "no new devices found".
-        throw new Error(this.homey.__('error.no_devices_found'));
+      if (list.length > 0) return list;
+
+      // Zero devices via the normal path. Before giving up, do a read-only check of the
+      // legacy Aliyun IoT Link Platform system some older Mammotion accounts/devices still
+      // use — a completely separate device-listing mechanism this app cannot yet pair
+      // through. This is diagnostic only: it never blocks pairing on its own failure, and
+      // it never modifies any account state. See [[architecture-decisions]] #14b.
+      const legacyResult = await probeLegacyAliyunDevices(session).catch((err) => {
+        this.error('probeLegacyAliyunDevices failed:', err);
+        return null;
+      });
+      if (legacyResult) {
+        this.log(`list_devices: legacy Aliyun probe — bound=${legacyResult.boundDevices.length} shareNotifications=${legacyResult.shareNotifications}`,
+          JSON.stringify(legacyResult.boundDevices.map(d => ({ iotId: d.iotId, deviceName: d.deviceName, productKey: d.productKey, owned: d.owned }))));
       }
-      return list;
+      if (legacyResult && (legacyResult.boundDevices.length > 0 || legacyResult.shareNotifications > 0)) {
+        throw new Error(this.homey.__('error.legacy_devices_found'));
+      }
+
+      // Zero devices on both systems usually means the sharing invitation hasn't been
+      // accepted yet (or hasn't propagated) — tell the user what to check instead of
+      // showing Homey's generic "no new devices found".
+      throw new Error(this.homey.__('error.no_devices_found'));
     });
   }
 

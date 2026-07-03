@@ -5,7 +5,8 @@
     "not_authenticated": "Nessun account Mammotion configurato. Aggiungi nuovamente il dispositivo.",
     "device_offline": "Il tagliaerba è offline",
     "command_failed": "Comando non riuscito",
-    "no_devices_found": "Nessun robot tagliaerba trovato su questo account. Apri l'app Mammotion e verifica che l'invito di condivisione sia stato accettato, poi riprova — dopo l'accettazione possono servire alcuni minuti prima che il tagliaerba appaia."
+    "no_devices_found": "Nessun robot tagliaerba trovato su questo account. Apri l'app Mammotion e verifica che l'invito di condivisione sia stato accettato, poi riprova — dopo l'accettazione possono servire alcuni minuti prima che il tagliaerba appaia.",
+    "legacy_devices_found": "Il tuo/i tuoi tagliaerba risultano registrati nel vecchio sistema cloud di Mammotion, non ancora supportato da questa app — lo sviluppatore è stato informato e sta lavorando per aggiungere il supporto. Riprova in un futuro aggiornamento."
   },
   "pair": {
     "account_setup": {

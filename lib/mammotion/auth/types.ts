@@ -105,6 +105,13 @@ export interface AuthSession {
   /** Numeric string user account ID — used as protobuf subtype field. */
   userAccount: string;
   clientId: string;
+  /** Mammotion's own OAuth authorization code from the login response — required as the
+   *  `authCode` input to the separate, legacy Aliyun IoT Link Platform handshake (region
+   *  lookup, OAuth login, session creation). Only used by lib/mammotion/aliyun/*. */
+  authorizationCode?: string;
+  /** Account's region/country abbreviation (Mammotion's `domainAbbreviation`), used as the
+   *  `countryCode` input to the same legacy Aliyun handshake. */
+  countryCode?: string;
 }
 
 /** Resolved device ready for use by the driver. */

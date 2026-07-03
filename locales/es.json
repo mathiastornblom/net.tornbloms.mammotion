@@ -5,7 +5,8 @@
     "not_authenticated": "No hay ninguna cuenta de Mammotion configurada. Vuelve a añadir el dispositivo.",
     "device_offline": "El cortacésped está sin conexión",
     "command_failed": "Error al ejecutar el comando",
-    "no_devices_found": "No se encontraron cortacéspedes en esta cuenta. Abre la aplicación Mammotion y comprueba que la invitación de uso compartido ha sido aceptada, luego inténtalo de nuevo — tras aceptarla pueden pasar unos minutos antes de que aparezca el cortacésped."
+    "no_devices_found": "No se encontraron cortacéspedes en esta cuenta. Abre la aplicación Mammotion y comprueba que la invitación de uso compartido ha sido aceptada, luego inténtalo de nuevo — tras aceptarla pueden pasar unos minutos antes de que aparezca el cortacésped.",
+    "legacy_devices_found": "Se encontró tu(s) cortacésped(es) registrado(s) en el sistema en la nube antiguo de Mammotion, que esta aplicación aún no admite — se ha informado al desarrollador, que está trabajando para añadir compatibilidad. Vuelve a intentarlo en una futura actualización."
   },
   "pair": {
     "account_setup": {

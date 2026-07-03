@@ -153,6 +153,8 @@ export class MammotionAuth {
       userId: resp.data.userInformation?.userId ?? '',
       userAccount: resp.data.userInformation?.userAccount ?? '0',
       clientId,
+      authorizationCode: resp.data.authorization_code,
+      countryCode: resp.data.userInformation?.domainAbbreviation,
     };
   }
 

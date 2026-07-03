@@ -5,7 +5,8 @@
     "not_authenticated": "Nie skonfigurowano konta Mammotion. Dodaj urządzenie ponownie.",
     "device_offline": "Kosiarka jest offline",
     "command_failed": "Nie udało się wykonać komendy",
-    "no_devices_found": "Nie znaleziono kosiarek na tym koncie. Otwórz aplikację Mammotion i sprawdź, czy zaproszenie do udostępnienia zostało zaakceptowane, a następnie spróbuj ponownie — po zaakceptowaniu może minąć kilka minut, zanim kosiarka się pojawi."
+    "no_devices_found": "Nie znaleziono kosiarek na tym koncie. Otwórz aplikację Mammotion i sprawdź, czy zaproszenie do udostępnienia zostało zaakceptowane, a następnie spróbuj ponownie — po zaakceptowaniu może minąć kilka minut, zanim kosiarka się pojawi.",
+    "legacy_devices_found": "Znaleziono Twoją kosiarkę (lub kosiarki) zarejestrowaną w starszym systemie chmurowym Mammotion, którego ta aplikacja jeszcze nie obsługuje — deweloper został poinformowany i pracuje nad dodaniem obsługi. Spróbuj ponownie w przyszłej aktualizacji."
   },
   "pair": {
     "account_setup": {

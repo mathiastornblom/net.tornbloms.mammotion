@@ -5,7 +5,8 @@
     "not_authenticated": "Inget Mammotion-konto konfigurerat. Lägg till enheten igen.",
     "device_offline": "Klipparen är offline",
     "command_failed": "Kommandot misslyckades",
-    "no_devices_found": "Inga robotgräsklippare hittades på det här kontot. Öppna Mammotion-appen och kontrollera att delningsinbjudan har accepterats, och försök sedan igen — det kan ta några minuter efter godkännandet innan gräsklipparen visas."
+    "no_devices_found": "Inga robotgräsklippare hittades på det här kontot. Öppna Mammotion-appen och kontrollera att delningsinbjudan har accepterats, och försök sedan igen — det kan ta några minuter efter godkännandet innan gräsklipparen visas.",
+    "legacy_devices_found": "Din/dina gräsklippare hittades registrerade i Mammotions äldre molnsystem, vilket den här appen ännu inte stöder — utvecklaren har informerats och arbetar på att lägga till stöd. Försök igen i en framtida uppdatering."
   },
   "pair": {
     "account_setup": {

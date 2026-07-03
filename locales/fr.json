@@ -5,7 +5,8 @@
     "not_authenticated": "Aucun compte Mammotion configuré. Veuillez ajouter à nouveau l'appareil.",
     "device_offline": "La tondeuse est hors ligne",
     "command_failed": "Échec de la commande",
-    "no_devices_found": "Aucune tondeuse trouvée sur ce compte. Ouvrez l'application Mammotion et vérifiez que l'invitation de partage a été acceptée, puis réessayez — après l'acceptation, quelques minutes peuvent s'écouler avant que la tondeuse n'apparaisse."
+    "no_devices_found": "Aucune tondeuse trouvée sur ce compte. Ouvrez l'application Mammotion et vérifiez que l'invitation de partage a été acceptée, puis réessayez — après l'acceptation, quelques minutes peuvent s'écouler avant que la tondeuse n'apparaisse.",
+    "legacy_devices_found": "Votre/vos tondeuse(s) a/ont été trouvée(s) enregistrée(s) dans l'ancien système cloud de Mammotion, que cette application ne prend pas encore en charge — le développeur a été informé et travaille à l'ajout de cette prise en charge. Réessayez lors d'une future mise à jour."
   },
   "pair": {
     "account_setup": {
