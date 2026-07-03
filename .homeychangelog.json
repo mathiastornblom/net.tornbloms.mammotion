@@ -142,5 +142,8 @@
   },
   "2.3.1": {
     "en": "Improved diagnostics for the 'no mowers found during pairing' issue some shared-account users are hitting, to help pinpoint whether it's a Mammotion account/sharing problem or a bug on our side"
+  },
+  "2.3.2": {
+    "en": "The App Store description now clearly explains upfront why you need a second Mammotion account for Homey, before you even start pairing"
   }
 }
