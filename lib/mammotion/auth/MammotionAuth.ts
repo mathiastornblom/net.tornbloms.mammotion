@@ -251,9 +251,16 @@ export class MammotionAuth {
     return { records: [], total: null, msg };
   }
 
-  /** Fetch pending device-sharing invitations for this account (statusList -1 = pending only). */
+  /**
+   * Fetch pending device-sharing invitations for this account (statusList -1 = pending only).
+   * Deliberately NOT sending Client-Id/Client-Type here — pymammotion's `_headers` base
+   * (User-Agent + App-Version only) is used as-is for this endpoint and `confirmShare`;
+   * only `get_user_device_page`/`get_user_device_list` add Client-Id/Client-Type. Sending
+   * them anyway on a v2.3.3 attempt did not surface any pending records for a confirmed
+   * two-mower account, so this mismatch is the leading suspect — see [[architecture-decisions]] #14.
+   */
   static async fetchPendingShares(session: AuthSession): Promise<ShareRecord[]> {
-    const authHeader = { Authorization: `Bearer ${session.accessToken}`, 'Client-Id': session.clientId, 'Client-Type': '1' };
+    const authHeader = { Authorization: `Bearer ${session.accessToken}` };
     const resp = await MammotionAuth.request<MammotionApiResponse<ShareRecordsPage>>(
       `${MAMMOTION_API_DOMAIN}/user-server/v1/share/device/page`,
       {
@@ -266,9 +273,10 @@ export class MammotionAuth {
     return resp.data.records;
   }
 
-  /** Accept (or reject) one batch of pending share invitations. */
+  /** Accept (or reject) one batch of pending share invitations. See fetchPendingShares for why
+   *  Client-Id/Client-Type are deliberately omitted here, matching pymammotion. */
   static async confirmShare(session: AuthSession, batchId: string, recordIds: string[], agree: 0 | 1 = 1): Promise<void> {
-    const authHeader = { Authorization: `Bearer ${session.accessToken}`, 'Client-Id': session.clientId, 'Client-Type': '1' };
+    const authHeader = { Authorization: `Bearer ${session.accessToken}` };
     await MammotionAuth.request<MammotionApiResponse<unknown>>(
       `${MAMMOTION_API_DOMAIN}/user-server/v1/share/device/confirm`,
       {
@@ -287,9 +295,15 @@ export class MammotionAuth {
    * regardless of whether the mobile-app acceptance actually completed. Best-effort: a
    * failure here must not block pairing, since the subsequent device-list fetch will just
    * come up empty (and the existing "no devices found" messaging still applies) if this
-   * doesn't help. Returns the number of invitations accepted, for pairing diagnostics.
+   * doesn't help.
+   *
+   * Returns diagnostic counts, not just the accepted count: `found=0` for an account with
+   * mowers confirmed visible in the Mammotion mobile app points strongly at the OTHER,
+   * legacy Aliyun IoT sharing system (`/uc/getShareNoticeList` + `/uc/confirmShare`,
+   * signed Aliyun API calls — not this REST endpoint) being the actual gate, which this
+   * app does not implement. See [[architecture-decisions]] #14.
    */
-  static async acceptPendingShares(session: AuthSession): Promise<number> {
+  static async acceptPendingShares(session: AuthSession): Promise<{ found: number; accepted: number }> {
     const pending = await MammotionAuth.fetchPendingShares(session).catch(() => []);
     const receiverPending = pending.filter((r) => r.isReceiver === 1 && r.status === -1);
     const recordIdsByBatch = new Map<string, string[]>();
@@ -301,7 +315,7 @@ export class MammotionAuth {
     for (const [batchId, recordIds] of recordIdsByBatch) {
       await MammotionAuth.confirmShare(session, batchId, recordIds).catch(() => {});
     }
-    return receiverPending.length;
+    return { found: pending.length, accepted: receiverPending.length };
   }
 
   /** Fetch JWT-based MQTT connection credentials. */

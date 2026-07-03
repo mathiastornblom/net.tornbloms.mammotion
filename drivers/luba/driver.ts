@@ -163,11 +163,13 @@ export default class LubaDriver extends Homey.Driver {
       // supposed to finalize a device-share invitation server-side, but a headless login
       // has no equivalent step. Confirming any still-pending shares here closes that gap —
       // this is the fix for the recurring "no devices found" pairing bug (see memory).
-      const acceptedCount = await MammotionAuth.acceptPendingShares(session).catch((err) => {
+      const shareResult = await MammotionAuth.acceptPendingShares(session).catch((err) => {
         this.error('acceptPendingShares failed:', err);
-        return 0;
+        return { found: 0, accepted: 0 };
       });
-      if (acceptedCount > 0) this.log(`list_devices: auto-accepted ${acceptedCount} pending share invitation(s)`);
+      // found=0 on an account with mowers confirmed visible in the mobile app points at
+      // the legacy Aliyun IoT sharing system this app doesn't implement, not this endpoint.
+      this.log(`list_devices: share invitations found=${shareResult.found} accepted=${shareResult.accepted}`);
 
       // The records endpoint is authoritative (it includes shared-not-owned mowers) —
       // if it fails, surface the error to the user rather than showing an empty list.
