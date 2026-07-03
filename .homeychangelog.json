@@ -145,5 +145,8 @@
   },
   "2.3.2": {
     "en": "The App Store description now clearly explains upfront why you need a second Mammotion account for Homey, before you even start pairing"
+  },
+  "2.3.3": {
+    "en": "Fixed pairing finding no mowers on a shared account even after accepting the sharing invitation in the Mammotion app — the invitation now gets confirmed automatically during pairing, closing a gap the mobile app's accept button didn't always finish on its own"
   }
 }

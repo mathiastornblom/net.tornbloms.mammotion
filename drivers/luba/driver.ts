@@ -159,6 +159,16 @@ export default class LubaDriver extends Homey.Driver {
 
     session.setHandler('list_devices', async (): Promise<PairedDeviceResult[]> => {
       const session = pendingSession ?? await this.getValidSession();
+      // Mirrors pymammotion's login_and_initiate_cloud: the mobile app's "Accept" UI is
+      // supposed to finalize a device-share invitation server-side, but a headless login
+      // has no equivalent step. Confirming any still-pending shares here closes that gap —
+      // this is the fix for the recurring "no devices found" pairing bug (see memory).
+      const acceptedCount = await MammotionAuth.acceptPendingShares(session).catch((err) => {
+        this.error('acceptPendingShares failed:', err);
+        return 0;
+      });
+      if (acceptedCount > 0) this.log(`list_devices: auto-accepted ${acceptedCount} pending share invitation(s)`);
+
       // The records endpoint is authoritative (it includes shared-not-owned mowers) —
       // if it fails, surface the error to the user rather than showing an empty list.
       // The owned-devices endpoint only backfills identifiers, so its failure is tolerable.
@@ -230,6 +240,9 @@ export default class LubaDriver extends Homey.Driver {
   /** Simple drivers that need no custom login can use this. */
   async onPairListDevices(): Promise<PairedDeviceResult[]> {
     const session = await this.getValidSession();
+    await MammotionAuth.acceptPendingShares(session).catch((err) => {
+      this.error('acceptPendingShares failed:', err);
+    });
     const [devices, recordsResult] = await Promise.all([
       MammotionAuth.fetchDevices(session),
       MammotionAuth.fetchDeviceRecords(session),

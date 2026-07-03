@@ -21,6 +21,8 @@ import type {
   MammotionApiResponse,
   MammotionDevice,
   MqttConnection,
+  ShareRecord,
+  ShareRecordsPage,
 } from './types.js';
 
 /** Performs all Mammotion cloud HTTP calls: login, token refresh, device list, MQTT credentials. */
@@ -247,6 +249,59 @@ export class MammotionAuth {
       return { records: page.records, total: page.total ?? null, msg };
     }
     return { records: [], total: null, msg };
+  }
+
+  /** Fetch pending device-sharing invitations for this account (statusList -1 = pending only). */
+  static async fetchPendingShares(session: AuthSession): Promise<ShareRecord[]> {
+    const authHeader = { Authorization: `Bearer ${session.accessToken}`, 'Client-Id': session.clientId, 'Client-Type': '1' };
+    const resp = await MammotionAuth.request<MammotionApiResponse<ShareRecordsPage>>(
+      `${MAMMOTION_API_DOMAIN}/user-server/v1/share/device/page`,
+      {
+        method: 'POST',
+        headers: authHeader,
+        body: { iotId: '', owned: 0, pageNumber: 1, pageSize: 200, statusList: [-1] },
+      },
+    );
+    if (resp.code !== 0 || !resp.data || !Array.isArray(resp.data.records)) return [];
+    return resp.data.records;
+  }
+
+  /** Accept (or reject) one batch of pending share invitations. */
+  static async confirmShare(session: AuthSession, batchId: string, recordIds: string[], agree: 0 | 1 = 1): Promise<void> {
+    const authHeader = { Authorization: `Bearer ${session.accessToken}`, 'Client-Id': session.clientId, 'Client-Type': '1' };
+    await MammotionAuth.request<MammotionApiResponse<unknown>>(
+      `${MAMMOTION_API_DOMAIN}/user-server/v1/share/device/confirm`,
+      {
+        method: 'POST',
+        headers: authHeader,
+        body: { agree, batchId, recordIds: recordIds.map(Number) },
+      },
+    );
+  }
+
+  /**
+   * Auto-accepts any pending device-share invitations for this account, mirroring what
+   * pymammotion's `login_and_initiate_cloud` does on every login. The mobile app's own
+   * "Accept" UI is supposed to finalize this server-side, but our headless pairing flow
+   * has no equivalent step — calling this before fetching the device list closes that gap
+   * regardless of whether the mobile-app acceptance actually completed. Best-effort: a
+   * failure here must not block pairing, since the subsequent device-list fetch will just
+   * come up empty (and the existing "no devices found" messaging still applies) if this
+   * doesn't help. Returns the number of invitations accepted, for pairing diagnostics.
+   */
+  static async acceptPendingShares(session: AuthSession): Promise<number> {
+    const pending = await MammotionAuth.fetchPendingShares(session).catch(() => []);
+    const receiverPending = pending.filter((r) => r.isReceiver === 1 && r.status === -1);
+    const recordIdsByBatch = new Map<string, string[]>();
+    for (const record of receiverPending) {
+      const ids = recordIdsByBatch.get(record.batchId) ?? [];
+      ids.push(record.recordId);
+      recordIdsByBatch.set(record.batchId, ids);
+    }
+    for (const [batchId, recordIds] of recordIdsByBatch) {
+      await MammotionAuth.confirmShare(session, batchId, recordIds).catch(() => {});
+    }
+    return receiverPending.length;
   }
 
   /** Fetch JWT-based MQTT connection credentials. */

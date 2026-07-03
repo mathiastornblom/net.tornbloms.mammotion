@@ -56,6 +56,31 @@ export interface DeviceRecordsResult {
   msg: string;
 }
 
+/**
+ * Single record from the /user-server/v1/share/device/page endpoint — one pending or
+ * resolved device-sharing invitation. Per pymammotion (the reference implementation this
+ * app is ported from): `isReceiver: 1` means this account is the invitee (not the sharer),
+ * and `status: -1` means the invitation is still pending confirmation. The mobile app's
+ * "Accept" action calls the corresponding /confirm endpoint — a headless login flow (like
+ * this app's) never triggers that unless it does so explicitly, which is why a share that
+ * looks "accepted" client-side can still leave the account with zero visible devices.
+ */
+export interface ShareRecord {
+  batchId: string;
+  recordId: string;
+  iotId: string;
+  productKey?: string;
+  deviceName?: string;
+  isReceiver: number;
+  status: number;
+}
+
+/** Paginated wrapper around ShareRecord. */
+export interface ShareRecordsPage {
+  records: ShareRecord[];
+  total: number;
+}
+
 /** Device entry from the device/list endpoint — owned devices only (absent for shared-not-owned mowers). */
 export interface MammotionDevice {
   iotId: string;
