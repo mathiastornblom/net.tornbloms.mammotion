@@ -214,17 +214,6 @@ async function getShareNoticeList(region: AliyunRegionResponse, iotToken: string
  * this). A bug in the signing here fails closed (probe result treated as "not legacy",
  * see acceptPendingShares callers), never blocks normal pairing.
  */
-export interface LegacyProbeResult {
-  /** Devices visible via /uc/listBindingByAccount (owned + already-accepted shares). */
-  boundDevices: AliyunAccountDevice[];
-  /** Devices with an outstanding (any status) share notification, from /uc/getShareNoticeList. */
-  shareNotifications: number;
-  /** Account-level credentials needed to build the shared AliyunMqttTransport / send
-   *  commands via sendAliyunCloudCommand — undefined only if aepHandle's response was
-   *  somehow missing required fields (treat as "legacy support unavailable this attempt"). */
-  credentials?: AliyunLegacyCredentials;
-}
-
 /** Everything device.ts / LubaDriver needs to construct the shared AliyunMqttTransport and
  *  send commands, without re-running the full 6-step handshake each time. `iotToken` is
  *  short-lived (see AliyunSessionByAuthCodeResponse.iotTokenExpire) — callers that hold
@@ -245,6 +234,17 @@ export interface AliyunLegacyCredentials {
   deviceName: string;
   /** Short-lived session token for signedGatewayRequest calls and the MQTT bind message. */
   iotToken: string;
+}
+
+export interface LegacyProbeResult {
+  /** Devices visible via /uc/listBindingByAccount (owned + already-accepted shares). */
+  boundDevices: AliyunAccountDevice[];
+  /** Devices with an outstanding (any status) share notification, from /uc/getShareNoticeList. */
+  shareNotifications: number;
+  /** Account-level credentials needed to build the shared AliyunMqttTransport / send
+   *  commands via sendAliyunCloudCommand — undefined only if aepHandle's response was
+   *  somehow missing required fields (treat as "legacy support unavailable this attempt"). */
+  credentials?: AliyunLegacyCredentials;
 }
 
 /** Runs the full legacy handshake and returns what it found. Throws on any step failure —

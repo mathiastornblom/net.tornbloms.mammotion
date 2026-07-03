@@ -3,7 +3,9 @@
 import https from 'https';
 import { randomUUID } from 'crypto';
 
-import { getCaSignature, getContentMd5, getDateUtcString, getNonce } from './signing.js';
+import {
+  getCaSignature, getContentMd5, getDateUtcString, getNonce,
+} from './signing.js';
 import { ALIYUN_APP_KEY, ALIYUN_APP_SECRET } from './constants.js';
 
 /**
@@ -15,15 +17,16 @@ import { ALIYUN_APP_KEY, ALIYUN_APP_SECRET } from './constants.js';
  * knowledge.
  */
 
-/** Minimal HTTPS POST-and-parse-JSON helper, independent of MammotionAuth's (different
- *  header/auth shape entirely — no Bearer token, Aliyun's own signature headers instead). */
-export function httpsRequestJson<T>(opts: {
+/** Same as httpsRequestJson but also exposes the HTTP status code — needed by callers that
+ *  must distinguish a gateway-level HTTP 429 from the JSON body's own `code` field (e.g.
+ *  sendAliyunCloudCommand in commands.ts, mirroring pymammotion's send_cloud_command). */
+export function httpsRequestJsonWithStatus<T>(opts: {
   hostname: string;
   path: string;
   method: string;
   headers: Record<string, string>;
   body?: string;
-}): Promise<T> {
+}): Promise<{ statusCode: number; body: T }> {
   return new Promise((resolve, reject) => {
     const req = https.request(
       {
@@ -34,7 +37,10 @@ export function httpsRequestJson<T>(opts: {
         res.on('data', (c: Buffer) => chunks.push(c));
         res.on('end', () => {
           try {
-            resolve(JSON.parse(Buffer.concat(chunks).toString('utf8')) as T);
+            resolve({
+              statusCode: res.statusCode ?? 0,
+              body: JSON.parse(Buffer.concat(chunks).toString('utf8')) as T,
+            });
           } catch (e) {
             reject(new Error(`Aliyun response was not valid JSON (status ${res.statusCode}): ${String(e)}`));
           }
@@ -47,21 +53,43 @@ export function httpsRequestJson<T>(opts: {
   });
 }
 
-/** Builds and signs one IoTApiRequest-shaped call through the Aliyun API Gateway CA-signature
- *  scheme (region/aep/session/list/notice/invoke calls — connect() and loginByOAuth() in
- *  AliyunLegacyProbe.ts use their own bespoke signing and are implemented separately there). */
-export async function signedGatewayRequest<T>(opts: {
+/** Minimal HTTPS POST-and-parse-JSON helper, independent of MammotionAuth's (different
+ *  header/auth shape entirely — no Bearer token, Aliyun's own signature headers instead). */
+export function httpsRequestJson<T>(opts: {
+  hostname: string;
+  path: string;
+  method: string;
+  headers: Record<string, string>;
+  body?: string;
+}): Promise<T> {
+  return httpsRequestJsonWithStatus<T>(opts).then((res) => res.body);
+}
+
+/** Pure request-building step of signedGatewayRequest, split out so callers/tests can
+ *  inspect the exact hostname/path/headers/body that would be sent without performing
+ *  network I/O — mirrors how getCaSignature is made independently testable. */
+export function buildSignedGatewayRequest(opts: {
   domain: string;
   pathname: string;
   apiVer: string;
   params: Record<string, unknown>;
   iotToken?: string;
-}): Promise<T> {
+  /** Overrides the generated `id` field of the request envelope — callers that need to know
+   *  this id ahead of time (e.g. sendAliyunCloudCommand returning pymammotion's
+   *  client-generated message id) can supply their own instead of a fresh randomUUID(). */
+  messageId?: string;
+}): {
+  hostname: string;
+  path: string;
+  method: string;
+  headers: Record<string, string>;
+  body: string;
+} {
   const {
-    domain, pathname, apiVer, params, iotToken,
+    domain, pathname, apiVer, params, iotToken, messageId,
   } = opts;
   const requestBody = {
-    id: randomUUID(),
+    id: messageId ?? randomUUID(),
     version: '1.0',
     params,
     request: { apiVer, iotToken, language: 'en-US' },
@@ -90,11 +118,37 @@ export async function signedGatewayRequest<T>(opts: {
   headers.ca_version = '1';
   headers['content-length'] = String(Buffer.byteLength(bodyJson));
 
-  return httpsRequestJson<T>({
+  return {
     hostname: domain,
     path: `${pathname}?x-ca-request-id=${requestId}`,
     method: 'POST',
     headers,
     body: bodyJson,
-  });
+  };
+}
+
+/** Builds and signs one IoTApiRequest-shaped call through the Aliyun API Gateway CA-signature
+ *  scheme (region/aep/session/list/notice/invoke calls — connect() and loginByOAuth() in
+ *  AliyunLegacyProbe.ts use their own bespoke signing and are implemented separately there). */
+export async function signedGatewayRequest<T>(opts: {
+  domain: string;
+  pathname: string;
+  apiVer: string;
+  params: Record<string, unknown>;
+  iotToken?: string;
+}): Promise<T> {
+  return httpsRequestJson<T>(buildSignedGatewayRequest(opts));
+}
+
+/** Same as signedGatewayRequest but also exposes the HTTP status code — needed to detect a
+ *  gateway-level HTTP 429 separately from the JSON body's own `code` field. */
+export async function signedGatewayRequestWithStatus<T>(opts: {
+  domain: string;
+  pathname: string;
+  apiVer: string;
+  params: Record<string, unknown>;
+  iotToken?: string;
+  messageId?: string;
+}): Promise<{ statusCode: number; body: T }> {
+  return httpsRequestJsonWithStatus<T>(buildSignedGatewayRequest(opts));
 }

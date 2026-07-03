@@ -49,3 +49,16 @@ export class ApiError extends MammotionError {
     this.code = code;
   }
 }
+
+/** A command sent to a legacy-Aliyun-bound device via /thing/service/invoke failed —
+ *  either the JSON body's `code` field was non-200 or the gateway returned HTTP 429.
+ *  `code` is the raw Aliyun error code (e.g. 6205 device offline, 29004 device unbound,
+ *  29003/460 auth expired, 429 rate-limited) — see pymammotion's `send_cloud_command`. */
+export class AliyunCommandError extends MammotionError {
+  readonly code: number;
+  constructor(code: number, message: string) {
+    super(`Aliyun command error ${code}: ${message}`);
+    this.name = 'AliyunCommandError';
+    this.code = code;
+  }
+}
