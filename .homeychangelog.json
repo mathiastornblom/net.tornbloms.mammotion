@@ -169,5 +169,8 @@
   },
   "2.5.2": {
     "en": "Blade height now shows the value actually reported by the mower instead of only what was last set, so it stays accurate even if changed another way. Also added groundwork logging for headlight status ahead of adding it as a proper reading"
+  },
+  "2.5.3": {
+    "en": "Fixed a rare crash ('connack timeout') that could happen right as the app was reconnecting to the cloud, tearing the whole app down instead of just retrying"
   }
 }

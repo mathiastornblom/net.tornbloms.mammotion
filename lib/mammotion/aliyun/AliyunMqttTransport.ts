@@ -140,11 +140,7 @@ export class AliyunMqttTransport {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
-    if (this.client) {
-      this.client.removeAllListeners();
-      this.client.end(true);
-      this.client = null;
-    }
+    this.teardownClient();
 
     const { clientId, username, password } = this.buildCredentials();
     const host = `${this.config.productKey}.iot-as-mqtt.${this.config.regionId}.aliyuncs.com`;
@@ -190,16 +186,29 @@ export class AliyunMqttTransport {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
-    if (this.client) {
-      this.client.removeAllListeners();
-      this.client.end(true);
-      this.client = null;
-    }
+    this.teardownClient();
   }
 
   /** Whether the MQTT client currently has an open broker connection. */
   get isConnected(): boolean {
     return this.client?.connected ?? false;
+  }
+
+  /**
+   * Ends and discards the current client, if any.
+   * A no-op 'error' listener is re-attached before removeAllListeners()'s
+   * effect would otherwise leave the client with zero 'error' listeners:
+   * mqtt.js can emit 'error' (e.g. a pending connack-timeout timer) on the
+   * old client instance after end(true) is called, and Node's EventEmitter
+   * throws synchronously when 'error' is emitted with no listeners attached.
+   */
+  private teardownClient(): void {
+    if (this.client) {
+      this.client.removeAllListeners();
+      this.client.on('error', () => {});
+      this.client.end(true);
+      this.client = null;
+    }
   }
 
   // ─── Private ────────────────────────────────────────────────────────────────
