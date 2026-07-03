@@ -164,4 +164,10 @@ A dedicated second Mammotion account must be created and mowers shared to it bef
 | 6 — Scheduling | 11 | Schedule creation/editing via Flows |
 | 7 — Advanced | 12+ | Firmware OTA, camera stream investigation |
 
+## Current status & subagents
+Published on the Homey App Store, post-launch (v2.3.5+). Prioritized backlog: `docs/ROADMAP.md`.
+Role-specific subagents in `.claude/agents/`: `architect` (research/scoping, opus), `developer`
+(implementation), `qa` (verification), `technical-writer` (docs/i18n), `marketing` (App
+Store/community copy), `design` (icons/pairing-screen UX).
+
 ## Keep this file under 200 lines.
