@@ -4,6 +4,7 @@ import { createHmac } from 'crypto';
 import mqtt from 'mqtt';
 
 import { decodeLubaMsg } from '../protocol/Codec.js';
+import { ALIYUN_MQTT_CA_BUNDLE } from './caBundle.js';
 
 /**
  * Config for the ONE shared Aliyun IoT MQTT connection for an account — NOT per-device.
@@ -155,6 +156,11 @@ export class AliyunMqttTransport {
       keepalive: ALIYUN_MQTT_KEEPALIVE_SEC,
       protocolVersion: 4,
       clean: true,
+      // Aliyun's IoT broker chains to a private, non-public "Aliyun IoT Root CA" that isn't
+      // in Node's default (Mozilla) trust store — without this, every connection fails with
+      // "unable to get local issuer certificate" (confirmed via a real diagnostic report,
+      // 2026-07-04). Ported from pymammotion's bundled ca.pem, which it loads the same way.
+      ca: ALIYUN_MQTT_CA_BUNDLE,
     });
 
     this.client.on('connect', () => {

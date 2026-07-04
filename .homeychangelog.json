@@ -190,5 +190,8 @@
   },
   "2.5.9": {
     "en": "The older cloud system's region lookup now falls back to a built-in country list if it can't be reached at all, instead of failing pairing outright — with logging for any country not yet in that list so it can be added"
+  },
+  "2.5.10": {
+    "en": "Fixed mowers added through Mammotion's older cloud system never receiving any data — the connection to that cloud's servers was missing a required security certificate and could never actually connect"
   }
 }
