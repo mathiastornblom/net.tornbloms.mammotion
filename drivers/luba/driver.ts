@@ -312,10 +312,23 @@ export default class LubaDriver extends Homey.Driver {
       // records=1 normal device + bound=1 legacy device, only the former was ever shown).
       // This is read-only: it never blocks pairing on its own failure and never modifies
       // any account state. See [[architecture-decisions]] #14b.
-      const legacyResult = await probeLegacyAliyunDevices(session).catch((err) => {
-        this.error('probeLegacyAliyunDevices failed:', err);
+      //
+      // One retry: this handshake reaches Aliyun's Chinese cloud endpoints directly from
+      // the Homey hub's own network, and a real diagnostic report showed a transient
+      // ETIMEDOUT/ENETUNREACH against that endpoint from an otherwise-working account/
+      // network (the same handshake had succeeded repeatedly minutes earlier). Pairing is
+      // a one-shot UX moment, so it's worth riding out exactly this kind of blip rather
+      // than silently dropping legacy-only devices for the rest of the session.
+      let legacyResult = await probeLegacyAliyunDevices(session).catch((err) => {
+        this.error('probeLegacyAliyunDevices failed (attempt 1):', err);
         return null;
       });
+      if (!legacyResult) {
+        legacyResult = await probeLegacyAliyunDevices(session).catch((err) => {
+          this.error('probeLegacyAliyunDevices failed (attempt 2):', err);
+          return null;
+        });
+      }
       if (legacyResult) {
         this.log(`list_devices: legacy Aliyun probe — bound=${legacyResult.boundDevices.length} shareNotifications=${legacyResult.shareNotifications}`,
           JSON.stringify(legacyResult.boundDevices.map(d => ({ iotId: d.iotId, deviceName: d.deviceName, productKey: d.productKey, owned: d.owned }))));

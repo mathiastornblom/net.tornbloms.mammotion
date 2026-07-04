@@ -181,5 +181,8 @@
   },
   "2.5.6": {
     "en": "Fixed a mower shared to your account only through Mammotion's older cloud system never showing up during pairing whenever that same account also had at least one normal mower — both are now listed together"
+  },
+  "2.5.7": {
+    "en": "Pairing now retries the older cloud system's device check once before giving up, to ride out occasional brief network hiccups reaching it instead of missing a shared mower for that one attempt"
   }
 }
