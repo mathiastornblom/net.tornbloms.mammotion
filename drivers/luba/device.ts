@@ -172,6 +172,12 @@ export default class LubaDevice extends Homey.Device {
     if (useBle) await this.connectBle();
     if (useCloud && isLegacy) {
       await this.connectAliyunLegacy();
+      // Was missing entirely for legacy devices — requestSync() (which the v2.5.11 fix
+      // taught how to reach a legacy device) was never actually being called at all, since
+      // nothing ever started the poll loop that calls it. Confirmed via a real diagnostic
+      // report (2026-07-04) showing a fully healthy Aliyun connection with zero requestSync
+      // activity ever logged, only the capability-restoration set_* commands from onInit.
+      this.startPollTimer();
     } else if (useCloud) {
       await this.connectMqtt();
       this.startPollTimer();

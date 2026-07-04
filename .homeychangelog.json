@@ -196,5 +196,8 @@
   },
   "2.5.11": {
     "en": "Fixed mowers added through Mammotion's older cloud system still showing no data even with a healthy connection — the periodic request that asks the mower to report in was silently never being sent for these mowers"
+  },
+  "2.5.12": {
+    "en": "Fixed mowers added through Mammotion's older cloud system still showing no data — the periodic check that asks the mower to report in was never actually starting for these mowers in the first place"
   }
 }
