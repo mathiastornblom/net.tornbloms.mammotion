@@ -571,8 +571,12 @@ export default class LubaDevice extends Homey.Device {
     }
     if (state.batteryCycles != null && this.setCapIfChanged('measure_battery_cycles', state.batteryCycles)) changed.push(`cycles=${state.batteryCycles}`);
     if (state.bladeUsedTime != null) {
-      // bladeUsedTime is in minutes; expose as hours with 1 decimal
-      const hours = Math.round(state.bladeUsedTime / 6) / 10;
+      // bladeUsedTime is in SECONDS (see TelemetryParser.ts) — expose as hours with 1
+      // decimal. Previously divided by 60 as if the wire value were minutes, overstating
+      // real blade usage by 60x on every device (confirmed via a real diagnostic report,
+      // 2026-07-04: reported 3241.5 "hours" for a mower active since October 2025 — the
+      // correct value, dividing by 3600, is ~54 hours).
+      const hours = Math.round(state.bladeUsedTime / 360) / 10;
       if (this.setCapIfChanged('measure_blade_used_time', hours)) changed.push(`blade=${hours}h`);
     }
     // Diagnostic-only, not a capability yet — see TelemetryParser.ts's comment on

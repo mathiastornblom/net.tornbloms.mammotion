@@ -70,7 +70,11 @@ export function extractTelemetry(msg: Record<string, unknown>): Partial<Telemetr
     if (typeof maintain.batCycles === 'number') telemetry.batteryCycles = maintain.batCycles;
     const bladeUsed = maintain.bladeUsedTime as Record<string, number> | undefined;
     if (bladeUsed && typeof bladeUsed.bladeUsedTime === 'number') {
-      // bladeUsedTime is in minutes per pymammotion reference
+      // bladeUsedTime is in SECONDS — confirmed against Mammotion-HA's sensor.py
+      // (native_unit_of_measurement=UnitOfTime.SECONDS for this exact field). A prior
+      // "in minutes" comment here was wrong and made measure_blade_used_time overstate
+      // real usage by 60x (e.g. ~54h real use showing as ~3241h) — confirmed against a
+      // real device's reported value, 2026-07-04.
       telemetry.bladeUsedTime = bladeUsed.bladeUsedTime;
     }
   }

@@ -202,5 +202,8 @@
   },
   "2.5.13": {
     "en": "The older cloud system's login credentials are now reused and saved between checks instead of logging in fresh every time, with a short pause after repeated failures — reduces load on Mammotion's servers and avoids getting temporarily rate-limited"
+  },
+  "2.5.14": {
+    "en": "Fixed Blade Used Time showing a wildly overstated value (e.g. 3241 hours instead of the real ~54) — the mower reports this in seconds, not minutes, so the conversion to hours was off by a factor of 60"
   }
 }
