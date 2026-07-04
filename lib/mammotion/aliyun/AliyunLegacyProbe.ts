@@ -8,6 +8,7 @@ import {
   ALIYUN_APP_KEY, ALIYUN_APP_SECRET, ALIYUN_APP_VERSION, ALIYUN_CONNECT_DOMAIN,
   ALIYUN_DOMAIN, ALIYUN_SDK_VERSION,
 } from './constants.js';
+import { ALIYUN_DEFAULT_REGION, ALIYUN_REGION_MAPPINGS } from './regionMappings.js';
 import type {
   AliyunAccountDevice, AliyunAepResponse, AliyunConnectResponse, AliyunListingDevAccountResponse,
   AliyunLoginByOAuthResponse, AliyunRegionResponse, AliyunSessionByAuthCodeResponse,
@@ -27,15 +28,65 @@ function generateHardwareString(length: number, seed: string): string {
 
 // ─── Step 1: region lookup ───────────────────────────────────────────────────
 
-async function getRegion(countryCode: string, authCode: string): Promise<AliyunRegionResponse> {
-  const resp = await signedGatewayRequest<AliyunRegionResponse>({
-    domain: ALIYUN_DOMAIN,
-    pathname: '/living/account/region/get',
-    apiVer: '1.0.2',
-    params: { authCode, type: 'THIRD_AUTHCODE', countryCode },
-  });
-  if (resp.code !== 200) throw new Error(`getRegion failed: code=${resp.code}`);
-  return resp;
+/** Set on network-level errors (ETIMEDOUT/ENETUNREACH/ECONNREFUSED/etc — the request never
+ *  reached a server) as opposed to a reachable server returning a non-200 body, which is a
+ *  real failure the static table below can't paper over. */
+function isNetworkLevelError(err: unknown): boolean {
+  const code = (err as { code?: string } | undefined)?.code;
+  if (typeof code === 'string') return true;
+  const errors = (err as { errors?: unknown[] } | undefined)?.errors;
+  return Array.isArray(errors) && errors.some((e) => typeof (e as { code?: string })?.code === 'string');
+}
+
+/** Non-null only when getRegion() had to fall back to the static ALIYUN_REGION_MAPPINGS table
+ *  because the dynamic lookup was unreachable — surfaced up through LegacyProbeResult so the
+ *  caller can log it (this module has no logger of its own; see AliyunLegacyProbe.ts's other
+ *  functions for the same pattern). `mapped: false` means countryCode had no table entry at
+ *  all and ALIYUN_DEFAULT_REGION was guessed — worth flagging distinctly from a real mapping
+ *  since Homey users span every country this app is localized for, not just the ones
+ *  currently in the table. */
+export interface RegionFallbackInfo {
+  countryCode: string;
+  region: string;
+  mapped: boolean;
+}
+
+async function getRegion(
+  countryCode: string,
+  authCode: string,
+): Promise<{ region: AliyunRegionResponse; fallback: RegionFallbackInfo | null }> {
+  try {
+    const resp = await signedGatewayRequest<AliyunRegionResponse>({
+      domain: ALIYUN_DOMAIN,
+      pathname: '/living/account/region/get',
+      apiVer: '1.0.2',
+      params: { authCode, type: 'THIRD_AUTHCODE', countryCode },
+    });
+    if (resp.code !== 200) throw new Error(`getRegion failed: code=${resp.code}`);
+    return { region: resp, fallback: null };
+  } catch (err) {
+    if (!isNetworkLevelError(err)) throw err;
+    // Mirrors pymammotion's own ConnectionTimeoutError fallback in cloud_gateway.py: the
+    // dynamic region lookup is unreachable, so synthesize a region response from the static
+    // country→region table instead of failing the whole handshake outright.
+    const mapped = countryCode in ALIYUN_REGION_MAPPINGS;
+    const region = ALIYUN_REGION_MAPPINGS[countryCode] ?? ALIYUN_DEFAULT_REGION;
+    return {
+      region: {
+        code: 200,
+        data: {
+          shortRegionId: region,
+          regionEnglishName: '',
+          oaApiGatewayEndpoint: `living-account.${region}.aliyuncs.com`,
+          regionId: region,
+          mqttEndpoint: `public.itls.${region}.aliyuncs.com:1883`,
+          pushChannelEndpoint: `living-accs.${region}.aliyuncs.com`,
+          apiGatewayEndpoint: `${region}.api-iot.aliyuncs.com`,
+        },
+      },
+      fallback: { countryCode, region, mapped },
+    };
+  }
 }
 
 // ─── Step 2: connect (hardcoded domain, bespoke signing, no content-md5) ────
@@ -245,6 +296,11 @@ export interface LegacyProbeResult {
    *  commands via sendAliyunCloudCommand — undefined only if aepHandle's response was
    *  somehow missing required fields (treat as "legacy support unavailable this attempt"). */
   credentials?: AliyunLegacyCredentials;
+  /** Non-null only when the dynamic region lookup was unreachable and getRegion() fell back
+   *  to the static ALIYUN_REGION_MAPPINGS table — callers should log this so an unmapped
+   *  country code (mapped: false) shows up in a real diagnostic report instead of silently
+   *  guessing. See RegionFallbackInfo. */
+  regionFallback?: RegionFallbackInfo;
 }
 
 /** Runs the full legacy handshake and returns what it found. Throws on any step failure —
@@ -257,7 +313,7 @@ export async function probeLegacyAliyunDevices(session: AuthSession): Promise<Le
   const deviceSn = generateHardwareString(32, session.userId);
   const utdid = generateHardwareString(32, session.userId);
 
-  const region = await getRegion(countryCode, session.authorizationCode);
+  const { region, fallback: regionFallback } = await getRegion(countryCode, session.authorizationCode);
   const connect = await connectDevice(utdid);
   const oauth = await loginByOAuth(countryCode, session.authorizationCode, region, connect, utdid);
   const aep = await aepHandle(region, clientId, deviceSn);
@@ -281,5 +337,6 @@ export async function probeLegacyAliyunDevices(session: AuthSession): Promise<Le
     boundDevices: bound.data?.data ?? [],
     shareNotifications: notices.data?.total ?? 0,
     credentials,
+    ...(regionFallback ? { regionFallback } : {}),
   };
 }

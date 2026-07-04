@@ -4,5 +4,6 @@
 /.env
 /.env.*
 !/.env.example
+/.cache/
 .DS_Store
 .claude/scheduled_tasks.lock

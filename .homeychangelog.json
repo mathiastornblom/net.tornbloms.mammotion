@@ -187,5 +187,8 @@
   },
   "2.5.8": {
     "en": "Added a diagnostic connectivity check during pairing to help pinpoint whether a household's own network can reach Mammotion's older cloud system at all, for cases where mowers still don't show up"
+  },
+  "2.5.9": {
+    "en": "The older cloud system's region lookup now falls back to a built-in country list if it can't be reached at all, instead of failing pairing outright — with logging for any country not yet in that list so it can be added"
   }
 }

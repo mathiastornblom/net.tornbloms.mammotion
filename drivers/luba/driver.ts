@@ -343,6 +343,15 @@ export default class LubaDriver extends Homey.Driver {
       if (legacyResult) {
         this.log(`list_devices: legacy Aliyun probe — bound=${legacyResult.boundDevices.length} shareNotifications=${legacyResult.shareNotifications}`,
           JSON.stringify(legacyResult.boundDevices.map(d => ({ iotId: d.iotId, deviceName: d.deviceName, productKey: d.productKey, owned: d.owned }))));
+        if (legacyResult.regionFallback) {
+          // The dynamic region lookup was unreachable and we fell back to the static
+          // country→region table — mapped:false means countryCode had NO table entry at all
+          // and a default was guessed. This app ships in every country its 13 locales cover,
+          // not just the ones currently in ALIYUN_REGION_MAPPINGS, so an unmapped code here
+          // is a concrete signal for which region to add next (see regionMappings.ts).
+          const { countryCode, region, mapped } = legacyResult.regionFallback;
+          this.log(`list_devices: region lookup fell back to static table — countryCode=${countryCode} region=${region} mapped=${mapped}`);
+        }
       }
       if (legacyResult && legacyResult.boundDevices.length > 0) {
         // Real, listable devices via the legacy system — pair them for real now that
