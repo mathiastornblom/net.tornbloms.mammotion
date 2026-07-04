@@ -7,6 +7,8 @@ import { AuthError } from '../../lib/mammotion/errors.js';
 import { probeLegacyAliyunDevices, type AliyunLegacyCredentials } from '../../lib/mammotion/aliyun/AliyunLegacyProbe.js';
 import type { AliyunAccountDevice } from '../../lib/mammotion/aliyun/types.js';
 import { AliyunMqttTransport } from '../../lib/mammotion/aliyun/AliyunMqttTransport.js';
+import { checkAliyunConnectivity } from '../../lib/mammotion/aliyun/connectivityCheck.js';
+import { ALIYUN_DOMAIN } from '../../lib/mammotion/aliyun/constants.js';
 
 const SESSION_SETTINGS_KEY = 'mammotion_session';
 const CREDENTIALS_SETTINGS_KEY = 'mammotion_credentials';
@@ -301,6 +303,15 @@ export default class LubaDriver extends Homey.Driver {
           records: records.map(r => ({ iotId: r.iotId, deviceName: r.deviceName, productKey: r.productKey })),
         }));
       const list = this.buildDeviceList(devices, records);
+
+      // Raw TLS reachability check against the legacy handshake's fixed entry point, run
+      // alongside (not blocking) the real probe below — isolates "can we even reach Aliyun's
+      // servers from this network" from "did the 6-step handshake itself fail", after a real
+      // diagnostic report showed the same account/handshake failing consistently from one
+      // Homey hub's network while working fine from another. See connectivityCheck.ts.
+      checkAliyunConnectivity(ALIYUN_DOMAIN)
+        .then((result) => this.log(`list_devices: Aliyun connectivity check (${ALIYUN_DOMAIN}) — ${result}`))
+        .catch((err) => this.error('Aliyun connectivity check threw unexpectedly:', err));
 
       // Always probe the legacy Aliyun IoT Link Platform too, even when the normal path
       // already found devices — an account can have SOME mowers on each system at once

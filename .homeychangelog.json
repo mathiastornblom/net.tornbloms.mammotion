@@ -184,5 +184,8 @@
   },
   "2.5.7": {
     "en": "Pairing now retries the older cloud system's device check once before giving up, to ride out occasional brief network hiccups reaching it instead of missing a shared mower for that one attempt"
+  },
+  "2.5.8": {
+    "en": "Added a diagnostic connectivity check during pairing to help pinpoint whether a household's own network can reach Mammotion's older cloud system at all, for cases where mowers still don't show up"
   }
 }
