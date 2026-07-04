@@ -172,5 +172,8 @@
   },
   "2.5.3": {
     "en": "Fixed a rare crash ('connack timeout') that could happen right as the app was reconnecting to the cloud, tearing the whole app down instead of just retrying"
+  },
+  "2.5.4": {
+    "en": "Added diagnostic logging to confirm mowers found via Mammotion's older cloud system actually reach the pairing screen, to help investigate reports of no devices showing up"
   }
 }

@@ -322,7 +322,14 @@ export default class LubaDriver extends Homey.Driver {
         // credentials this same probe call already fetched so the driver doesn't need to
         // re-run the handshake the moment the first legacy device initializes.
         if (legacyResult.credentials) this.cacheAliyunCredentials(legacyResult.credentials);
-        return this.buildLegacyDeviceList(legacyResult.boundDevices);
+        const legacyList = this.buildLegacyDeviceList(legacyResult.boundDevices);
+        // Confirms the built list actually reaches the return statement (and is well-formed)
+        // before handing it to Homey's pairing UI — closes the observability gap between "we
+        // found bound devices" and "the wizard actually showed them" for the next diagnostic
+        // report, since nothing downstream of this point is currently logged.
+        this.log(`list_devices: returning ${legacyList.length} legacy device(s) to pairing UI`,
+          JSON.stringify(legacyList.map((d) => ({ name: d.name, id: d.data.id }))));
+        return legacyList;
       }
       if (legacyResult && legacyResult.shareNotifications > 0) {
         // Evidence of legacy sharing activity but nothing actually bound/listable yet —
