@@ -470,12 +470,22 @@ export default class LubaDevice extends Homey.Device {
     }
   }
 
-  /** Re-arms the one-shot telemetry report subscription over MQTT. No-op while BLE is primary. */
+  /** Re-arms the one-shot telemetry report subscription. No-op while BLE is primary — BLE
+   *  pushes on its own, no poll needed. */
   private async requestSync(): Promise<void> {
-    if (this.activeTransport === 'ble') return; // BLE pushes on its own; no poll needed
+    if (this.activeTransport === 'ble') return;
     const session = await this.getSession();
     const context = this.getContext();
     const cmd = buildRequestIotSyncCommand(session.userAccount, false, this.seq);
+    // this.mqtt is never initialised for an aliyun_legacy device (startTransports() calls
+    // connectAliyunLegacy() instead of connectMqtt()) — `this.mqtt?.sendCommand(...)` used to
+    // silently no-op here every poll tick for those devices, so the mower was never actually
+    // asked to report anything and no telemetry ever arrived, even once the Aliyun MQTT
+    // connection itself was healthy (confirmed via a real diagnostic report, 2026-07-04).
+    if (context.transportKind === 'aliyun_legacy') {
+      await this.sendAliyunRaw(Buffer.from(cmd, 'base64'), 'requestSync', context.iotId);
+      return;
+    }
     try {
       await this.mqtt?.sendCommand(session, context, cmd);
     } catch (err) {
