@@ -10,6 +10,7 @@
  */
 
 import { MammotionAuth } from '../.homeybuild/lib/mammotion/auth/MammotionAuth.js';
+import { probeLegacyAliyunDevices } from '../.homeybuild/lib/mammotion/aliyun/AliyunLegacyProbe.js';
 
 interface AccountConfig {
   label: string;
@@ -48,6 +49,17 @@ async function testAccount({ label, email, password }: AccountConfig): Promise<v
     for (const r of records) console.log(`    - iotId=${r.iotId} deviceName=${r.deviceName} productKey=${r.productKey}`);
     if (records.length === 0 && recordsResult.total !== null && recordsResult.total > 0) {
       console.log('  ⚠ total>0 but records=0 — a pagination/parsing bug, not "account has no devices"');
+    }
+
+    const legacy = await probeLegacyAliyunDevices(session).catch((err: unknown) => {
+      console.log(`  probeLegacyAliyunDevices: FAILED — ${String(err)}`);
+      return null;
+    });
+    if (legacy) {
+      console.log(`  legacy Aliyun probe: bound=${legacy.boundDevices.length} shareNotifications=${legacy.shareNotifications}`);
+      for (const d of legacy.boundDevices) {
+        console.log(`    - iotId=${d.iotId} deviceName=${d.deviceName} productKey=${d.productKey} owned=${d.owned} nickName=${d.nickName ?? ''}`);
+      }
     }
   } catch (err) {
     console.log(`  login: FAILED — ${String(err)}`);

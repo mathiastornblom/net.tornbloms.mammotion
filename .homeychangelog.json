@@ -178,5 +178,8 @@
   },
   "2.5.5": {
     "en": "Fixed the app getting stuck reconnecting to the cloud for several minutes with the same broken session after the Mammotion account's login token was invalidated early — it now logs in fresh instead of repeating the same failing attempt"
+  },
+  "2.5.6": {
+    "en": "Fixed a mower shared to your account only through Mammotion's older cloud system never showing up during pairing whenever that same account also had at least one normal mower — both are now listed together"
   }
 }

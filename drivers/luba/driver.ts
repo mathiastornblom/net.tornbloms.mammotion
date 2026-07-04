@@ -301,13 +301,17 @@ export default class LubaDriver extends Homey.Driver {
           records: records.map(r => ({ iotId: r.iotId, deviceName: r.deviceName, productKey: r.productKey })),
         }));
       const list = this.buildDeviceList(devices, records);
-      if (list.length > 0) return list;
 
-      // Zero devices via the normal path. Before giving up, do a read-only check of the
-      // legacy Aliyun IoT Link Platform system some older Mammotion accounts/devices still
-      // use — a completely separate device-listing mechanism this app cannot yet pair
-      // through. This is diagnostic only: it never blocks pairing on its own failure, and
-      // it never modifies any account state. See [[architecture-decisions]] #14b.
+      // Always probe the legacy Aliyun IoT Link Platform too, even when the normal path
+      // already found devices — an account can have SOME mowers on each system at once
+      // (e.g. one owned mower via the normal API, plus a mower shared to this account only
+      // through the legacy system). Previously this only ran when `list` was empty, which
+      // silently hid legacy-only devices whenever the account had at least one normal
+      // device — the actual root cause of a real user's shared mower never appearing in
+      // the pairing list (confirmed via scripts/test-accounts.ts against a real account:
+      // records=1 normal device + bound=1 legacy device, only the former was ever shown).
+      // This is read-only: it never blocks pairing on its own failure and never modifies
+      // any account state. See [[architecture-decisions]] #14b.
       const legacyResult = await probeLegacyAliyunDevices(session).catch((err) => {
         this.error('probeLegacyAliyunDevices failed:', err);
         return null;
@@ -322,15 +326,22 @@ export default class LubaDriver extends Homey.Driver {
         // credentials this same probe call already fetched so the driver doesn't need to
         // re-run the handshake the moment the first legacy device initializes.
         if (legacyResult.credentials) this.cacheAliyunCredentials(legacyResult.credentials);
-        const legacyList = this.buildLegacyDeviceList(legacyResult.boundDevices);
-        // Confirms the built list actually reaches the return statement (and is well-formed)
+        // De-dupe by iotId in case a device is somehow visible on both systems — the
+        // normal-path entry wins since it has richer/more current metadata.
+        const seenIotIds = new Set(list.map((d) => d.data.id));
+        const legacyList = this
+          .buildLegacyDeviceList(legacyResult.boundDevices)
+          .filter((d) => !seenIotIds.has(d.data.id));
+        const merged = [...list, ...legacyList];
+        // Confirms the merged list actually reaches the return statement (and is well-formed)
         // before handing it to Homey's pairing UI — closes the observability gap between "we
         // found bound devices" and "the wizard actually showed them" for the next diagnostic
         // report, since nothing downstream of this point is currently logged.
-        this.log(`list_devices: returning ${legacyList.length} legacy device(s) to pairing UI`,
-          JSON.stringify(legacyList.map((d) => ({ name: d.name, id: d.data.id }))));
-        return legacyList;
+        this.log(`list_devices: returning ${merged.length} device(s) to pairing UI (${list.length} normal + ${legacyList.length} legacy)`,
+          JSON.stringify(merged.map((d) => ({ name: d.name, id: d.data.id }))));
+        return merged;
       }
+      if (list.length > 0) return list;
       if (legacyResult && legacyResult.shareNotifications > 0) {
         // Evidence of legacy sharing activity but nothing actually bound/listable yet —
         // still an informative message rather than the generic one.
