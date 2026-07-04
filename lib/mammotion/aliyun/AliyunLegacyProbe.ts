@@ -208,7 +208,10 @@ async function aepHandle(region: AliyunRegionResponse, clientId: string, deviceS
 
 // ─── Step 5: exchange the OAuth session id for an iotToken ──────────────────
 
-async function sessionByAuthCode(region: AliyunRegionResponse, oauth: AliyunLoginByOAuthResponse): Promise<string> {
+async function sessionByAuthCode(
+  region: AliyunRegionResponse,
+  oauth: AliyunLoginByOAuthResponse,
+): Promise<{ iotToken: string; iotTokenExpiresAt: number }> {
   const sid = oauth.data.data?.loginSuccessResult.sid;
   if (!sid) throw new Error('loginByOAuth response missing sid');
   const resp = await signedGatewayRequest<AliyunSessionByAuthCodeResponse>({
@@ -218,7 +221,13 @@ async function sessionByAuthCode(region: AliyunRegionResponse, oauth: AliyunLogi
     params: { request: { authCode: sid, accountType: 'OA_SESSION', appKey: ALIYUN_APP_KEY } },
   });
   if (resp.code !== 200 || !resp.data?.iotToken) throw new Error(`sessionByAuthCode failed: code=${resp.code}`);
-  return resp.data.iotToken;
+  // iotTokenExpire is a duration in seconds (confirmed against pymammotion's dev_console.py,
+  // which computes `issued + iotTokenExpire - time.time()` as remaining seconds) — converted
+  // here to an absolute ms timestamp so AliyunCredentialsManager can reuse credentials across
+  // poll ticks instead of re-running this whole handshake every time (see that module's
+  // header comment for why this matters: it was causing real rate-limiting).
+  const iotTokenExpiresAt = Date.now() + resp.data.iotTokenExpire * 1000;
+  return { iotToken: resp.data.iotToken, iotTokenExpiresAt };
 }
 
 // ─── Step 6: the actual read-only lookups ────────────────────────────────────
@@ -285,6 +294,9 @@ export interface AliyunLegacyCredentials {
   deviceName: string;
   /** Short-lived session token for signedGatewayRequest calls and the MQTT bind message. */
   iotToken: string;
+  /** Absolute ms timestamp when iotToken expires — lets AliyunCredentialsManager reuse these
+   *  credentials across calls instead of re-running this whole handshake every time. */
+  iotTokenExpiresAt: number;
 }
 
 export interface LegacyProbeResult {
@@ -317,7 +329,7 @@ export async function probeLegacyAliyunDevices(session: AuthSession): Promise<Le
   const connect = await connectDevice(utdid);
   const oauth = await loginByOAuth(countryCode, session.authorizationCode, region, connect, utdid);
   const aep = await aepHandle(region, clientId, deviceSn);
-  const iotToken = await sessionByAuthCode(region, oauth);
+  const { iotToken, iotTokenExpiresAt } = await sessionByAuthCode(region, oauth);
 
   const bound = await listBindingByAccount(region, iotToken);
   const notices = await getShareNoticeList(region, iotToken).catch(() => ({ code: 0, data: null }));
@@ -330,6 +342,7 @@ export async function probeLegacyAliyunDevices(session: AuthSession): Promise<Le
       productKey: aep.data.productKey,
       deviceName: aep.data.deviceName,
       iotToken,
+      iotTokenExpiresAt,
     }
     : undefined;
 

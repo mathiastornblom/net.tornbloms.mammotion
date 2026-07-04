@@ -78,3 +78,13 @@ export class AliyunCommandError extends MammotionError {
     this.code = code;
   }
 }
+
+/** AliyunCredentialsManager's circuit breaker is open (too many recent handshake failures) —
+ *  see lib/mammotion/aliyun/AliyunCredentialsManager.ts for why this exists (ported from
+ *  pymammotion's TokenManager _ALIYUN_FAILURE_WINDOW/_ALIYUN_FAILURE_LIMIT). */
+export class AliyunCircuitOpenError extends MammotionError {
+  constructor(retryAfterMs: number) {
+    super(`Aliyun legacy handshake circuit breaker open — too many recent failures, retry in ~${Math.ceil(retryAfterMs / 1000)}s`);
+    this.name = 'AliyunCircuitOpenError';
+  }
+}

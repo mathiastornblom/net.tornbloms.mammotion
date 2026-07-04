@@ -9,9 +9,11 @@ import type { AliyunAccountDevice } from '../../lib/mammotion/aliyun/types.js';
 import { AliyunMqttTransport } from '../../lib/mammotion/aliyun/AliyunMqttTransport.js';
 import { checkAliyunConnectivity } from '../../lib/mammotion/aliyun/connectivityCheck.js';
 import { ALIYUN_DOMAIN } from '../../lib/mammotion/aliyun/constants.js';
+import { AliyunCredentialsManager } from '../../lib/mammotion/aliyun/AliyunCredentialsManager.js';
 
 const SESSION_SETTINGS_KEY = 'mammotion_session';
 const CREDENTIALS_SETTINGS_KEY = 'mammotion_credentials';
+const ALIYUN_CREDENTIALS_SETTINGS_KEY = 'mammotion_aliyun_credentials';
 
 interface StoredCredentials { email: string; password: string; }
 
@@ -43,13 +45,18 @@ export default class LubaDriver extends Homey.Driver {
   // docs/ALIYUN_MQTT_TRANSPORT_PLAN.md §1/§3. Every 'aliyun_legacy'-flagged LubaDevice
   // registers itself here rather than owning a private transport instance.
   private aliyunTransport: AliyunMqttTransport | null = null;
-  private aliyunCredentials: AliyunLegacyCredentials | null = null;
-  private aliyunCredentialsPromise: Promise<AliyunLegacyCredentials> | null = null;
+  private aliyunCredentialsManager!: AliyunCredentialsManager;
 
   /** Registers all Flow trigger/condition/action cards for this driver. */
   async onInit(): Promise<void> {
     this.log('LubaDriver initialized');
     this.registerFlowCards();
+    this.aliyunCredentialsManager = new AliyunCredentialsManager({
+      load: () => this.homey.settings.get(ALIYUN_CREDENTIALS_SETTINGS_KEY) ?? null,
+      save: (credentials) => this.homey.settings.set(ALIYUN_CREDENTIALS_SETTINGS_KEY, credentials),
+      log: (msg) => this.log(`[Aliyun credentials] ${msg}`),
+      logError: (msg) => this.error(`[Aliyun credentials] ${msg}`),
+    });
   }
 
   /** Tears down the shared Aliyun legacy transport, if one was ever created. */
@@ -174,46 +181,26 @@ export default class LubaDriver extends Homey.Driver {
 
   // ─── Legacy Aliyun IoT support ────────────────────────────────────────────
 
-  /** Lazily fetches (or reuses cached) account-level Aliyun legacy credentials, re-running
-   *  the 6-step handshake on first use. Concurrent callers (multiple devices initializing
-   *  at once) share the same in-flight probe rather than each starting their own.
-   *  Credentials are cached indefinitely within a running app session — there's no
-   *  refresh-on-expiry yet (docs/ALIYUN_MQTT_TRANSPORT_PLAN.md Stage 3); a caller that gets
-   *  an auth-expiry error back from Aliyun should call invalidateAliyunCredentials() and
-   *  retry once. */
-  private async ensureAliyunCredentials(): Promise<AliyunLegacyCredentials> {
-    if (this.aliyunCredentials) return this.aliyunCredentials;
-    if (!this.aliyunCredentialsPromise) {
-      this.aliyunCredentialsPromise = (async () => {
-        const session = await this.getValidSession();
-        const result = await probeLegacyAliyunDevices(session);
-        if (!result.credentials) throw new Error('Aliyun legacy handshake succeeded but returned no credentials');
-        this.aliyunCredentials = result.credentials;
-        return result.credentials;
-      })().finally(() => {
-        this.aliyunCredentialsPromise = null;
-      });
-    }
-    return this.aliyunCredentialsPromise;
-  }
-
-  /** Public accessor for LubaDevice's Aliyun command-sending path (sendAliyunCloudCommand). */
+  /** Public accessor for LubaDevice's Aliyun command-sending path (sendAliyunCloudCommand)
+   *  and requestSync's poll loop. Delegates all caching/expiry/circuit-breaker logic to
+   *  AliyunCredentialsManager (see that module for why this exists). */
   async getAliyunCredentials(): Promise<AliyunLegacyCredentials> {
-    return this.ensureAliyunCredentials();
+    const session = await this.getValidSession();
+    return this.aliyunCredentialsManager.ensure(session);
   }
 
   /** Seeds the credential cache from a probe result the caller already has (e.g. pairing's
    *  list_devices, which runs the full handshake anyway) — avoids an unnecessary second
    *  handshake the moment the first newly-paired legacy device initializes. */
   private cacheAliyunCredentials(credentials: AliyunLegacyCredentials): void {
-    this.aliyunCredentials = credentials;
+    this.aliyunCredentialsManager.seed(credentials);
   }
 
   /** Drops the cached Aliyun credentials so the next call re-runs the handshake — call this
    *  after a command/connection fails with an auth-expiry code (460/29003, see
    *  AliyunCommandError) before retrying, rather than retrying with the same stale token. */
   invalidateAliyunCredentials(): void {
-    this.aliyunCredentials = null;
+    this.aliyunCredentialsManager.invalidate();
   }
 
   /** Registers a legacy-bound device onto the shared AliyunMqttTransport, creating and
@@ -225,7 +212,7 @@ export default class LubaDriver extends Homey.Driver {
     onMessage: (decoded: Record<string, unknown>) => void,
     onStatus: (online: boolean) => void,
   ): Promise<void> {
-    const credentials = await this.ensureAliyunCredentials();
+    const credentials = await this.getAliyunCredentials();
     if (!this.aliyunTransport) {
       this.aliyunTransport = new AliyunMqttTransport({
         config: credentials,

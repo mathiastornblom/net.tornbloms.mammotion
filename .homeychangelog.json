@@ -199,5 +199,8 @@
   },
   "2.5.12": {
     "en": "Fixed mowers added through Mammotion's older cloud system still showing no data — the periodic check that asks the mower to report in was never actually starting for these mowers in the first place"
+  },
+  "2.5.13": {
+    "en": "The older cloud system's login credentials are now reused and saved between checks instead of logging in fresh every time, with a short pause after repeated failures — reduces load on Mammotion's servers and avoids getting temporarily rate-limited"
   }
 }

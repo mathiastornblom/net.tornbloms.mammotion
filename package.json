@@ -1,6 +1,6 @@
 {
   "name": "net.tornbloms.mammotion",
-  "version": "2.5.12",
+  "version": "2.5.13",
   "type": "module",
   "engines": {
     "node": ">=22.0.0"
@@ -14,12 +14,13 @@
     "test:ble": "tsc && node --test scripts/blufi-codec.test.mjs",
     "test:schedule": "tsc && node --test scripts/schedule-roundtrip.test.mjs",
     "test:routing": "tsc && node --test scripts/device-routing.test.mjs",
-    "test": "npm run test:proto && npm run test:ble && npm run test:schedule && npm run test:routing && npm run test:crash && npm run test:aliyun-signing && npm run test:aliyun-mqtt-credentials && npm run test:aliyun-commands && npm run test:mqtt-invoke-response",
+    "test": "npm run test:proto && npm run test:ble && npm run test:schedule && npm run test:routing && npm run test:crash && npm run test:aliyun-signing && npm run test:aliyun-mqtt-credentials && npm run test:aliyun-commands && npm run test:mqtt-invoke-response && npm run test:aliyun-credentials-manager",
     "test:crash": "tsc && node --test scripts/crash-reporter.test.mjs",
     "test:aliyun-signing": "tsc && node --test scripts/aliyun-signing.test.mjs",
     "test:aliyun-mqtt-credentials": "tsc && node --test scripts/aliyun-mqtt-credentials.test.mjs",
     "test:aliyun-commands": "tsc && node --test scripts/aliyun-commands.test.mjs",
-    "test:mqtt-invoke-response": "tsc && node --test scripts/mqtt-invoke-response.test.mjs"
+    "test:mqtt-invoke-response": "tsc && node --test scripts/mqtt-invoke-response.test.mjs",
+    "test:aliyun-credentials-manager": "tsc && node --test scripts/aliyun-credentials-manager.test.mjs"
   },
   "dependencies": {
     "mqtt": "^5.10.1",
