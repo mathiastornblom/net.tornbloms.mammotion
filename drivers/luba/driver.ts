@@ -480,4 +480,15 @@ export default class LubaDriver extends Homey.Driver {
     if (refreshed !== stored) await this.homey.settings.set(SESSION_SETTINGS_KEY, refreshed);
     return refreshed;
   }
+
+  /** Drops the cached session so the next getValidSession() call performs a full fresh
+   *  login instead of trusting the stored session's client-side expiresAt clock — that
+   *  clock can say "still valid" for several more minutes while the server has already
+   *  invalidated the token (API responds with its own `code: 401`), which otherwise left
+   *  devices retrying with the same broken token in an escalating reconnect loop for
+   *  several minutes straight (see a real diagnostic report). Call this when a cloud API
+   *  call fails with an explicit 401 despite ensureValidSession() considering it current. */
+  invalidateSession(): void {
+    this.homey.settings.unset(SESSION_SETTINGS_KEY);
+  }
 }

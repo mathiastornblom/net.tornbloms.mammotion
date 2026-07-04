@@ -324,6 +324,15 @@ export default class LubaDevice extends Homey.Device {
         this.setUnavailable(this.homey.__('error.invalid_credentials')).catch(this.error.bind(this));
         return;
       }
+
+      // The stored session can look client-side valid (expiresAt in the future) while the
+      // server has already revoked it — the API then answers every call with its own
+      // `code: 401`, and without this, the same broken token gets retried forever with
+      // just a growing backoff (see a real diagnostic report stuck in this loop for 4+
+      // minutes). Drop the cache so the next reconnect attempt forces a fresh login.
+      if (message.includes('API error 401')) {
+        (this.driver as unknown as LubaDriver).invalidateSession();
+      }
       this.scheduleMqttReconnect();
     }
   }

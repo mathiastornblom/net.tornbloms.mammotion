@@ -175,5 +175,8 @@
   },
   "2.5.4": {
     "en": "Added diagnostic logging to confirm mowers found via Mammotion's older cloud system actually reach the pairing screen, to help investigate reports of no devices showing up"
+  },
+  "2.5.5": {
+    "en": "Fixed the app getting stuck reconnecting to the cloud for several minutes with the same broken session after the Mammotion account's login token was invalidated early — it now logs in fresh instead of repeating the same failing attempt"
   }
 }
