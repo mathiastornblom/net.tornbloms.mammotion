@@ -217,5 +217,8 @@
   },
   "2.5.18": {
     "en": "The headlamp toggle and battery cycle count sensor are now hidden on mower models that don't actually have them (e.g. no headlamp on a standard Luba 2, no battery cycle count on models with a removable battery pack), instead of showing controls that never worked — applies automatically to already-paired mowers, no re-pairing needed"
+  },
+  "2.5.19": {
+    "en": "Fixed a Swedish spelling error on the blade used time sensor, and added a missing icon to the mower status sensor"
   }
 }
