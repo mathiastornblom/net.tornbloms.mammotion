@@ -20,7 +20,7 @@ import {
 } from '../../lib/mammotion/commands/LubaCommands.js';
 import { MammotionError, AliyunCommandError, DeviceOfflineError } from '../../lib/mammotion/errors.js';
 import { sendAliyunCloudCommand } from '../../lib/mammotion/aliyun/commands.js';
-import type LubaDriver from './driver.js';
+import LubaDriver from './driver.js';
 
 type MowerStatus = 'idle' | 'mowing' | 'returning' | 'charging' | 'paused' | 'error';
 type TransportName = 'ble' | 'mqtt' | 'aliyun_legacy' | 'none';
@@ -88,6 +88,8 @@ export default class LubaDevice extends Homey.Device {
   async onInit(): Promise<void> {
     this.log(`LubaDevice ${this.getName()} initializing (preference=${this.transportPreference()})`);
 
+    await this.migrateCapabilities();
+
     this.registerCapabilityListener('onoff', async (value: boolean) => {
       await (value ? this.actionStartMowing({}) : this.actionDock());
     });
@@ -124,6 +126,22 @@ export default class LubaDevice extends Homey.Device {
     }
 
     await this.startTransports();
+  }
+
+  /** Adds any capability the driver expects (LubaDriver.PAIRING_CAPABILITIES) that this
+   *  device doesn't already have. Homey only applies a driver's capabilities list at pairing
+   *  time — adding a capability to the manifest (or to that pairing-time list) does nothing
+   *  for devices paired on an older app version, so every capability added after initial
+   *  release needs this to actually reach existing users (confirmed via a real user report,
+   *  2026-07-05: last_sync never appeared after updating to v2.5.16 on an already-paired
+   *  device). Safe to run on every init — addCapability is a no-op if already present. */
+  private async migrateCapabilities(): Promise<void> {
+    for (const capability of LubaDriver.PAIRING_CAPABILITIES) {
+      if (!this.hasCapability(capability)) {
+        this.log(`Migrating: adding missing capability ${capability}`);
+        await this.addCapability(capability).catch(this.error.bind(this));
+      }
+    }
   }
 
   /** Called by the driver after a successful Repair — retries with fresh cloud session. */

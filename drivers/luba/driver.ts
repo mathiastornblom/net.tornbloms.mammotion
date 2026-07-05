@@ -472,9 +472,14 @@ export default class LubaDriver extends Homey.Driver {
 
   /** Capabilities assigned to every newly paired device, regardless of transport kind — Homey
    *  uses THIS pairing-time list (not driver.compose.json's manifest) to set up a new
-   *  device's capabilities, so anything missing here is silently absent until repair.
-   *  Keep in sync with driver.compose.json's top-level "capabilities" array by hand. */
-  private static readonly PAIRING_CAPABILITIES: string[] = [
+   *  device's capabilities, so anything missing here is silently absent on already-paired
+   *  devices too — adding a capability here (or to the compose manifest) does NOT retroactively
+   *  add it to devices paired on an older app version; Homey only applies it at pairing time.
+   *  device.ts's onInit() migrates existing devices onto this same list on every app start
+   *  (confirmed via a real user report, 2026-07-05: last_sync never appeared after updating to
+   *  v2.5.16 on an already-paired device). Keep in sync with driver.compose.json's top-level
+   *  "capabilities" array by hand — not private, since device.ts's migration reads it too. */
+  static readonly PAIRING_CAPABILITIES: string[] = [
     'onoff', 'measure_battery', 'alarm_generic',
     'mower_status', 'measure_mow_progress', 'measure_mow_area', 'mow_blade_height',
     'measure_wifi_rssi', 'measure_ble_rssi', 'measure_gps_stars',
