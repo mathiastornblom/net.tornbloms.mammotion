@@ -20,6 +20,9 @@ import {
 } from '../../lib/mammotion/commands/LubaCommands.js';
 import { MammotionError, AliyunCommandError, DeviceOfflineError } from '../../lib/mammotion/errors.js';
 import { sendAliyunCloudCommand } from '../../lib/mammotion/aliyun/commands.js';
+import {
+  DeviceType, resolveDeviceType, capabilitiesForModel, MODEL_STRING,
+} from '../../lib/mammotion/deviceType.js';
 import LubaDriver from './driver.js';
 
 type MowerStatus = 'idle' | 'mowing' | 'returning' | 'charging' | 'paused' | 'error';
@@ -102,9 +105,13 @@ export default class LubaDevice extends Homey.Device {
       await this.actionSetBladeSpeed(value as 'economic' | 'standard' | 'performance');
     });
 
-    this.registerCapabilityListener('mow_headlamp', async (value: boolean) => {
-      await this.actionSetHeadlamp(value, 0);
-    });
+    // Guarded — mow_headlamp is model-gated by migrateCapabilities() (e.g. absent on a Luba 2
+    // Mini) and Homey errors if you register a listener for a capability the device lacks.
+    if (this.hasCapability('mow_headlamp')) {
+      this.registerCapabilityListener('mow_headlamp', async (value: boolean) => {
+        await this.actionSetHeadlamp(value, 0);
+      });
+    }
 
     this.registerCapabilityListener('mow_side_led', async (value: boolean) => {
       await this.actionSetHeadlamp(value, 1);
@@ -128,18 +135,29 @@ export default class LubaDevice extends Homey.Device {
     await this.startTransports();
   }
 
-  /** Adds any capability the driver expects (LubaDriver.PAIRING_CAPABILITIES) that this
-   *  device doesn't already have. Homey only applies a driver's capabilities list at pairing
-   *  time — adding a capability to the manifest (or to that pairing-time list) does nothing
-   *  for devices paired on an older app version, so every capability added after initial
-   *  release needs this to actually reach existing users (confirmed via a real user report,
-   *  2026-07-05: last_sync never appeared after updating to v2.5.16 on an already-paired
-   *  device). Safe to run on every init — addCapability is a no-op if already present. */
+  /** Reconciles this device's actual capabilities against the model-appropriate set
+   *  (docs/CAPABILITY_DIFFERENTIATION_PLAN.md), adding anything missing and removing anything
+   *  the model doesn't actually have (e.g. mow_headlamp on a Luba 2 Mini, which has no
+   *  headlamp). Homey only applies a driver's capabilities list at pairing time — adding (or
+   *  gating) a capability in the manifest/pairing-time list does nothing for devices paired on
+   *  an older app version, so this needs to run on every init to actually reach existing users
+   *  (confirmed via a real user report, 2026-07-05: last_sync never appeared after updating to
+   *  v2.5.16 on an already-paired device). Safe to run every time — add/removeCapability are
+   *  no-ops when the device already matches the target state. */
   private async migrateCapabilities(): Promise<void> {
+    const context = this.getContext();
+    const deviceType = resolveDeviceType(context.deviceName, context.productKey);
+    const expected = new Set(capabilitiesForModel(LubaDriver.PAIRING_CAPABILITIES, deviceType));
+
     for (const capability of LubaDriver.PAIRING_CAPABILITIES) {
-      if (!this.hasCapability(capability)) {
-        this.log(`Migrating: adding missing capability ${capability}`);
+      const shouldHave = expected.has(capability);
+      const hasIt = this.hasCapability(capability);
+      if (shouldHave && !hasIt) {
+        this.log(`Migrating: adding capability ${capability} (model=${MODEL_STRING[deviceType]})`);
         await this.addCapability(capability).catch(this.error.bind(this));
+      } else if (!shouldHave && hasIt) {
+        this.log(`Migrating: removing capability ${capability} — not supported on model ${MODEL_STRING[deviceType]}`);
+        await this.removeCapability(capability).catch(this.error.bind(this));
       }
     }
   }
@@ -710,14 +728,30 @@ export default class LubaDevice extends Homey.Device {
     await this.sendRaw(bytes, 'start_mowing');
   }
 
-  /** Sends a pre-built raw command, then reflects the new value on the given capability. */
+  /** Sends a pre-built raw command, then reflects the new value on the given capability. On
+   *  failure, logs the resolved model/deviceType alongside the error — capability gating
+   *  (docs/CAPABILITY_DIFFERENTIATION_PLAN.md) is based on device-type class, not the
+   *  individual physical unit, so a command that fails or silently no-ops for a reason tied to
+   *  real hardware variance within a class (e.g. a Luba 2 Mini without a headlamp) needs this
+   *  context captured to ever close that gap. */
   private async sendCommandAndSync(
     commandB64: string,
     label: string,
     capability: string,
     value: number | string | boolean,
   ): Promise<void> {
-    await this.sendRaw(Buffer.from(commandB64, 'base64'), label);
+    try {
+      await this.sendRaw(Buffer.from(commandB64, 'base64'), label);
+    } catch (err) {
+      const context = this.getContext();
+      const deviceType = resolveDeviceType(context.deviceName, context.productKey);
+      this.error(
+        `Command ${label} (capability=${capability}) failed on model=${MODEL_STRING[deviceType]} `
+        + `(deviceType=${DeviceType[deviceType]}, productKey=${context.productKey}, deviceName=${context.deviceName}): `
+        + `${err instanceof Error ? err.message : String(err)}`,
+      );
+      throw err;
+    }
     this.setCapIfChanged(capability, value);
   }
 

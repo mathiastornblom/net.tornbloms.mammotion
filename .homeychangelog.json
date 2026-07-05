@@ -214,5 +214,8 @@
   },
   "2.5.17": {
     "en": "Fixed the new \"Last Updated\" sensor (and other recently added sensors) not appearing on mowers that were already paired before updating — Homey only adds new sensors to devices paired after the update, so existing devices now get them added automatically on the next app restart"
+  },
+  "2.5.18": {
+    "en": "The headlamp toggle and battery cycle count sensor are now hidden on mower models that don't actually have them (e.g. no headlamp on a standard Luba 2, no battery cycle count on models with a removable battery pack), instead of showing controls that never worked — applies automatically to already-paired mowers, no re-pairing needed"
   }
 }

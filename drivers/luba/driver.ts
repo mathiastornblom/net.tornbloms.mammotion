@@ -10,6 +10,7 @@ import { AliyunMqttTransport } from '../../lib/mammotion/aliyun/AliyunMqttTransp
 import { checkAliyunConnectivity } from '../../lib/mammotion/aliyun/connectivityCheck.js';
 import { ALIYUN_DOMAIN } from '../../lib/mammotion/aliyun/constants.js';
 import { AliyunCredentialsManager } from '../../lib/mammotion/aliyun/AliyunCredentialsManager.js';
+import { resolveDeviceType, capabilitiesForModel } from '../../lib/mammotion/deviceType.js';
 
 const SESSION_SETTINGS_KEY = 'mammotion_session';
 const CREDENTIALS_SETTINGS_KEY = 'mammotion_credentials';
@@ -433,11 +434,12 @@ export default class LubaDriver extends Homey.Driver {
     return records.map((record): PairedDeviceResult => {
       const device = ownedByIotId.get(record.iotId) ?? {};
       const context = MammotionAuth.mergeDeviceContext(device, record);
+      const deviceType = resolveDeviceType(context.deviceName, context.productKey);
       return {
         name: context.deviceName || context.iotId,
         data: { id: context.iotId },
         store: { context: { ...context, transportKind: 'mammotion' } },
-        capabilities: LubaDriver.PAIRING_CAPABILITIES,
+        capabilities: capabilitiesForModel(LubaDriver.PAIRING_CAPABILITIES, deviceType),
       };
     });
   }
@@ -461,24 +463,30 @@ export default class LubaDriver extends Homey.Driver {
         deviceType: null,
         transportKind: 'aliyun_legacy',
       };
+      const deviceType = resolveDeviceType(context.deviceName, context.productKey);
       return {
         name: device.nickName || context.deviceName || context.iotId,
         data: { id: context.iotId },
         store: { context },
-        capabilities: LubaDriver.PAIRING_CAPABILITIES,
+        capabilities: capabilitiesForModel(LubaDriver.PAIRING_CAPABILITIES, deviceType),
       };
     });
   }
 
-  /** Capabilities assigned to every newly paired device, regardless of transport kind — Homey
-   *  uses THIS pairing-time list (not driver.compose.json's manifest) to set up a new
-   *  device's capabilities, so anything missing here is silently absent on already-paired
-   *  devices too — adding a capability here (or to the compose manifest) does NOT retroactively
-   *  add it to devices paired on an older app version; Homey only applies it at pairing time.
-   *  device.ts's onInit() migrates existing devices onto this same list on every app start
-   *  (confirmed via a real user report, 2026-07-05: last_sync never appeared after updating to
-   *  v2.5.16 on an already-paired device). Keep in sync with driver.compose.json's top-level
-   *  "capabilities" array by hand — not private, since device.ts's migration reads it too. */
+  /** The full/base capability superset across every model this driver pairs — NOT what any
+   *  single device ends up with. Both buildDeviceList/buildLegacyDeviceList (pairing) and
+   *  device.ts's onInit() migration run this through capabilitiesForModel() (deviceType.ts,
+   *  docs/CAPABILITY_DIFFERENTIATION_PLAN.md) to filter out capabilities the detected model
+   *  doesn't actually have (e.g. mow_headlamp on a Luba 2 Mini) before Homey uses it. Homey
+   *  uses THIS pairing-time list (not driver.compose.json's manifest) to set up a new device's
+   *  capabilities, so anything missing here is silently absent on already-paired devices too —
+   *  adding a capability here (or to the compose manifest) does NOT retroactively add it to
+   *  devices paired on an older app version; Homey only applies it at pairing time. device.ts's
+   *  onInit() migration reconciles existing devices onto the model-filtered set on every app
+   *  start (confirmed via a real user report, 2026-07-05: last_sync never appeared after
+   *  updating to v2.5.16 on an already-paired device). Keep in sync with driver.compose.json's
+   *  top-level "capabilities" array by hand — not private, since device.ts's migration reads
+   *  it too. */
   static readonly PAIRING_CAPABILITIES: string[] = [
     'onoff', 'measure_battery', 'alarm_generic',
     'mower_status', 'measure_mow_progress', 'measure_mow_area', 'mow_blade_height',

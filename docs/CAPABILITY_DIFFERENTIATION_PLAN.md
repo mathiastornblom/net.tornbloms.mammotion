@@ -190,6 +190,30 @@ Options rejected).
 - Confirm Luba 3's `deviceName` prefix / productKey so its gate placement is exact (roadmap:
   Luba 3 is a secondary target).
 
+### Decision (2026-07-05): implemented `is_mini_or_x_series()` gating as-is, despite a
+### conflicting real-world report
+
+Verified directly against Mammotion-HA's `switch.py` (not just this doc's earlier summary):
+`is_mini_or_x_series(device_name)` gates `MINI_AND_X_SERIES_CONFIG_SWITCH_ENTITIES`
+(`manual_light`/`night_light`) **on** for `LUBA_MN` — i.e. upstream's own reference
+implementation *keeps* the headlamp switches for the exact device class Shaun's Luba 2 Mini
+belongs to. This directly conflicts with this doc's own "concrete report" above (that specific
+unit reportedly has no physical headlamp). Separately, the user testing this app's own iOS
+companion app also observed no headlight control on a Luba 2 they tested.
+
+Decided to trust the upstream code over the single conflicting report and keep `mow_headlamp`
+gated by `isMiniOrXSeries()` exactly as `device_type.py`/`switch.py` define it (so it stays
+present for LUBA_MN/LUBA_VP/LUBA_LD and the Yuka mini variants, absent for standard LUBA_2/
+LUBA_VA). If this turns out wrong for a specific unit, the likely cause is either a hardware
+SKU variant not distinguished by `productKey`/`deviceName`, or a bug in this app's
+`actionSetHeadlamp` command mapping rather than the whole class lacking the hardware.
+
+To make that gap diagnosable without guessing again: `device.ts`'s `sendCommandAndSync()` now
+logs the resolved model/deviceType/productKey/deviceName whenever a capability command
+(including `set_headlamp`) fails, so a real failure from an affected user's diagnostic report
+gives us the exact model data needed to reconsider this gate with evidence instead of another
+single anecdote.
+
 ## Next steps
 
 1. Check `docs/ROADMAP.md` placement — this is a correctness fix for a shipped bug affecting a
