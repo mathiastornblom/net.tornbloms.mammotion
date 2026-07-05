@@ -543,10 +543,25 @@ export default class LubaDevice extends Homey.Device {
     return true;
   }
 
+  /** Formats "now" in the Homey hub's own timezone as an unambiguous "YYYY-MM-DD HH:MM:SS"
+   *  string — sv-SE locale formatting conveniently produces that shape without hand-rolling
+   *  date arithmetic. Used for the last_sync diagnostic capability, so users can tell fresh
+   *  telemetry from stale data sitting on screen during a transport outage or cloud backoff
+   *  (e.g. the Aliyun 429 loop this capability was added alongside) instead of assuming the
+   *  displayed battery/status is live right now. */
+  private formatNowForLastSync(): string {
+    return new Intl.DateTimeFormat('sv-SE', {
+      timeZone: this.homey.clock.getTimezone(),
+      dateStyle: 'short',
+      timeStyle: 'medium',
+    }).format(new Date());
+  }
+
   /** Applies a decoded telemetry update to Homey capabilities and fires Flow triggers as needed. */
   private handleTelemetry(iotId: string, state: Partial<TelemetryState>, via: TransportName): void {
     if (iotId !== this.getData().id) return;
     this.mqttFailureCount = 0;
+    this.setCapIfChanged('last_sync', this.formatNowForLastSync());
 
     const changed: string[] = [];
 

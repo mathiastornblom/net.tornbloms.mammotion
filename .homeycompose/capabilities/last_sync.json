@@ -1,0 +1,22 @@
+{
+  "type": "string",
+  "title": {
+    "en": "Last Updated",
+    "nl": "Laatst bijgewerkt",
+    "de": "Zuletzt aktualisiert",
+    "fr": "Dernière mise à jour",
+    "it": "Ultimo aggiornamento",
+    "sv": "Senast uppdaterad",
+    "no": "Sist oppdatert",
+    "es": "Última actualización",
+    "da": "Sidst opdateret",
+    "ru": "Последнее обновление",
+    "pl": "Ostatnia aktualizacja",
+    "ko": "마지막 업데이트",
+    "ar": "آخر تحديث"
+  },
+  "getable": true,
+  "setable": false,
+  "uiComponent": "sensor",
+  "icon": "/assets/clock.svg"
+}

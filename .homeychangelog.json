@@ -208,5 +208,8 @@
   },
   "2.5.15": {
     "en": "Fixed mowers added through Mammotion's older cloud system showing stale data even though they're online in the Mammotion app — once the periodic report request got rate-limited by the cloud, it kept retrying every 5 seconds forever instead of backing off, so it could never recover"
+  },
+  "2.5.16": {
+    "en": "Added a \"Last Updated\" sensor showing when data was last actually refreshed from the mower, so you can tell fresh data from stale data during a connection outage instead of assuming what's on screen is live"
   }
 }
