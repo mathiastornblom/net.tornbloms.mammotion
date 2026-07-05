@@ -220,5 +220,8 @@
   },
   "2.5.19": {
     "en": "Fixed a Swedish spelling error on the blade used time sensor, and added a missing icon to the mower status sensor"
+  },
+  "2.5.20": {
+    "en": "Fixed the mower status never showing \"charging\"/docked and the \"Mower docked\" trigger never firing for some mowers — the docked state wasn't being read correctly for mowers that report it differently. Also added a new \"Mower status changed\" trigger card with the new status as a tag, for flows that want to react to any status change"
   }
 }
