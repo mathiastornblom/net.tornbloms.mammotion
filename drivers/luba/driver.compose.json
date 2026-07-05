@@ -30,6 +30,7 @@
     "measure_elapsed_time",
     "measure_left_time",
     "active_transport",
+    "last_sync",
     "mow_cutter_mode",
     "mow_headlamp",
     "mow_side_led",

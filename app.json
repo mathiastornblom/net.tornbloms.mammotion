@@ -1,7 +1,7 @@
 {
   "_comment": "This file is generated. Please edit .homeycompose/app.json instead.",
   "id": "net.tornbloms.mammotion",
-  "version": "2.5.14",
+  "version": "2.5.16",
   "homeyCommunityTopicId": 156754,
   "homepage": "https://mathiastornblom.github.io/net.tornbloms.mammotion/",
   "compatibility": ">=12.9.0",
@@ -848,6 +848,7 @@
         "measure_elapsed_time",
         "measure_left_time",
         "active_transport",
+        "last_sync",
         "mow_cutter_mode",
         "mow_headlamp",
         "mow_side_led",
@@ -1185,6 +1186,28 @@
       "setable": false,
       "uiComponent": "sensor",
       "icon": "/assets/connection.svg"
+    },
+    "last_sync": {
+      "type": "string",
+      "title": {
+        "en": "Last Updated",
+        "nl": "Laatst bijgewerkt",
+        "de": "Zuletzt aktualisiert",
+        "fr": "Dernière mise à jour",
+        "it": "Ultimo aggiornamento",
+        "sv": "Senast uppdaterad",
+        "no": "Sist oppdatert",
+        "es": "Última actualización",
+        "da": "Sidst opdateret",
+        "ru": "Последнее обновление",
+        "pl": "Ostatnia aktualizacja",
+        "ko": "마지막 업데이트",
+        "ar": "آخر تحديث"
+      },
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/assets/clock.svg"
     },
     "measure_battery_cycles": {
       "type": "number",

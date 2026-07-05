@@ -36,11 +36,20 @@ export function httpsRequestJsonWithStatus<T>(opts: {
         const chunks: Buffer[] = [];
         res.on('data', (c: Buffer) => chunks.push(c));
         res.on('end', () => {
+          const raw = Buffer.concat(chunks).toString('utf8');
+          // The gateway sends an empty body (no JSON at all) for some non-2xx statuses —
+          // most commonly 429 rate-limiting. Rejecting unconditionally on a parse failure
+          // hid the status code from callers like sendAliyunCloudCommand, which need to see
+          // statusCode === 429 to back off — every rate-limited response instead surfaced as
+          // an unclassified "not valid JSON" error, so nothing ever slowed the retry down
+          // (confirmed via a real diagnostic report stuck retrying every 5s against a 429
+          // for 15+ minutes straight, 2026-07-05).
+          if (raw.length === 0) {
+            resolve({ statusCode: res.statusCode ?? 0, body: {} as T });
+            return;
+          }
           try {
-            resolve({
-              statusCode: res.statusCode ?? 0,
-              body: JSON.parse(Buffer.concat(chunks).toString('utf8')) as T,
-            });
+            resolve({ statusCode: res.statusCode ?? 0, body: JSON.parse(raw) as T });
           } catch (e) {
             reject(new Error(`Aliyun response was not valid JSON (status ${res.statusCode}): ${String(e)}`));
           }

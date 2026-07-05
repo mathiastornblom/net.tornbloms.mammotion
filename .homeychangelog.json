@@ -205,5 +205,11 @@
   },
   "2.5.14": {
     "en": "Fixed Blade Used Time showing a wildly overstated value (e.g. 3241 hours instead of the real ~54) — the mower reports this in seconds, not minutes, so the conversion to hours was off by a factor of 60"
+  },
+  "2.5.15": {
+    "en": "Fixed mowers added through Mammotion's older cloud system showing stale data even though they're online in the Mammotion app — once the periodic report request got rate-limited by the cloud, it kept retrying every 5 seconds forever instead of backing off, so it could never recover"
+  },
+  "2.5.16": {
+    "en": "Added a \"Last Updated\" sensor showing when data was last actually refreshed from the mower, so you can tell fresh data from stale data during a connection outage instead of assuming what's on screen is live"
   }
 }

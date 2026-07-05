@@ -454,20 +454,25 @@ export default class LubaDevice extends Homey.Device {
   }
 
   /** Runs one requestSync() attempt and reschedules the next one. A confirmed
-   *  DeviceOfflineError backs off exponentially (OFFLINE_POLL_BASE_MS → _MAX_MS, same
-   *  backoff shape as BleTransport) instead of hammering the cloud every 5s for a mower
-   *  that could be powered off for hours; any other outcome (success, or a
-   *  non-offline error, which is likely transient) keeps the normal fast cadence. */
+   *  DeviceOfflineError, or an AliyunCommandError(429) (rate-limited by the Aliyun gateway —
+   *  see sendAliyunCloudCommand), backs off exponentially (OFFLINE_POLL_BASE_MS → _MAX_MS,
+   *  same backoff shape as BleTransport) instead of hammering the cloud every 5s for a mower
+   *  that could be powered off for hours, or worse, retrying a rate-limited endpoint at full
+   *  speed forever (a real diagnostic report showed exactly this: requestSync every 5s
+   *  against a 429 for 15+ minutes straight, 2026-07-05); any other outcome (success, or a
+   *  different error, which is likely transient) keeps the normal fast cadence. */
   private async runPollTick(): Promise<void> {
     try {
       await this.requestSync();
       this.offlinePollFailureCount = 0;
       this.schedulePoll(TELEMETRY_POLL_INTERVAL_MS);
     } catch (err) {
-      if (err instanceof DeviceOfflineError) {
+      const isRateLimited = err instanceof AliyunCommandError && err.code === 429;
+      if (err instanceof DeviceOfflineError || isRateLimited) {
         this.offlinePollFailureCount += 1;
         const delay = Math.min(OFFLINE_POLL_BASE_MS * (2 ** this.offlinePollFailureCount), OFFLINE_POLL_MAX_MS);
-        this.log(`Poll: mower still offline — next check in ${Math.round(delay / 1000)}s (failure #${this.offlinePollFailureCount})`);
+        const reason = isRateLimited ? 'rate-limited by Aliyun' : 'mower still offline';
+        this.log(`Poll: ${reason} — next check in ${Math.round(delay / 1000)}s (failure #${this.offlinePollFailureCount})`);
         this.schedulePoll(delay);
       } else {
         this.error(`Poll sync failed: ${err instanceof Error ? err.message : String(err)}`);
@@ -538,10 +543,25 @@ export default class LubaDevice extends Homey.Device {
     return true;
   }
 
+  /** Formats "now" in the Homey hub's own timezone as an unambiguous "YYYY-MM-DD HH:MM:SS"
+   *  string — sv-SE locale formatting conveniently produces that shape without hand-rolling
+   *  date arithmetic. Used for the last_sync diagnostic capability, so users can tell fresh
+   *  telemetry from stale data sitting on screen during a transport outage or cloud backoff
+   *  (e.g. the Aliyun 429 loop this capability was added alongside) instead of assuming the
+   *  displayed battery/status is live right now. */
+  private formatNowForLastSync(): string {
+    return new Intl.DateTimeFormat('sv-SE', {
+      timeZone: this.homey.clock.getTimezone(),
+      dateStyle: 'short',
+      timeStyle: 'medium',
+    }).format(new Date());
+  }
+
   /** Applies a decoded telemetry update to Homey capabilities and fires Flow triggers as needed. */
   private handleTelemetry(iotId: string, state: Partial<TelemetryState>, via: TransportName): void {
     if (iotId !== this.getData().id) return;
     this.mqttFailureCount = 0;
+    this.setCapIfChanged('last_sync', this.formatNowForLastSync());
 
     const changed: string[] = [];
 
