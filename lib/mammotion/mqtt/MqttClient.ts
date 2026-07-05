@@ -18,6 +18,13 @@ const MQTT_DEVICE_OFFLINE_CODE = 50104;
 /** Decoded mower telemetry fields, as extracted from a LubaMsg report by TelemetryParser. */
 export interface TelemetryState {
   workMode: number | null;
+  /** rpt_dev_status.charge_state — nonzero while actually drawing charge current. Needed
+   *  alongside workMode to detect "docked": Mammotion-HA's own state logic (lawn_mower.py)
+   *  never maps MODE_CHARGING(15) to its DOCKED activity at all — in practice, a mower
+   *  sitting in its dock reports workMode=MODE_READY(11) with chargeState nonzero, not 15.
+   *  Ignoring this field left the docked/charging status silently stuck (real user report,
+   *  2026-07-05). */
+  chargeState: number | null;
   batteryPercent: number | null;
   wifiRssi: number | null;
   bleRssi: number | null;

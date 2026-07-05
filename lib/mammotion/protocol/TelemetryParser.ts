@@ -29,6 +29,7 @@ export function extractTelemetry(msg: Record<string, unknown>): Partial<Telemetr
   const dev = report.dev as Record<string, number> | undefined;
   if (dev) {
     if (typeof dev.sysStatus === 'number') telemetry.workMode = dev.sysStatus;
+    if (typeof dev.chargeState === 'number') telemetry.chargeState = dev.chargeState;
     if (typeof dev.batteryVal === 'number') telemetry.batteryPercent = dev.batteryVal;
     // Diagnostic-only for now: rpt_dev_status.headlamp_status exists on the wire (same
     // sub-message as sysStatus/batteryVal above) but is never read by Mammotion-HA, so its

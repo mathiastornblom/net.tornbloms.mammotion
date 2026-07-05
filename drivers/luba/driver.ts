@@ -40,6 +40,7 @@ export default class LubaDriver extends Homey.Driver {
   private batteryBelowTrigger!: Homey.FlowCardTriggerDevice;
   private offlineTrigger!: Homey.FlowCardTriggerDevice;
   private onlineTrigger!: Homey.FlowCardTriggerDevice;
+  private statusChangedTrigger!: Homey.FlowCardTriggerDevice;
 
   // ─── Legacy Aliyun IoT support ────────────────────────────────────────────
   // ONE shared connection/credential set per account, not per device — see
@@ -86,6 +87,9 @@ export default class LubaDriver extends Homey.Driver {
 
     this.onlineTrigger = this.homey.flow.getDeviceTriggerCard('mower_online');
     this.onlineTrigger.registerRunListener(() => true);
+
+    this.statusChangedTrigger = this.homey.flow.getDeviceTriggerCard('mower_status_changed');
+    this.statusChangedTrigger.registerRunListener(() => true);
 
     this.homey.flow.getActionCard('start_mowing')
       .registerRunListener(async (args: {
@@ -178,6 +182,13 @@ export default class LubaDriver extends Homey.Driver {
   /** Called by LubaDevice when it transitions from unavailable back to available. */
   triggerMowerOnline(device: Homey.Device): void {
     this.onlineTrigger.trigger(device, {}, {}).catch(this.error.bind(this));
+  }
+
+  /** Called by LubaDevice on every mower_status transition (idle/mowing/returning/charging/
+   *  paused/error) — additive to the specific triggers above, for flows that want the new
+   *  status itself as a token rather than reacting to one particular transition. */
+  triggerMowerStatusChanged(device: Homey.Device, status: string): void {
+    this.statusChangedTrigger.trigger(device, { status }, {}).catch(this.error.bind(this));
   }
 
   // ─── Legacy Aliyun IoT support ────────────────────────────────────────────

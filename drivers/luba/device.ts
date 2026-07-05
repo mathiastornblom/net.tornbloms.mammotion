@@ -41,8 +41,18 @@ const SYNC_ON_CONNECT_DELAY_MS = 2_000;
 const OFFLINE_POLL_BASE_MS = 10_000;
 const OFFLINE_POLL_MAX_MS = 60_000; // 1 min
 
-/** Maps raw work mode integers to Homey mower_status enum values. */
-function workModeToStatus(mode: number): MowerStatus {
+/** Maps raw work mode integers (+ charge_state) to Homey mower_status enum values.
+ *  MODE_READY (11) is ambiguous on its own — sitting idle unplugged and sitting docked and
+ *  charging both report it. Mammotion-HA's own state logic (lawn_mower.py's `activity`
+ *  property) resolves this by also checking `charge_state`: MODE_READY + chargeState !== 0
+ *  is DOCKED. That combination isn't in this switch's mode-only cases, and MODE_READY isn't
+ *  handled at all otherwise (falls through to the 'idle' default) — so a mower docking never
+ *  transitioned to 'charging' and mower_docked never fired (real user report, 2026-07-05).
+ *  MODE_CHARGING(15)/MODE_CHARGING_PAUSE(39) are kept as-is below; HA's own `activity`
+ *  property never actually maps those two, for what it's worth, but there's no reason to stop
+ *  trusting them if a firmware version does report them. */
+function workModeToStatus(mode: number, chargeState: number | null): MowerStatus {
+  if (mode === 11) return chargeState ? 'charging' : 'idle';
   switch (mode) {
     case 13: return 'mowing';
     case 14: return 'returning';
@@ -608,8 +618,8 @@ export default class LubaDevice extends Homey.Device {
       }
     }
     if (state.workMode != null) {
-      const status = workModeToStatus(state.workMode);
-      if (status !== this.currentStatus) changed.push(`status=${status}(${state.workMode})`);
+      const status = workModeToStatus(state.workMode, state.chargeState ?? null);
+      if (status !== this.currentStatus) changed.push(`status=${status}(${state.workMode},charge=${state.chargeState ?? 'n/a'})`);
       this.updateMowerStatus(status, state.workMode);
     }
     if (state.progress != null && this.setCapIfChanged('measure_mow_progress', state.progress)) changed.push(`progress=${state.progress}`);
@@ -658,6 +668,7 @@ export default class LubaDevice extends Homey.Device {
 
     if (status === wasStatus) return;
     const driver = this.driver as unknown as LubaDriver;
+    driver.triggerMowerStatusChanged(this, status);
     if (status === 'mowing') driver.triggerMowerStartedMowing(this);
     else if (status === 'charging') driver.triggerMowerDocked(this);
     else if (status === 'error') driver.triggerMowerError(this);
