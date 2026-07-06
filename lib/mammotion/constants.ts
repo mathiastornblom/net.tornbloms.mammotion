@@ -37,6 +37,16 @@ export const DEVICE_TYPE_NAMES: Record<number, string> = {
   23: 'Luba MB',
 };
 
+/** sys_status values that indicate a mowing job is still active (working, returning to
+ *  dock as the final step, paused mid-job, or paused-while-charging-mid-job) — verified
+ *  against pymammotion's own `MOWING_ACTIVE_MODES` in device_constant.py. Used to derive
+ *  the `onoff` capability: previously onoff was only true for MODE_WORKING/MANUAL_MOWING,
+ *  so a transient/unmapped work-mode value passed through briefly during a normal
+ *  mowing→returning→charging sequence flipped onoff off and back on within seconds — a
+ *  real user reported 20-30 spurious "turned off" Homey notifications overnight from
+ *  exactly this (2026-07-05). */
+export const MOWING_ACTIVE_WORK_MODES: readonly number[] = [13, 14, 19, 39];
+
 /** Work mode codes from the mower telemetry. */
 export const WORK_MODE: Record<number, string> = {
   0: 'not_active',

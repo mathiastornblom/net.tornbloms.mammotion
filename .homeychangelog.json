@@ -223,5 +223,8 @@
   },
   "2.5.20": {
     "en": "Fixed the mower status never showing \"charging\"/docked and the \"Mower docked\" trigger never firing for some mowers — the docked state wasn't being read correctly for mowers that report it differently. Also added a new \"Mower status changed\" trigger card with the new status as a tag, for flows that want to react to any status change"
+  },
+  "2.5.21": {
+    "en": "Fixed the on/off status flickering rapidly during normal mowing (sometimes 20-30 times overnight) — many of the mower's own in-between states while returning to dock or briefly paused were being misread as fully idle/off instead of still working"
   }
 }

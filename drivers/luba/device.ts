@@ -5,6 +5,8 @@ import { MqttClient, type TelemetryState } from '../../lib/mammotion/mqtt/MqttCl
 import { BleTransport } from '../../lib/mammotion/ble/BleTransport.js';
 import { MammotionAuth } from '../../lib/mammotion/auth/MammotionAuth.js';
 import { extractTelemetry } from '../../lib/mammotion/protocol/TelemetryParser.js';
+import { workModeToStatus, isErrorMode, type MowerStatus } from '../../lib/mammotion/protocol/WorkModeStatus.js';
+import { MOWING_ACTIVE_WORK_MODES } from '../../lib/mammotion/constants.js';
 import { extractSchedule, type ScheduleInfo } from '../../lib/mammotion/protocol/ScheduleParser.js';
 import {
   buildTaskControlCommand,
@@ -25,7 +27,6 @@ import {
 } from '../../lib/mammotion/deviceType.js';
 import LubaDriver from './driver.js';
 
-type MowerStatus = 'idle' | 'mowing' | 'returning' | 'charging' | 'paused' | 'error';
 type TransportName = 'ble' | 'mqtt' | 'aliyun_legacy' | 'none';
 type TransportPreference = 'auto' | 'ble_only' | 'mqtt_only';
 
@@ -40,36 +41,6 @@ const SYNC_ON_CONNECT_DELAY_MS = 2_000;
 // however long a looser cap would allow.
 const OFFLINE_POLL_BASE_MS = 10_000;
 const OFFLINE_POLL_MAX_MS = 60_000; // 1 min
-
-/** Maps raw work mode integers (+ charge_state) to Homey mower_status enum values.
- *  MODE_READY (11) is ambiguous on its own — sitting idle unplugged and sitting docked and
- *  charging both report it. Mammotion-HA's own state logic (lawn_mower.py's `activity`
- *  property) resolves this by also checking `charge_state`: MODE_READY + chargeState !== 0
- *  is DOCKED. That combination isn't in this switch's mode-only cases, and MODE_READY isn't
- *  handled at all otherwise (falls through to the 'idle' default) — so a mower docking never
- *  transitioned to 'charging' and mower_docked never fired (real user report, 2026-07-05).
- *  MODE_CHARGING(15)/MODE_CHARGING_PAUSE(39) are kept as-is below; HA's own `activity`
- *  property never actually maps those two, for what it's worth, but there's no reason to stop
- *  trusting them if a firmware version does report them. */
-function workModeToStatus(mode: number, chargeState: number | null): MowerStatus {
-  if (mode === 11) return chargeState ? 'charging' : 'idle';
-  switch (mode) {
-    case 13: return 'mowing';
-    case 14: return 'returning';
-    case 15:
-    case 39: return 'charging';
-    case 19: return 'paused';
-    case 20: return 'mowing';
-    case 37:
-    case 23: return 'error';
-    default: return 'idle';
-  }
-}
-
-/** Whether a raw work-mode integer represents an error/fault state. */
-function isErrorMode(mode: number): boolean {
-  return mode === 37 || mode === 23 || mode === 38;
-}
 
 /**
  * LubaDevice represents a single Mammotion mower paired to Homey.
@@ -663,7 +634,12 @@ export default class LubaDevice extends Homey.Device {
     this.currentStatus = status;
 
     this.setCapIfChanged('mower_status', status);
-    this.setCapIfChanged('onoff', status === 'mowing');
+    // onoff reflects "is a job currently running" (matching MOWING_ACTIVE_WORK_MODES), not
+    // narrowly "is it cutting grass right now" — a mower returning to dock or paused mid-job
+    // hasn't finished the job. Previously tied to `status === 'mowing'` only, which flipped
+    // onoff off for every 'returning'/'paused' report even during completely normal job
+    // behavior; see that constant's header comment for the real diagnostic report this fixes.
+    this.setCapIfChanged('onoff', MOWING_ACTIVE_WORK_MODES.includes(rawMode));
     this.setCapIfChanged('alarm_generic', isErrorMode(rawMode));
 
     if (status === wasStatus) return;
