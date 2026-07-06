@@ -215,6 +215,17 @@ export default class LubaDriver extends Homey.Driver {
     this.aliyunCredentialsManager.invalidate();
   }
 
+  /** Full manual reset of the legacy Aliyun connection state — drops cached credentials AND
+   *  clears the circuit breaker's failure history, so it closes immediately instead of
+   *  waiting out whatever window remains. Called from Repair (see LubaDevice.
+   *  retryAfterRepair()) so a user actually has a working manual recovery path for a stuck
+   *  circuit breaker — previously only a full app restart cleared it (real diagnostic
+   *  report, 2026-07-06: "repair did not resolve but a restart of app did"). */
+  resetAliyunConnection(): void {
+    this.aliyunCredentialsManager.invalidate();
+    this.aliyunCredentialsManager.resetCircuitBreaker();
+  }
+
   /** Registers a legacy-bound device onto the shared AliyunMqttTransport, creating and
    *  connecting it on first use. Safe to call for multiple devices — they share one
    *  connection (see docs/ALIYUN_MQTT_TRANSPORT_PLAN.md's "one connection per account"

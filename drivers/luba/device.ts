@@ -147,6 +147,13 @@ export default class LubaDevice extends Homey.Device {
   async retryAfterRepair(): Promise<void> {
     this.mqttFailureCount = 0;
     this.offlinePollFailureCount = 0;
+    if (this.getContext().transportKind === 'aliyun_legacy') {
+      // A stuck-open circuit breaker previously survived Repair entirely (only a full app
+      // restart cleared it — see LubaDriver.resetAliyunConnection()'s doc comment for the
+      // real diagnostic report). Repair is the user's manual recovery action, so it should
+      // actually be able to recover from this.
+      (this.driver as unknown as LubaDriver).resetAliyunConnection();
+    }
     this.log('Retrying all transports after repair');
     await this.startTransports();
   }
@@ -553,8 +560,17 @@ export default class LubaDevice extends Homey.Device {
     if (wasAvailable) (this.driver as unknown as LubaDriver).triggerMowerOffline(this);
   }
 
-  /** Writes a capability value only if it differs from the current one, to avoid redundant Homey updates. */
+  /** Writes a capability value only if it differs from the current one, to avoid redundant
+   *  Homey updates. Silently no-ops for a capability this device doesn't have — per-model
+   *  capability gating (see lib/mammotion/deviceType.ts) removes capabilities like
+   *  measure_battery_cycles from models that don't support them, but incoming telemetry
+   *  still carries a value for every field regardless of model. getCapabilityValue() throws
+   *  synchronously ("Invalid Capability: X") for a missing capability — uncaught, that threw
+   *  partway through handleTelemetry() and silently dropped every telemetry field that
+   *  would've been processed after it in the same message (real diagnostic report,
+   *  2026-07-06, on a gated-out measure_battery_cycles). */
   private setCapIfChanged(capability: string, value: number | string | boolean): boolean {
+    if (!this.hasCapability(capability)) return false;
     if (this.getCapabilityValue(capability) === value) return false;
     this.setCapabilityValue(capability, value).catch(this.error.bind(this));
     return true;

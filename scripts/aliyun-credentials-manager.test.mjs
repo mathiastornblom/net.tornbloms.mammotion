@@ -181,3 +181,25 @@ test('AliyunCredentialsManager: a successful refresh resets the failure count', 
   assert.equal(result.iotToken, 'token');
   assert.equal(manager.isCircuitBreakerOpen, false);
 });
+
+test('AliyunCredentialsManager: resetCircuitBreaker() closes an open circuit immediately, mid-window', async () => {
+  // Regression coverage for a real diagnostic report (2026-07-06): during a genuine Aliyun
+  // outage, the circuit breaker kept re-opening itself indefinitely (every retry landed
+  // right as the window closed, failed immediately, and re-armed it for another full
+  // window) — and Repair didn't clear this at all, only a full app restart did. This is
+  // the fix: a manual reset the Repair flow can call (see LubaDriver.resetAliyunConnection()).
+  const { manager, advance } = makeHarness({
+    probeImpl: async () => { throw new Error('simulated handshake failure'); },
+  });
+  await assert.rejects(() => manager.ensure({}));
+  advance(1000);
+  await assert.rejects(() => manager.ensure({}));
+  assert.equal(manager.isCircuitBreakerOpen, true);
+
+  manager.resetCircuitBreaker();
+  assert.equal(manager.isCircuitBreakerOpen, false);
+
+  // Immediately retries (no need to wait out the window) — still fails since the
+  // underlying handshake is still broken, but as a real attempt, not a fast-fail.
+  await assert.rejects(() => manager.ensure({}), /simulated handshake failure/);
+});

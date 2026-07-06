@@ -226,5 +226,8 @@
   },
   "2.5.21": {
     "en": "Fixed the on/off status flickering rapidly during normal mowing (sometimes 20-30 times overnight) — many of the mower's own in-between states while returning to dock or briefly paused were being misread as fully idle/off instead of still working"
+  },
+  "2.5.22": {
+    "en": "Fixed Repair not actually recovering a mower stuck offline after repeated cloud errors — it now properly resets the connection instead of requiring a full app restart. Also fixed an error that could silently stop some sensor updates from arriving on models missing certain measurements (e.g. battery cycle count)"
   }
 }

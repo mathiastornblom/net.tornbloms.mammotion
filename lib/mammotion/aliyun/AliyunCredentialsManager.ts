@@ -176,4 +176,18 @@ export class AliyunCredentialsManager {
   get isCircuitBreakerOpen(): boolean {
     return isCircuitOpen(this.failures, this.now());
   }
+
+  /** Clears the recorded failure history so the circuit breaker closes immediately, even
+   *  mid-window. A real diagnostic report (2026-07-06) showed the circuit breaker re-opening
+   *  itself indefinitely during a genuine Aliyun outage (every retry landed right as the
+   *  window closed, failed immediately, and re-opened it for another full window) — the
+   *  user's Repair action didn't clear this at all (only a full app restart did, since that
+   *  creates a fresh instance with an empty failure list). Repair is meant to be a manual
+   *  recovery action, so it should be able to actually reset this stuck state — see
+   *  LubaDriver.resetAliyunConnection(). Unlike invalidate(), this is NOT called from the
+   *  auth-expiry retry path — an auth-expiry rejection is expected/recoverable and isn't
+   *  evidence of a struggling backend worth resetting the breaker over. */
+  resetCircuitBreaker(): void {
+    this.failures = [];
+  }
 }
