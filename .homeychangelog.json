@@ -229,5 +229,14 @@
   },
   "2.5.22": {
     "en": "Fixed Repair not actually recovering a mower stuck offline after repeated cloud errors — it now properly resets the connection instead of requiring a full app restart. Also fixed an error that could silently stop some sensor updates from arriving on models missing certain measurements (e.g. battery cycle count)"
+  },
+  "2.5.23": {
+    "en": "Fixed a burst of rapid, contradictory status updates after using Repair — it was starting a second, duplicate connection on top of the existing one instead of replacing it, doubling cloud traffic and Bluetooth scanning until the app was fully restarted"
+  },
+  "2.5.24": {
+    "en": "Fixed the mower status showing \"paused\" for a job that's actually paused while charging in the dock — it now correctly shows \"charging\" in that case, matching what the battery sensor already showed"
+  },
+  "2.5.25": {
+    "en": "Added diagnostic logging for a few previously-unread sensor fields (including one that may carry hardware fault codes like a lifted wheel) — no visible change yet, but helps identify the right data to build a proper error/warning sensor from real-world reports"
   }
 }

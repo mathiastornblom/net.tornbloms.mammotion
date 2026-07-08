@@ -38,6 +38,15 @@ export function extractTelemetry(msg: Record<string, unknown>): Partial<Telemetr
     // Logged via device.ts's telemetry-changed line so we can collect real values before
     // mapping this to mow_headlamp/mow_side_led. See docs/ROADMAP.md.
     if (typeof dev.headlampStatus === 'number') telemetry.headlampStatusRaw = dev.headlampStatus;
+    // Diagnostic-only, same reason as headlampStatus above: rpt_dev_status.sensor_status
+    // and .self_check_status are two more fields on this exact sub-message that Mammotion-HA
+    // never reads, and neither one's bit layout is confirmed against a real device yet.
+    // These are our best candidates for surfacing hardware faults (e.g. a wheel-lift/
+    // emergency-stop event) that workModeToStatus()'s sys_status-only 'error' mapping can't
+    // see at all (see ErrorCodeParser.ts for the other candidate, MctlSys.toapp_err_code) —
+    // logging both now so a real forced-fault diagnostic report can identify the right one.
+    if (typeof dev.sensorStatus === 'number') telemetry.sensorStatusRaw = dev.sensorStatus;
+    if (typeof dev.selfCheckStatus === 'number') telemetry.selfCheckStatusRaw = dev.selfCheckStatus;
   }
 
   const rtk = report.rtk as Record<string, number> | undefined;

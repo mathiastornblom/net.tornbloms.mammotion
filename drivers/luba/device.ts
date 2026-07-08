@@ -8,6 +8,7 @@ import { extractTelemetry } from '../../lib/mammotion/protocol/TelemetryParser.j
 import { workModeToStatus, isErrorMode, type MowerStatus } from '../../lib/mammotion/protocol/WorkModeStatus.js';
 import { MOWING_ACTIVE_WORK_MODES } from '../../lib/mammotion/constants.js';
 import { extractSchedule, type ScheduleInfo } from '../../lib/mammotion/protocol/ScheduleParser.js';
+import { extractErrorCode } from '../../lib/mammotion/protocol/ErrorCodeParser.js';
 import {
   buildTaskControlCommand,
   buildStartMowCommand,
@@ -65,6 +66,10 @@ export default class LubaDevice extends Homey.Device {
   private currentStatus: MowerStatus = 'idle';
   /** Last logged headlampStatusRaw value — diagnostic change-gating only, not a capability. */
   private lastHeadlampStatusRaw: number | null = null;
+  /** Last logged sensorStatusRaw/selfCheckStatusRaw values — same change-gating purpose as
+   *  lastHeadlampStatusRaw, for the two fault-code candidate fields (see TelemetryParser.ts). */
+  private lastSensorStatusRaw: number | null = null;
+  private lastSelfCheckStatusRaw: number | null = null;
 
   // ─── Init / teardown ─────────────────────────────────────────────────────
 
@@ -145,6 +150,17 @@ export default class LubaDevice extends Homey.Device {
 
   /** Called by the driver after a successful Repair — retries with fresh cloud session. */
   async retryAfterRepair(): Promise<void> {
+    // cleanup() first, matching onSettings()'s transport-preference-change path — without
+    // it, this ran startTransports() on top of whatever was already running: a second
+    // BleTransport left the old one's scan/reconnect loop orphaned (duplicating every BLE
+    // scan and reconnect log line forever), and a second poll-timer chain doubled the
+    // Aliyun requestSync cadence — both writing the same shared this.offlinePollFailureCount,
+    // so its backoff thrashed instead of climbing cleanly. Together this doubled Aliyun
+    // traffic (worsening the very rate-limiting the backoff exists to avoid) and produced
+    // the rapid-fire, contradictory telemetry a real user (Anders) reported as "many status
+    // updates in a short time" for a mower that was actually just sitting in its dock the
+    // whole time (diagnostic log f428f48b-189a-41ce-8ddc-05d0a949a4f3, 2026-07-08).
+    this.cleanup();
     this.mqttFailureCount = 0;
     this.offlinePollFailureCount = 0;
     if (this.getContext().transportKind === 'aliyun_legacy') {
@@ -262,6 +278,17 @@ export default class LubaDevice extends Homey.Device {
     if (iotId !== this.getData().id) return;
     const schedule = extractSchedule(msg);
     if (schedule) this.handleScheduleResponse(schedule);
+    const errorCode = extractErrorCode(msg);
+    if (errorCode !== null) this.handleErrorCodeMessage(errorCode);
+  }
+
+  /** Diagnostic-only: logs a device-pushed fault code (MctlSys.toapp_err_code — see
+   *  ErrorCodeParser.ts), a distinct one-shot message from the periodic telemetry report.
+   *  Not yet wired to alarm_generic/mower_error — the numeric code_no → fault meaning
+   *  table (e.g. wheel-lift/emergency-stop) isn't confirmed against a real device, so this
+   *  just surfaces the raw value until a real fault event's log data can map it. */
+  private handleErrorCodeMessage(code: number): void {
+    this.log(`[error_code] device reported errorCode=${code}`);
   }
 
   /** Logs a parsed schedule read response for diagnostics. */
@@ -639,6 +666,18 @@ export default class LubaDevice extends Homey.Device {
     if (state.headlampStatusRaw != null && state.headlampStatusRaw !== this.lastHeadlampStatusRaw) {
       this.lastHeadlampStatusRaw = state.headlampStatusRaw;
       changed.push(`headlampStatusRaw=${state.headlampStatusRaw} [diagnostic, not yet mapped]`);
+    }
+    // Diagnostic-only, same reason as headlampStatusRaw above — these are our best
+    // candidates for a hardware-fault bitmask (wheel-lift/emergency-stop, bumper, tilt,
+    // etc.) that workModeToStatus()'s sys_status-only 'error' mapping has no visibility
+    // into at all. See TelemetryParser.ts and ErrorCodeParser.ts.
+    if (state.sensorStatusRaw != null && state.sensorStatusRaw !== this.lastSensorStatusRaw) {
+      this.lastSensorStatusRaw = state.sensorStatusRaw;
+      changed.push(`sensorStatusRaw=${state.sensorStatusRaw} [diagnostic, not yet mapped]`);
+    }
+    if (state.selfCheckStatusRaw != null && state.selfCheckStatusRaw !== this.lastSelfCheckStatusRaw) {
+      this.lastSelfCheckStatusRaw = state.selfCheckStatusRaw;
+      changed.push(`selfCheckStatusRaw=${state.selfCheckStatusRaw} [diagnostic, not yet mapped]`);
     }
 
     if (changed.length > 0) this.log(`[${via}] telemetry changed: ${changed.join(' ')}`);

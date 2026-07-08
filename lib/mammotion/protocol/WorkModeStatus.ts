@@ -33,11 +33,19 @@ export function workModeToStatus(mode: number, chargeState: number | null): Mowe
       return 'returning';
     case 15: // MODE_CHARGING
       return 'charging';
-    case 19: // MODE_PAUSE
-    case 39: // MODE_CHARGING_PAUSE — pymammotion classifies this as an active-job pause,
-      // not real charging (see MOWING_ACTIVE_WORK_MODES's header comment), so it's grouped
-      // with MODE_PAUSE rather than MODE_CHARGING here too.
+    case 19: // MODE_PAUSE — paused away from the dock (e.g. mid-lawn), not charging.
       return 'paused';
+    case 39: // MODE_CHARGING_PAUSE — unlike MODE_PAUSE, this name (and WORK_MODE's own
+      // 'charging_pause' label) says the mower is docked and actually charging while its
+      // job sits paused, pending resume. Previously always shown as 'paused' regardless —
+      // a real user reported the mower_status sensor stuck on "paused" for 30+ minutes
+      // while the battery capability visibly climbed from 45% to 76% the whole time,
+      // sitting untouched in its dock (diagnostic log d5fdbba3-b16d-49b2-b19a-38815819564d,
+      // 2026-07-08: "Charging but paused from cutting task"). Mirrors MODE_READY(11)'s
+      // identical chargeState-based resolution above; falls back to 'paused' only if
+      // chargeState is unexpectedly absent/zero despite the mode. onoff still stays true
+      // here regardless (see MOWING_ACTIVE_WORK_MODES) — the job itself hasn't ended.
+      return chargeState ? 'charging' : 'paused';
     case 23: // MODE_OTA_UPGRADE_FAIL
     case 37: // MODE_LOCATION_ERROR
     case 38: // MODE_BOUNDARY_JUMP

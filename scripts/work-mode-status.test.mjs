@@ -14,7 +14,9 @@ import { MOWING_ACTIVE_WORK_MODES } from '../.homeybuild/lib/mammotion/constants
 // previously unused) and MOWING_ACTIVE_WORK_MODES for the full pymammotion WorkMode mapping.
 //
 // Also covers MODE_READY(11)'s chargeState-based disambiguation, from a separate real user
-// report the same day (docked mowers never transitioning to 'charging').
+// report the same day (docked mowers never transitioning to 'charging'), and
+// MODE_CHARGING_PAUSE(39)'s identical disambiguation added later (2026-07-08, mower_status
+// stuck on 'paused' for 30+ minutes on a mower that was actually charging in its dock).
 
 test('workModeToStatus: MODE_WORKING and MODE_MANUAL_MOWING both map to mowing', () => {
   assert.equal(workModeToStatus(13, null), 'mowing');
@@ -29,9 +31,21 @@ test('workModeToStatus: MODE_CHARGING maps to charging', () => {
   assert.equal(workModeToStatus(15, null), 'charging');
 });
 
-test('workModeToStatus: MODE_PAUSE and MODE_CHARGING_PAUSE both map to paused', () => {
+test('workModeToStatus: MODE_PAUSE always maps to paused, regardless of chargeState', () => {
   assert.equal(workModeToStatus(19, null), 'paused');
+  assert.equal(workModeToStatus(19, 1), 'paused');
+});
+
+test('workModeToStatus: MODE_CHARGING_PAUSE with a nonzero chargeState is charging (docked mid-job)', () => {
+  // Real diagnostic report, 2026-07-08: mower_status stuck showing "paused" for 30+
+  // minutes while measure_battery visibly climbed the whole time (dock-charging while its
+  // job sat paused, pending resume) — see WorkModeStatus.ts's case 39 comment.
+  assert.equal(workModeToStatus(39, 1), 'charging');
+});
+
+test('workModeToStatus: MODE_CHARGING_PAUSE with no/zero chargeState falls back to paused', () => {
   assert.equal(workModeToStatus(39, null), 'paused');
+  assert.equal(workModeToStatus(39, 0), 'paused');
 });
 
 test('workModeToStatus: MODE_OTA_UPGRADE_FAIL, MODE_LOCATION_ERROR, MODE_BOUNDARY_JUMP map to error', () => {
