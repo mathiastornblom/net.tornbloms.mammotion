@@ -235,5 +235,8 @@
   },
   "2.5.24": {
     "en": "Fixed the mower status showing \"paused\" for a job that's actually paused while charging in the dock — it now correctly shows \"charging\" in that case, matching what the battery sensor already showed"
+  },
+  "2.5.25": {
+    "en": "Added diagnostic logging for a few previously-unread sensor fields (including one that may carry hardware fault codes like a lifted wheel) — no visible change yet, but helps identify the right data to build a proper error/warning sensor from real-world reports"
   }
 }

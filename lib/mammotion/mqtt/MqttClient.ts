@@ -38,6 +38,10 @@ export interface TelemetryState {
   posLevel: number | null;
   latitude: number | null;
   longitude: number | null;
+  /** MctlSys.toapp_err_code.errorCode (see ErrorCodeParser.ts) — a device-pushed fault
+   *  code, distinct from the periodic report fields above. Diagnostic only for now: the
+   *  numeric code_no → fault meaning table (e.g. wheel-lift/emergency-stop) isn't ported
+   *  yet, logged so a real fault event's raw value can be collected first. */
   errorCode: number | null;
   // maintain report (RIT_MAINTAIN)
   batteryCycles: number | null;
@@ -47,6 +51,13 @@ export interface TelemetryState {
    *  since Mammotion-HA never reads this field either; logged so real values can be
    *  collected before implementing. See docs/ROADMAP.md. */
   headlampStatusRaw: number | null;
+  /** Raw rpt_dev_status.sensor_status wire value — diagnostic only, bit layout unconfirmed.
+   *  A candidate for surfacing hardware faults (wheel-lift, bumper, tilt, etc.) that
+   *  workModeToStatus()'s sys_status-only 'error' mapping can't see. See TelemetryParser.ts. */
+  sensorStatusRaw: number | null;
+  /** Raw rpt_dev_status.self_check_status wire value — diagnostic only, same reasoning as
+   *  sensorStatusRaw above. */
+  selfCheckStatusRaw: number | null;
 }
 
 /** Fired with the changed telemetry fields whenever a report is decoded. */
