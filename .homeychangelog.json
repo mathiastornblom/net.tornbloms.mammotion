@@ -241,5 +241,8 @@
   },
   "2.5.26": {
     "en": "The mower status and error alarm now correctly show \"error\" for a locked/faulted mower state that was previously shown as idle"
+  },
+  "2.5.27": {
+    "en": "Added two new sensors: Bumper Status (OK/Warning/Error) and Blade Active (on while the cutting blade is spinning) — applies automatically to already-paired mowers, no re-pairing needed"
   }
 }
