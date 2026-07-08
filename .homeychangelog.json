@@ -232,5 +232,8 @@
   },
   "2.5.23": {
     "en": "Fixed a burst of rapid, contradictory status updates after using Repair — it was starting a second, duplicate connection on top of the existing one instead of replacing it, doubling cloud traffic and Bluetooth scanning until the app was fully restarted"
+  },
+  "2.5.24": {
+    "en": "Fixed the mower status showing \"paused\" for a job that's actually paused while charging in the dock — it now correctly shows \"charging\" in that case, matching what the battery sensor already showed"
   }
 }
