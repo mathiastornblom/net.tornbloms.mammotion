@@ -46,12 +46,21 @@ export function workModeToStatus(mode: number, chargeState: number | null): Mowe
       // chargeState is unexpectedly absent/zero despite the mode. onoff still stays true
       // here regardless (see MOWING_ACTIVE_WORK_MODES) — the job itself hasn't ended.
       return chargeState ? 'charging' : 'paused';
+    case 17: // MODE_LOCK — confirmed against Mammotion-HA's own lawn_mower.py `activity`
+      // property (`if mode == WorkMode.MODE_LOCK: return LawnMowerActivity.ERROR`), which
+      // this app's isErrorMode()/workModeToStatus() never recognized at all before (only
+      // 23/37/38 were mapped to 'error'). Investigated in response to a wheel-lift/
+      // emergency-stop report where the fault never surfaced as 'error' — MODE_LOCK is the
+      // one upstream-confirmed fault code independent of that still-unresolved question
+      // (sensor_status/self_check_status have no wheel-lift bit in pymammotion's own
+      // decoded layout; see TelemetryParser.ts's sensorStatusRaw/selfCheckStatusRaw
+      // comments — a sustained MODE_LOCK is the more likely signal for a hard safety stop).
     case 23: // MODE_OTA_UPGRADE_FAIL
     case 37: // MODE_LOCATION_ERROR
     case 38: // MODE_BOUNDARY_JUMP
       return 'error';
     // Everything else — MODE_NOT_ACTIVE/ONLINE/OFFLINE/POWER_OFF/DISABLE/INITIALIZATION/
-    // UPDATING/LOCK/UPDATE_SUCCESS and the mobile-app-only boundary/obstacle/channel/
+    // UPDATING/UPDATE_SUCCESS and the mobile-app-only boundary/obstacle/channel/
     // eraser-drawing UI modes — has no better Homey status than 'idle'.
     default: return 'idle';
   }
@@ -59,7 +68,8 @@ export function workModeToStatus(mode: number, chargeState: number | null): Mowe
 
 /** Whether a raw work-mode integer represents an error/fault state — kept in sync with
  *  workModeToStatus()'s 'error' cases above (previously missing mode 38, inconsistent with
- *  the status switch which did classify it separately). */
+ *  the status switch which did classify it separately; mode 17/MODE_LOCK added 2026-07-08,
+ *  see workModeToStatus()'s comment on that case). */
 export function isErrorMode(mode: number): boolean {
-  return mode === 23 || mode === 37 || mode === 38;
+  return mode === 17 || mode === 23 || mode === 37 || mode === 38;
 }

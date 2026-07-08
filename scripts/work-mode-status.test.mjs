@@ -54,6 +54,14 @@ test('workModeToStatus: MODE_OTA_UPGRADE_FAIL, MODE_LOCATION_ERROR, MODE_BOUNDAR
   assert.equal(workModeToStatus(38, null), 'error');
 });
 
+test('workModeToStatus: MODE_LOCK maps to error, matching Mammotion-HA\'s own activity property', () => {
+  // Confirmed directly against custom_components/mammotion/lawn_mower.py's `activity`
+  // property: `if mode == WorkMode.MODE_LOCK: return LawnMowerActivity.ERROR`. Previously
+  // fell through to 'idle' — investigated in response to a wheel-lift/emergency-stop
+  // report where the fault never surfaced as 'error' at all (2026-07-08).
+  assert.equal(workModeToStatus(17, null), 'error');
+});
+
 test('workModeToStatus: MODE_READY(11) with a nonzero chargeState is charging (docked)', () => {
   assert.equal(workModeToStatus(11, 1), 'charging');
 });
@@ -65,15 +73,16 @@ test('workModeToStatus: MODE_READY(11) with no/zero chargeState is idle', () => 
 
 test('workModeToStatus: previously-unmapped transient codes now fall back to idle explicitly, not by accident', () => {
   // MODE_NOT_ACTIVE, MODE_ONLINE, MODE_OFFLINE, MODE_POWER_OFF, MODE_DISABLE,
-  // MODE_INITIALIZATION, MODE_UPDATING, MODE_LOCK, MODE_UPDATE_SUCCESS, and the
-  // mobile-app-only boundary/obstacle/channel/eraser drawing UI modes.
-  for (const mode of [0, 1, 2, 3, 8, 10, 16, 17, 22, 31, 32, 34, 35, 36]) {
+  // MODE_INITIALIZATION, MODE_UPDATING, MODE_UPDATE_SUCCESS, and the mobile-app-only
+  // boundary/obstacle/channel/eraser drawing UI modes. MODE_LOCK(17) used to be in this
+  // bucket too — moved to its own 'error' test above (2026-07-08).
+  for (const mode of [0, 1, 2, 3, 8, 10, 16, 22, 31, 32, 34, 35, 36]) {
     assert.equal(workModeToStatus(mode, null), 'idle', `mode ${mode} should be idle`);
   }
 });
 
 test('isErrorMode: matches exactly workModeToStatus\'s error cases', () => {
-  for (const mode of [23, 37, 38]) assert.equal(isErrorMode(mode), true);
+  for (const mode of [17, 23, 37, 38]) assert.equal(isErrorMode(mode), true);
   for (const mode of [13, 14, 15, 19, 20, 39, 0, 11]) assert.equal(isErrorMode(mode), false);
 });
 
