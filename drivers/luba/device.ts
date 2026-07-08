@@ -145,6 +145,17 @@ export default class LubaDevice extends Homey.Device {
 
   /** Called by the driver after a successful Repair — retries with fresh cloud session. */
   async retryAfterRepair(): Promise<void> {
+    // cleanup() first, matching onSettings()'s transport-preference-change path — without
+    // it, this ran startTransports() on top of whatever was already running: a second
+    // BleTransport left the old one's scan/reconnect loop orphaned (duplicating every BLE
+    // scan and reconnect log line forever), and a second poll-timer chain doubled the
+    // Aliyun requestSync cadence — both writing the same shared this.offlinePollFailureCount,
+    // so its backoff thrashed instead of climbing cleanly. Together this doubled Aliyun
+    // traffic (worsening the very rate-limiting the backoff exists to avoid) and produced
+    // the rapid-fire, contradictory telemetry a real user (Anders) reported as "many status
+    // updates in a short time" for a mower that was actually just sitting in its dock the
+    // whole time (diagnostic log f428f48b-189a-41ce-8ddc-05d0a949a4f3, 2026-07-08).
+    this.cleanup();
     this.mqttFailureCount = 0;
     this.offlinePollFailureCount = 0;
     if (this.getContext().transportKind === 'aliyun_legacy') {
