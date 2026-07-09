@@ -5,6 +5,7 @@ import mqtt from 'mqtt';
 
 import { decodeLubaMsg } from '../protocol/Codec.js';
 import { ALIYUN_MQTT_CA_BUNDLE } from './caBundle.js';
+import { errorMessage } from '../../util/errorMessage.js';
 
 /**
  * Config for the ONE shared Aliyun IoT MQTT connection for an account — NOT per-device.
@@ -344,7 +345,7 @@ export class AliyunMqttTransport {
     try {
       decoded = decodeLubaMsg(Buffer.from(content, 'base64'));
     } catch (err) {
-      this.logError(`Aliyun MQTT protobuf decode failed: ${err instanceof Error ? err.message : String(err)}`);
+      this.logError(`Aliyun MQTT protobuf decode failed: ${errorMessage(err)}`);
       return;
     }
     device.onMessage(decoded);
