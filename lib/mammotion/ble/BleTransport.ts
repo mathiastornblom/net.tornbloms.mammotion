@@ -125,7 +125,15 @@ export class BleTransport {
         // Not found is the expected steady state when MQTT is doing the work (or
         // the mower is simply out of BLE range of the hub) — log it quietly and
         // retry. logError is reserved for genuine protocol bugs, not range/signal.
-        this.log(`BLE: device ${this.deviceName} not found in scan`);
+        // Routed through reportFailure() (not a bare log()) so this counts toward
+        // consecutiveFailures like every other failure path below — previously it
+        // didn't, so a device that's never found (out of range for a long stretch,
+        // or a hub with no BLE radio at all, e.g. a Homey Pro Mini without a Homey
+        // Bridge) rescanned every 15s forever instead of ever reaching the 30-minute
+        // quiet cap this backoff already has for exactly that persistent case. A
+        // single successful connect still resets the counter to 0 below, so a mower
+        // that comes back into range promptly returns to the fast 15s cadence.
+        this.reportFailure(`BLE: device ${this.deviceName} not found in scan`);
         this.scheduleReconnect();
         return;
       }
