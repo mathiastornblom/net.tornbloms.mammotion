@@ -1,7 +1,7 @@
 {
   "_comment": "This file is generated. Please edit .homeycompose/app.json instead.",
   "id": "net.tornbloms.mammotion",
-  "version": "2.5.25",
+  "version": "2.5.28",
   "homeyCommunityTopicId": 156754,
   "homepage": "https://mathiastornblom.github.io/net.tornbloms.mammotion/",
   "compatibility": ">=12.9.0",
@@ -903,7 +903,9 @@
         "mow_rain_protection",
         "measure_battery_cycles",
         "measure_blade_used_time",
-        "mow_send_to_dock"
+        "mow_send_to_dock",
+        "mow_bumper_state",
+        "mow_blade_active"
       ],
       "energy": {
         "batteries": [
@@ -1501,6 +1503,28 @@
       "uiComponent": "sensor",
       "icon": "/assets/wifi.svg"
     },
+    "mow_blade_active": {
+      "type": "boolean",
+      "title": {
+        "en": "Blade Active",
+        "nl": "Mes actief",
+        "de": "Messer aktiv",
+        "fr": "Lame active",
+        "it": "Lama attiva",
+        "sv": "Kniv aktiv",
+        "no": "Kniv aktiv",
+        "es": "Cuchilla activa",
+        "da": "Klinge aktiv",
+        "ru": "Нож активен",
+        "pl": "Nóż aktywny",
+        "ko": "블레이드 작동 중",
+        "ar": "الشفرة نشطة"
+      },
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/assets/icon.svg"
+    },
     "mow_blade_height": {
       "type": "number",
       "title": {
@@ -1527,6 +1551,84 @@
       "setable": true,
       "uiComponent": "slider",
       "icon": "/assets/hight.svg"
+    },
+    "mow_bumper_state": {
+      "type": "enum",
+      "values": [
+        {
+          "id": "ok",
+          "title": {
+            "en": "OK",
+            "nl": "OK",
+            "de": "OK",
+            "fr": "OK",
+            "it": "OK",
+            "sv": "OK",
+            "no": "OK",
+            "es": "OK",
+            "da": "OK",
+            "ru": "ОК",
+            "pl": "OK",
+            "ko": "정상",
+            "ar": "جيد"
+          }
+        },
+        {
+          "id": "warning",
+          "title": {
+            "en": "Warning",
+            "nl": "Waarschuwing",
+            "de": "Warnung",
+            "fr": "Avertissement",
+            "it": "Avviso",
+            "sv": "Varning",
+            "no": "Advarsel",
+            "es": "Advertencia",
+            "da": "Advarsel",
+            "ru": "Предупреждение",
+            "pl": "Ostrzeżenie",
+            "ko": "경고",
+            "ar": "تحذير"
+          }
+        },
+        {
+          "id": "error",
+          "title": {
+            "en": "Error",
+            "nl": "Fout",
+            "de": "Fehler",
+            "fr": "Erreur",
+            "it": "Errore",
+            "sv": "Fel",
+            "no": "Feil",
+            "es": "Error",
+            "da": "Fejl",
+            "ru": "Ошибка",
+            "pl": "Błąd",
+            "ko": "오류",
+            "ar": "خطأ"
+          }
+        }
+      ],
+      "title": {
+        "en": "Bumper Status",
+        "nl": "Bumperstatus",
+        "de": "Stoßfängerstatus",
+        "fr": "État du pare-chocs",
+        "it": "Stato paraurti",
+        "sv": "Stötfångarstatus",
+        "no": "Støtfangerstatus",
+        "es": "Estado del parachoques",
+        "da": "Kofangerstatus",
+        "ru": "Статус бампера",
+        "pl": "Stan zderzaka",
+        "ko": "범퍼 상태",
+        "ar": "حالة المصد"
+      },
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/assets/icon.svg"
     },
     "mow_cutter_mode": {
       "type": "enum",

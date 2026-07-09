@@ -51,13 +51,29 @@ export interface TelemetryState {
    *  since Mammotion-HA never reads this field either; logged so real values can be
    *  collected before implementing. See docs/ROADMAP.md. */
   headlampStatusRaw: number | null;
-  /** Raw rpt_dev_status.sensor_status wire value — diagnostic only, bit layout unconfirmed.
-   *  A candidate for surfacing hardware faults (wheel-lift, bumper, tilt, etc.) that
-   *  workModeToStatus()'s sys_status-only 'error' mapping can't see. See TelemetryParser.ts. */
+  /** Raw rpt_dev_status.sensor_status wire value — kept alongside the decoded
+   *  bumperState/bladeActive fields below since sensor_status also carries four
+   *  ultrasonic-sensor sub-fields (bits 12-23) this app doesn't decode yet. See
+   *  TelemetryParser.ts. */
   sensorStatusRaw: number | null;
-  /** Raw rpt_dev_status.self_check_status wire value — diagnostic only, same reasoning as
-   *  sensorStatusRaw above. */
+  /** Decoded from sensorStatusRaw bits 0-2 — see TelemetryParser.ts's decodeBumperState(),
+   *  confirmed against pymammotion's own bumper_state property. */
+  bumperState: 'ok' | 'warning' | 'error' | null;
+  /** Decoded from sensorStatusRaw bits 9-11 — see TelemetryParser.ts's decodeBladeActive(),
+   *  confirmed against pymammotion's own blade_state property. True while the cutting blade
+   *  motor is spinning. */
+  bladeActive: boolean | null;
+  /** Raw rpt_dev_status.self_check_status wire value — diagnostic only. Unlike
+   *  sensorStatusRaw, this field has no interpretation anywhere in Mammotion-HA/pymammotion
+   *  at all, so it stays raw pending a real diagnostic capture giving it empirical meaning.
+   *  See docs/WHEEL_LIFT_FAULT_DIAGNOSTIC_PLAN.md. */
   selfCheckStatusRaw: number | null;
+  /** Raw rpt_dev_status.sys_time_stamp wire value — diagnostic only, epoch/units
+   *  unconfirmed. Logged to test whether rapid mowing/charging status flip-flops seen in
+   *  real diagnostic reports are stale/out-of-order buffered reports (from a mower stuck
+   *  behind heavy Aliyun rate-limiting) rather than a real physical oscillation. See
+   *  TelemetryParser.ts. */
+  sysTimeStampRaw: number | null;
 }
 
 /** Fired with the changed telemetry fields whenever a report is decoded. */

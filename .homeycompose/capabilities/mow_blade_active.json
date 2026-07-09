@@ -1,0 +1,22 @@
+{
+  "type": "boolean",
+  "title": {
+    "en": "Blade Active",
+    "nl": "Mes actief",
+    "de": "Messer aktiv",
+    "fr": "Lame active",
+    "it": "Lama attiva",
+    "sv": "Kniv aktiv",
+    "no": "Kniv aktiv",
+    "es": "Cuchilla activa",
+    "da": "Klinge aktiv",
+    "ru": "Нож активен",
+    "pl": "Nóż aktywny",
+    "ko": "블레이드 작동 중",
+    "ar": "الشفرة نشطة"
+  },
+  "getable": true,
+  "setable": false,
+  "uiComponent": "sensor",
+  "icon": "/assets/icon.svg"
+}

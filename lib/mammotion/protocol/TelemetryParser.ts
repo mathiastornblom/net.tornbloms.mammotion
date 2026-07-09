@@ -1,6 +1,32 @@
 import type { TelemetryState } from '../mqtt/MqttClient.js';
 
 /**
+ * Decodes rpt_dev_status.sensor_status's bumper sub-field (bits 0-2) into Homey's
+ * mow_bumper_state enum. Bit layout confirmed directly against pymammotion's
+ * data/model/report_info.py (`bumper_state` property: `raw = sensor_status & 0x7`,
+ * clamped to its SensorCheckState enum — OK=0, WARNING=1, ERROR=2, with any of the
+ * remaining 3-7 raw values also clamped to ERROR), itself sourced from the official
+ * Mammotion Android app per that file's own comments — not inferred from our own captures.
+ */
+export function decodeBumperState(sensorStatus: number): 'ok' | 'warning' | 'error' {
+  const raw = sensorStatus & 0x7;
+  if (raw >= 2) return 'error';
+  if (raw === 1) return 'warning';
+  return 'ok';
+}
+
+/**
+ * Decodes rpt_dev_status.sensor_status's blade sub-field (bits 9-11) into a boolean —
+ * true whenever the cutting blade motor is spinning. Same source/confirmation as
+ * decodeBumperState above: `raw = (sensor_status >> 9) & 0x7`, `ON if raw else OFF`.
+ * (A "+512" bit change previously mistaken for a possible wheel-lift/fault signal in a
+ * real diagnostic capture was this field turning on as mowing resumed — not a fault.)
+ */
+export function decodeBladeActive(sensorStatus: number): boolean {
+  return ((sensorStatus >>> 9) & 0x7) !== 0;
+}
+
+/**
  * Extract TelemetryState from a decoded LubaMsg plain object (camelCase fields).
  * Used by both MQTT and BLE paths — the same LubaMsg protobuf carries the same
  * report_info_data regardless of transport.
@@ -38,15 +64,33 @@ export function extractTelemetry(msg: Record<string, unknown>): Partial<Telemetr
     // Logged via device.ts's telemetry-changed line so we can collect real values before
     // mapping this to mow_headlamp/mow_side_led. See docs/ROADMAP.md.
     if (typeof dev.headlampStatus === 'number') telemetry.headlampStatusRaw = dev.headlampStatus;
-    // Diagnostic-only, same reason as headlampStatus above: rpt_dev_status.sensor_status
-    // and .self_check_status are two more fields on this exact sub-message that Mammotion-HA
-    // never reads, and neither one's bit layout is confirmed against a real device yet.
-    // These are our best candidates for surfacing hardware faults (e.g. a wheel-lift/
-    // emergency-stop event) that workModeToStatus()'s sys_status-only 'error' mapping can't
-    // see at all (see ErrorCodeParser.ts for the other candidate, MctlSys.toapp_err_code) —
-    // logging both now so a real forced-fault diagnostic report can identify the right one.
-    if (typeof dev.sensorStatus === 'number') telemetry.sensorStatusRaw = dev.sensorStatus;
+    if (typeof dev.sensorStatus === 'number') {
+      telemetry.sensorStatusRaw = dev.sensorStatus;
+      // bumper_state/blade_state are confirmed decodes (see decodeBumperState/
+      // decodeBladeActive above) — mapped to real capabilities. The raw value is still kept
+      // above too: sensor_status also carries four ultrasonic-sensor sub-fields (bits
+      // 12-23) this app doesn't decode yet, and self_check_status (below) has no upstream
+      // interpretation at all — both remain open questions in the wheel-lift/emergency-stop
+      // investigation (docs/WHEEL_LIFT_FAULT_DIAGNOSTIC_PLAN.md).
+      telemetry.bumperState = decodeBumperState(dev.sensorStatus);
+      telemetry.bladeActive = decodeBladeActive(dev.sensorStatus);
+    }
+    // Diagnostic-only: rpt_dev_status.self_check_status has no upstream interpretation
+    // anywhere in Mammotion-HA/pymammotion — logged raw so a real forced-fault diagnostic
+    // report can still identify a meaning empirically. See
+    // docs/WHEEL_LIFT_FAULT_DIAGNOSTIC_PLAN.md.
     if (typeof dev.selfCheckStatus === 'number') telemetry.selfCheckStatusRaw = dev.selfCheckStatus;
+    // Diagnostic-only: rpt_dev_status.sys_time_stamp is never read by Mammotion-HA either,
+    // and its epoch/units are unconfirmed (unix seconds vs. ms vs. device-uptime counter).
+    // Logged (alongside device.ts's own Date.now() at receipt) to test a real hypothesis:
+    // two real diagnostic reports on the same device now show mower_status rapidly
+    // flip-flopping between 'mowing'/'charging' within seconds during a sustained Aliyun
+    // rate-limiting window that later dropped the connection entirely — consistent with
+    // stale/out-of-order buffered reports being applied as if live, not a real physical
+    // oscillation. If sysTimeStampRaw turns out to be wall-clock and lags noticeably behind
+    // receipt time during exactly these windows, that confirms it and gives us a field to
+    // reject stale reports on.
+    if (typeof dev.sysTimeStamp === 'number') telemetry.sysTimeStampRaw = dev.sysTimeStamp;
   }
 
   const rtk = report.rtk as Record<string, number> | undefined;

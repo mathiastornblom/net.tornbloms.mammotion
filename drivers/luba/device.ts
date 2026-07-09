@@ -70,6 +70,8 @@ export default class LubaDevice extends Homey.Device {
    *  lastHeadlampStatusRaw, for the two fault-code candidate fields (see TelemetryParser.ts). */
   private lastSensorStatusRaw: number | null = null;
   private lastSelfCheckStatusRaw: number | null = null;
+  /** Last logged sysTimeStampRaw value — diagnostic change-gating, see TelemetryParser.ts. */
+  private lastSysTimeStampRaw: number | null = null;
 
   // ─── Init / teardown ─────────────────────────────────────────────────────
 
@@ -667,17 +669,39 @@ export default class LubaDevice extends Homey.Device {
       this.lastHeadlampStatusRaw = state.headlampStatusRaw;
       changed.push(`headlampStatusRaw=${state.headlampStatusRaw} [diagnostic, not yet mapped]`);
     }
-    // Diagnostic-only, same reason as headlampStatusRaw above — these are our best
-    // candidates for a hardware-fault bitmask (wheel-lift/emergency-stop, bumper, tilt,
-    // etc.) that workModeToStatus()'s sys_status-only 'error' mapping has no visibility
-    // into at all. See TelemetryParser.ts and ErrorCodeParser.ts.
+    // Raw value kept for diagnostics — sensor_status also carries four ultrasonic-sensor
+    // sub-fields (bits 12-23) this app doesn't decode yet. The bumper/blade sub-fields
+    // below ARE confirmed decodes (see TelemetryParser.ts's decodeBumperState/
+    // decodeBladeActive) and are real capabilities, not diagnostic-only.
     if (state.sensorStatusRaw != null && state.sensorStatusRaw !== this.lastSensorStatusRaw) {
       this.lastSensorStatusRaw = state.sensorStatusRaw;
-      changed.push(`sensorStatusRaw=${state.sensorStatusRaw} [diagnostic, not yet mapped]`);
+      changed.push(`sensorStatusRaw=${state.sensorStatusRaw}`);
     }
+    if (state.bumperState != null && this.setCapIfChanged('mow_bumper_state', state.bumperState)) {
+      changed.push(`bumper=${state.bumperState}`);
+    }
+    if (state.bladeActive != null && this.setCapIfChanged('mow_blade_active', state.bladeActive)) {
+      changed.push(`bladeActive=${state.bladeActive}`);
+    }
+    // Diagnostic-only — self_check_status has no interpretation anywhere in Mammotion-HA/
+    // pymammotion at all (unlike sensor_status above). See
+    // docs/WHEEL_LIFT_FAULT_DIAGNOSTIC_PLAN.md.
     if (state.selfCheckStatusRaw != null && state.selfCheckStatusRaw !== this.lastSelfCheckStatusRaw) {
       this.lastSelfCheckStatusRaw = state.selfCheckStatusRaw;
       changed.push(`selfCheckStatusRaw=${state.selfCheckStatusRaw} [diagnostic, not yet mapped]`);
+    }
+    // Diagnostic-only: testing a real hypothesis (2026-07-09) that rapid mowing/charging
+    // status flip-flops reported under heavy Aliyun rate-limiting are stale/out-of-order
+    // buffered reports, not a real physical oscillation. Units are unconfirmed, so log both
+    // plausible epoch interpretations' skew from receipt time — whichever is small/sane
+    // during normal operation tells us the real unit, and a large lag during a flapping
+    // episode would confirm the staleness theory.
+    if (state.sysTimeStampRaw != null && state.sysTimeStampRaw !== this.lastSysTimeStampRaw) {
+      this.lastSysTimeStampRaw = state.sysTimeStampRaw;
+      const now = Date.now();
+      const skewIfSeconds = Math.round(now / 1000 - state.sysTimeStampRaw);
+      const skewIfMs = Math.round(now - state.sysTimeStampRaw);
+      changed.push(`sysTimeStampRaw=${state.sysTimeStampRaw} [diagnostic; skewIfSeconds=${skewIfSeconds}s skewIfMs=${skewIfMs}ms]`);
     }
 
     if (changed.length > 0) this.log(`[${via}] telemetry changed: ${changed.join(' ')}`);

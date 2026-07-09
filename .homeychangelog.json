@@ -238,5 +238,14 @@
   },
   "2.5.25": {
     "en": "Added diagnostic logging for a few previously-unread sensor fields (including one that may carry hardware fault codes like a lifted wheel) — no visible change yet, but helps identify the right data to build a proper error/warning sensor from real-world reports"
+  },
+  "2.5.26": {
+    "en": "The mower status and error alarm now correctly show \"error\" for a locked/faulted mower state that was previously shown as idle"
+  },
+  "2.5.27": {
+    "en": "Added two new sensors: Bumper Status (OK/Warning/Error) and Blade Active (on while the cutting blade is spinning) — applies automatically to already-paired mowers, no re-pairing needed"
+  },
+  "2.5.28": {
+    "en": "Added diagnostic logging to help investigate reports of the mower status rapidly flip-flopping between charging and mowing during periods of heavy cloud rate-limiting — no visible change yet, but helps confirm whether this is caused by delayed/out-of-order data"
   }
 }

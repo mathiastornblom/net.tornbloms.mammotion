@@ -516,7 +516,7 @@ export default class LubaDriver extends Homey.Driver {
     'measure_mowing_speed', 'measure_elapsed_time', 'measure_left_time',
     'active_transport', 'last_sync', 'mow_cutter_mode', 'mow_headlamp', 'mow_side_led',
     'mow_pos_level', 'mow_rain_protection', 'measure_battery_cycles', 'measure_blade_used_time',
-    'mow_send_to_dock',
+    'mow_send_to_dock', 'mow_bumper_state', 'mow_blade_active',
   ];
 
   /**

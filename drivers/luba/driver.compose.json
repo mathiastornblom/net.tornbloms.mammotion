@@ -38,7 +38,9 @@
     "mow_rain_protection",
     "measure_battery_cycles",
     "measure_blade_used_time",
-    "mow_send_to_dock"
+    "mow_send_to_dock",
+    "mow_bumper_state",
+    "mow_blade_active"
   ],
   "energy": {
     "batteries": [
