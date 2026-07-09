@@ -259,5 +259,8 @@
   },
   "2.5.32": {
     "en": "Fixed pairing being blocked entirely on Homey hubs without Bluetooth hardware (e.g. Homey Pro Mini without a Bridge) — Bluetooth was incorrectly declared as a hard requirement even though the app already works fully over the cloud connection without it. Also fixed error logs sometimes showing \"[object Object]\" instead of the actual error message."
+  },
+  "2.5.33": {
+    "en": "Fixed the app retrying every 5 seconds indefinitely (instead of backing off) when Aliyun's cloud service has an outage, which could leave status updates stuck for an extended time with no visible sign anything was wrong"
   }
 }
