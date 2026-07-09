@@ -93,8 +93,9 @@ export default class LubaDevice extends Homey.Device {
       await this.actionSetBladeSpeed(value as 'economic' | 'standard' | 'performance');
     });
 
-    // Guarded — mow_headlamp is model-gated by migrateCapabilities() (e.g. absent on a Luba 2
-    // Mini) and Homey errors if you register a listener for a capability the device lacks.
+    // Guarded — mow_headlamp is model-gated by migrateCapabilities() (absent on non-mower
+    // device types like RTK base stations) and Homey errors if you register a listener for a
+    // capability the device lacks.
     if (this.hasCapability('mow_headlamp')) {
       this.registerCapabilityListener('mow_headlamp', async (value: boolean) => {
         await this.actionSetHeadlamp(value, 0);
@@ -125,7 +126,7 @@ export default class LubaDevice extends Homey.Device {
 
   /** Reconciles this device's actual capabilities against the model-appropriate set
    *  (docs/CAPABILITY_DIFFERENTIATION_PLAN.md), adding anything missing and removing anything
-   *  the model doesn't actually have (e.g. mow_headlamp on a Luba 2 Mini, which has no
+   *  the model doesn't actually have (e.g. mow_headlamp on an RTK base station, which has no
    *  headlamp). Homey only applies a driver's capabilities list at pairing time — adding (or
    *  gating) a capability in the manifest/pairing-time list does nothing for devices paired on
    *  an older app version, so this needs to run on every init to actually reach existing users
@@ -811,8 +812,8 @@ export default class LubaDevice extends Homey.Device {
    *  failure, logs the resolved model/deviceType alongside the error — capability gating
    *  (docs/CAPABILITY_DIFFERENTIATION_PLAN.md) is based on device-type class, not the
    *  individual physical unit, so a command that fails or silently no-ops for a reason tied to
-   *  real hardware variance within a class (e.g. a Luba 2 Mini without a headlamp) needs this
-   *  context captured to ever close that gap. */
+   *  real hardware variance within a class (e.g. an older firmware revision not supporting a
+   *  given command) needs this context captured to ever close that gap. */
   private async sendCommandAndSync(
     commandB64: string,
     label: string,

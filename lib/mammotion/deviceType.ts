@@ -181,12 +181,29 @@ export function resolveDeviceType(deviceName: string, productKey = ''): DeviceTy
   return DeviceType.UNKNOWN;
 }
 
-/** True for the "mini/X-series" models — mirrors `DeviceType.is_mini_or_x_series()`. These
- *  models do not have a headlamp on the vendor app (docs/CAPABILITY_DIFFERENTIATION_PLAN.md). */
+/** True for the "mini/X-series" models — mirrors `DeviceType.is_mini_or_x_series()`. Gates
+ *  upstream's manual/night-auto lighting-*mode* UI (HA's `night_light`/`manual_light`
+ *  entities, `SocMul.set_lamp`), not headlamp hardware presence — see hasHeadlamp() for that
+ *  (docs/CAPABILITY_DIFFERENTIATION_PLAN.md, 2026-07-09 decision). Kept as a faithful port for
+ *  a possible future split between "has a headlamp" and "has this extra manual/night mode UI". */
 export function isMiniOrXSeries(deviceType: DeviceType): boolean {
   return [
     DeviceType.YUKA_MINI, DeviceType.YUKA_MINI2, DeviceType.YUKA_MINIV, DeviceType.YUKA_ML,
     DeviceType.YUKA_VP, DeviceType.LUBA_MN, DeviceType.LUBA_VP, DeviceType.LUBA_LD,
+  ].includes(deviceType);
+}
+
+/** True for any Luba-family or Yuka-family mower — mirrors `DeviceType.is_luba_type() ||
+ *  DeviceType.is_yu_ka_type()`. All of these have a front headlamp per vendor spec pages
+ *  (docs/CAPABILITY_DIFFERENTIATION_PLAN.md, 2026-07-09 decision); RTK base stations,
+ *  swimming-pool robots (Spino/SD_PX), and UNKNOWN do not. */
+export function hasHeadlamp(deviceType: DeviceType): boolean {
+  return [
+    DeviceType.LUBA, DeviceType.LUBA_2, DeviceType.LUBA_VP, DeviceType.LUBA_MN,
+    DeviceType.LUBA_LD, DeviceType.LUBA_VA, DeviceType.LUBA_HM, DeviceType.LUBA_ME,
+    DeviceType.LUBA_MB, DeviceType.LUBA_LA, DeviceType.CM900,
+    DeviceType.LUBA_YUKA, DeviceType.YUKA_MINI, DeviceType.YUKA_MINI2, DeviceType.YUKA_VP,
+    DeviceType.YUKA_MINIV, DeviceType.YUKA_MN100, DeviceType.YUKA_MN101, DeviceType.YUKA_ML,
   ].includes(deviceType);
 }
 
@@ -209,13 +226,14 @@ export function supportsBatteryCycleCount(deviceType: DeviceType): boolean {
  *  directly) to avoid a circular import between this module and driver.ts.
  *
  *  Gated so far (docs/CAPABILITY_DIFFERENTIATION_PLAN.md's verified findings):
- *  - mow_headlamp: mini/X-series only (Yuka Mini/Mini2/MiniV/ML/VP, Luba MN/VP/LD).
+ *  - mow_headlamp: any Luba-family or Yuka-family mower (not RTK base stations or
+ *    swimming-pool robots) — see hasHeadlamp().
  *  - measure_battery_cycles: not on removable-battery-pack models.
  *  Every other capability in the base list is currently unconditional — no verified upstream
  *  evidence to gate mow_side_led or mow_rain_protection yet (see that doc's "Open questions"). */
 export function capabilitiesForModel(baseCapabilities: readonly string[], deviceType: DeviceType): string[] {
   return baseCapabilities.filter((capability) => {
-    if (capability === 'mow_headlamp') return isMiniOrXSeries(deviceType);
+    if (capability === 'mow_headlamp') return hasHeadlamp(deviceType);
     if (capability === 'measure_battery_cycles') return supportsBatteryCycleCount(deviceType);
     return true;
   });

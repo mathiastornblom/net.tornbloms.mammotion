@@ -253,5 +253,8 @@
   },
   "2.5.30": {
     "en": "Added more diagnostic logging to continue investigating why an emergency-stop/wheel-lift event doesn't show up as an error yet — no visible change, still looking for the right signal"
+  },
+  "2.5.31": {
+    "en": "Fixed the headlamp toggle being incorrectly hidden on standard Luba 2 and Luba 3 models (it should only have been hidden on non-mower device types) — restores automatically for already-paired mowers on next restart, no re-pairing needed"
   }
 }

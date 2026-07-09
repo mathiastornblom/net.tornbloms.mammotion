@@ -4,14 +4,17 @@
  *
  * Locks down resolveDeviceType()/capabilitiesForModel() against real (deviceName,
  * productKey) pairs pulled from actual diagnostic reports and this repo's existing
- * device-routing.test.mjs fixtures, so a Luba 2 Mini stops being handed a headlamp toggle
- * its hardware doesn't have.
+ * device-routing.test.mjs fixtures. Covers the 2026-07-09 correction: mow_headlamp is gated
+ * by hasHeadlamp() (any Luba/Yuka-family mower), not isMiniOrXSeries() — the latter gates an
+ * unrelated manual/night-light *mode* UI upstream, not headlamp hardware presence, and had
+ * wrongly stripped mow_headlamp from real LUBA_2/LUBA_VA devices (both vendor-confirmed to
+ * have a headlamp).
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  DeviceType, resolveDeviceType, isMiniOrXSeries, supportsBatteryCycleCount, capabilitiesForModel,
+  DeviceType, resolveDeviceType, isMiniOrXSeries, hasHeadlamp, supportsBatteryCycleCount, capabilitiesForModel,
 } from '../.homeybuild/lib/mammotion/deviceType.js';
 
 test('Shaun\'s Luba 2 Mini (Luba-MNJR4AS3 / a1dCWYFLROK) resolves to LUBA_MN', () => {
@@ -52,24 +55,39 @@ test('supportsBatteryCycleCount is false for LUBA_MN/LUBA_LD/LUBA_LA/LUBA_MB and
   assert.equal(supportsBatteryCycleCount(DeviceType.LUBA_VA), true);
 });
 
-test('capabilitiesForModel strips measure_battery_cycles (removable pack) but keeps mow_headlamp (mini/X-series) for a Luba 2 Mini', () => {
-  // Matches Mammotion-HA's switch.py exactly: MINI_AND_X_SERIES_CONFIG_SWITCH_ENTITIES
-  // (manual_light/night_light) is added for is_mini_or_x_series(), which includes LUBA_MN —
-  // see docs/CAPABILITY_DIFFERENTIATION_PLAN.md's 2026-07-05 decision for why this is kept
-  // despite one conflicting real-world report of a Luba 2 Mini with no physical headlamp.
+test('hasHeadlamp is true for LUBA_2, LUBA_MN, LUBA_VA (all vendor-confirmed to have a headlamp)', () => {
+  assert.equal(hasHeadlamp(DeviceType.LUBA_2), true);
+  assert.equal(hasHeadlamp(DeviceType.LUBA_MN), true);
+  assert.equal(hasHeadlamp(DeviceType.LUBA_VA), true);
+});
+
+test('hasHeadlamp is false for RTK base stations and swimming-pool robots (not mowers)', () => {
+  assert.equal(hasHeadlamp(DeviceType.RTK), false);
+  assert.equal(hasHeadlamp(DeviceType.RTK3A2), false);
+  assert.equal(hasHeadlamp(DeviceType.SPINO), false);
+  assert.equal(hasHeadlamp(DeviceType.SWIMMINGPOOL_S1), false);
+  assert.equal(hasHeadlamp(DeviceType.UNKNOWN), false);
+});
+
+test('capabilitiesForModel strips measure_battery_cycles (removable pack) but keeps mow_headlamp for a Luba 2 Mini', () => {
   const base = ['onoff', 'mow_headlamp', 'mow_side_led', 'measure_battery_cycles', 'mow_rain_protection'];
   const result = capabilitiesForModel(base, DeviceType.LUBA_MN);
   assert.deepEqual(result, ['onoff', 'mow_headlamp', 'mow_side_led', 'mow_rain_protection']);
 });
 
-test('capabilitiesForModel strips only mow_headlamp (not battery cycles) for a standard Luba 2 / Luba VA — neither is mini/X-series, but both have a fixed battery', () => {
+test('capabilitiesForModel keeps every base capability for a standard Luba 2 / Luba VA — both have a headlamp and a fixed battery', () => {
   const base = ['onoff', 'mow_headlamp', 'mow_side_led', 'measure_battery_cycles', 'mow_rain_protection'];
-  const withoutHeadlamp = ['onoff', 'mow_side_led', 'measure_battery_cycles', 'mow_rain_protection'];
-  assert.deepEqual(capabilitiesForModel(base, DeviceType.LUBA_2), withoutHeadlamp);
-  assert.deepEqual(capabilitiesForModel(base, DeviceType.LUBA_VA), withoutHeadlamp);
+  assert.deepEqual(capabilitiesForModel(base, DeviceType.LUBA_2), base);
+  assert.deepEqual(capabilitiesForModel(base, DeviceType.LUBA_VA), base);
 });
 
 test('capabilitiesForModel keeps every base capability for a Luba 2 Pro (mini/X-series with a fixed battery)', () => {
   const base = ['onoff', 'mow_headlamp', 'mow_side_led', 'measure_battery_cycles', 'mow_rain_protection'];
   assert.deepEqual(capabilitiesForModel(base, DeviceType.LUBA_VP), base);
+});
+
+test('capabilitiesForModel strips mow_headlamp for an RTK base station (not a mower)', () => {
+  const base = ['onoff', 'mow_headlamp', 'mow_side_led', 'measure_battery_cycles', 'mow_rain_protection'];
+  const withoutHeadlamp = ['onoff', 'mow_side_led', 'measure_battery_cycles', 'mow_rain_protection'];
+  assert.deepEqual(capabilitiesForModel(base, DeviceType.RTK), withoutHeadlamp);
 });
