@@ -22,16 +22,15 @@ export function extractErrorCode(msg: Record<string, unknown>): number | null {
 
 /**
  * Extracts MctlSys.systemUpdateBuf (mctrl_sys.proto's systemUpdateBuf_msg, oneof field
- * 27) — a completely undecoded message on our side until now. It's a flat
- * `repeated int64 update_buf_data`; per pymammotion's own handling of this same message
- * type, the first element is a "buf_id" tag distinguishing what the rest of the array
- * means, with different ids used for different device classes (confirmed: id 2 is
- * Spino/pool-cleaner-specific there, carrying an error_count + (code, timestamp) pair
- * list — but the mower-side id(s) were NOT confirmed before this was shelved, see
- * docs/WHEEL_LIFT_FAULT_DIAGNOSTIC_PLAN.md). Diagnostic-only: returns the raw array
- * unconditionally, whatever its first element is, so a real fault capture on an actual
- * mower can tell us empirically what this device class actually sends here — the one
- * candidate channel in the whole investigation that's never been observed at all yet.
+ * 27). It's a flat `repeated int64 update_buf_data`; the first element is a "buf_id" tag
+ * distinguishing what the rest of the array means. Per pymammotion's `MowerDevice.buffer()`
+ * (`data/model/device.py`), confirmed on a real mower capture 2026-07-09 (see
+ * docs/WHEEL_LIFT_FAULT_DIAGNOSTIC_PLAN.md's Captures log): id 1 is RTK base/dock position,
+ * id 3 is the active task-zone hash + status, and id 2 — not yet observed on a real device —
+ * is the mower's own fault-history list (code + timestamp pairs; NOT Spino-only as previously
+ * assumed here, Spino has its own parallel decoder for the same id). Diagnostic-only: returns
+ * the raw array unconditionally, whatever its first element is, so a real fault capture can
+ * confirm id 2's contents once one actually fires.
  */
 export function extractUpdateBuf(msg: Record<string, unknown>): number[] | null {
   const sys = msg.sys as Record<string, unknown> | undefined;

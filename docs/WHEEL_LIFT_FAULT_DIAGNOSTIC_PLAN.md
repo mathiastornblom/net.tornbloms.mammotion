@@ -33,6 +33,8 @@ small number of deliberate, structured captures designed to actually isolate the
   re-verification found the specific `buf_id==2` parsing we found is **Spino (pool-cleaner)
   specific** in current pymammotion, not the Luba mower path. The real mower-side mechanism (if
   any) for a persisted fault code is still unidentified.
+  **(Corrected 2026-07-09 — see Captures log: buf_id=2 IS the mower error-history channel too;
+  buf_id 1/3 are mower-specific position/zone data. Details below.)**
 - **Bumper_state (bits 0–2 of `sensor_status`) is a solved, separate question** — every capture
   so far shows it sitting at `1` (`WARNING`) persistently, never `0` (`OK`). Worth understanding
   on its own regardless of the wheel-lift question (see "Also worth doing" below).
@@ -140,3 +142,95 @@ baseline period vs. the fault period — we want to know if `bumper_state`'s per
   in a LubaMsg oneof branch this app's trimmed envelope doesn't decode at all (see
   `luba_msg.proto`'s comment on which branches are kept)? That would be the next research
   question, not a dead end.
+
+## Captures log
+
+### 2026-07-09 — Anders, `Luba-VAZSPPU6`, free-text "Front weel lifted" (front wheel lifted)
+
+**Status: promising but NOT a clean Scenario 1 capture.** No baseline window, no wall-clock
+timestamps of the lift/release — just the free-text note submitted immediately after. So the
+"first appearance vs. real change" caveat (root cause #1 above) still applies to every field
+below. Treat the correlations here as circumstantial, not confirmed. **No .ts / capability
+changes made off this capture** — diagnostic-only stands, consistent with this doc's standard.
+
+Sequence (single session, no app restart mid-window):
+
+```
+14:29:10.764 status=paused(19,charge=0)  selfCheckStatusRaw=11   ← both at the same instant
+14:29:16.948 update_buf [3,0,1,1,2]
+14:29:16.995 update_buf [1,17,0,89,0,104148721,32659019,550,-530,1,0,0,2,-4260013,0,0,0]
+14:29:17.016 update_buf [3,0,1,1,2]
+14:29:17.572/927 update_buf [1,17,0,89,0,...]  (repeats)
+```
+
+**Three firsts in this capture, and what the pymammotion source says each one actually is:**
+
+1. **`sys_status` → 19 (MODE_PAUSE) — first time sys_status has EVER changed during a stop.**
+   Confirmed values: `MODE_PAUSE = 19`, `MODE_LOCK = 17`
+   (`pymammotion/utility/constant/device_constant.py:283-284`). This is **MODE_PAUSE, not
+   MODE_LOCK.** Both Mammotion-HA (`lawn_mower.py:216-219`, `activity`) and this app
+   (`WorkModeStatus.ts` case 19) map MODE_PAUSE → `paused`/PAUSED — a benign, ordinary "job
+   paused" state, **indistinguishable on its own from a user-initiated pause.** Only MODE_LOCK
+   (17) maps to ERROR upstream (`lawn_mower.py:224-225`). This directly explains the original
+   complaint ("the app never reflected any fault"): the wheel-lift here surfaced as a plain
+   `paused`, not an error.
+   **Caveat for the v2.5.26 bet:** we shipped MODE_LOCK(17)→error on the hypothesis that a hard
+   safety stop produces MODE_LOCK. This capture shows a wheel-lift producing MODE_PAUSE(19)
+   instead — so MODE_LOCK is *not* what a (brief, front-wheel) lift generates here. A *sustained*
+   lift might still escalate to MODE_LOCK; this capture can't tell us (the lift wasn't held /
+   timestamped). The v2.5.26 mapping isn't wrong, but it is not the signal seen in this capture.
+
+2. **`selfCheckStatusRaw = 11` appeared at the exact same timestamp as the pause.** Cross-checked
+   the full pymammotion tree: `self_check_status` has **no bit decode or interpretation anywhere**
+   — `data/model/report_info.py:162-163` only stores it (`self_check_status: int = 0`), and
+   Mammotion-HA never reads it. (The `SelfCheckInfoReq/Rsp` proto messages are a separate
+   request/response for a self-check *screen*, unrelated to this report-data bitmask.) So `11`
+   (binary `1011`) remains uninterpreted. Its co-occurrence with the pause + the user's "front
+   wheel lifted" note is the **strongest circumstantial link we've had** — but it is still
+   circumstantial: no baseline means we can't prove `11` is a *change* rather than this field's
+   first logged appearance, and there's no wall-clock tie to the actual lift.
+
+3. **`systemUpdateBuf` finally observed on a real Luba — and it is NOT the fault channel here.**
+   This was the doc's "one candidate never observed at all." It is now observed, and
+   `pymammotion/data/model/device.py:106-174` (`MowerDevice.buffer()`, a **mower** method, not
+   Spino) decodes the `update_buf_data[0]` tag exhaustively:
+   - **`buf_id = 1` (mower "init config"):** RTK base position + dock. Decoding the captured
+     payload with pymammotion's own `parse_double(val, d) = val / 10^d`
+     (`utility/conversions.py`):
+     - `[5]=104148721 → lat = /1e8 = 1.04148721 rad = 59.673°N`
+     - `[6]=32659019  → lon = /1e8 = 0.32659019 rad = 18.712°E`
+       → **59.67°N, 18.71°E lands in Uppland / the Stockholm archipelago, Sweden** — a clean,
+       unforced fit for this Swedish user. Confirms buf_id=1 is position data, full stop.
+     - `[7]=550, [8]=-530 → dock lon/lat = /1e4 = +0.055 / -0.053` (small ENU offset from base),
+       `[3]=89` dock rotation, `[13]=-4260013 → RTK yaw = /1e8 = -0.0426 rad`. All consistent.
+   - **`buf_id = 3` (mower "zone state", `device.py:155-174`):** format
+     `[3, 0, count, zone_hash, status, ...]`. Captured `[3,0,1,1,2]` = one zone, hash `1`,
+     status `2` = `TaskAreaStatus.MOWING` (`enums.py:191`, 选中正在割 "selected, currently
+     mowing"). Just the active task-zone assignment — **not a fault.**
+   - **`buf_id = 2` is the actual mower fault-history channel** — `MowerDevice.buffer()` case 2
+     (`device.py:124-154`) fills `errors.err_code_list` + `err_code_list_time` from (code,
+     timestamp) pairs. **Correction to earlier notes / `ErrorCodeParser.ts`'s doc comment:**
+     buf_id=2 is *not* Spino-only. Spino has a parallel decoder (`state_reducer.py:1046`, whose
+     own comment states "ID 1 (init config) and 3 (zone state) are mower-specific"), but the
+     mower reads buf_id=2 as its error log too. **buf_id=2 still has never fired in any
+     capture** — so the persisted-fault-code channel remains unobserved; what we saw this time
+     (ids 1 and 3) is routine position/zone telemetry that happened to emit ~6s after the pause,
+     not a fault record.
+
+**Bottom line for this capture.** Best current read: a front-wheel lift on this mower produced
+`MODE_PAUSE(19)` accompanied by `selfCheckStatusRaw=11`, surfaced to the user as an ordinary
+`paused`. The `selfCheckStatusRaw` co-occurrence is now the leading candidate for the wheel-lift
+signal, ahead of both MODE_LOCK and `systemUpdateBuf` (the latter is now positively ruled *out*
+as the channel — ids 1/3 are position/zone, and the fault id 2 didn't appear). This is **not yet
+shippable as a mapping**: `self_check_status=11` is uninterpreted upstream, and this capture
+lacks a baseline and wall-clock timestamps, so we cannot yet prove `11` is a lift-specific change
+rather than a first-appearance artifact.
+
+**What the user was asked to do next:** one more capture, this time following **Scenario 1**
+exactly — a **sustained** (60–90s) single-wheel lift with a **≥2 min undisturbed baseline
+first** and **wall-clock timestamps** (lift / held / set-down / resume) in the User Message, plus
+the **official Mammotion app's on-screen text** during the lift. That single clean capture would
+confirm (a) whether `selfCheckStatusRaw` actually *transitions* to 11 at the lift (vs. already
+sitting at 11), (b) whether a sustained lift escalates MODE_PAUSE(19) → MODE_LOCK(17), and
+(c) whether the held fault ever triggers buf_id=2 or `toapp_err_code`. Until then, no
+capability/fault-code change ships off this capture.
