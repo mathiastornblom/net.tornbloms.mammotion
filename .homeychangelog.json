@@ -247,5 +247,8 @@
   },
   "2.5.28": {
     "en": "Added diagnostic logging to help investigate reports of the mower status rapidly flip-flopping between charging and mowing during periods of heavy cloud rate-limiting — no visible change yet, but helps confirm whether this is caused by delayed/out-of-order data"
+  },
+  "2.5.29": {
+    "en": "Fixed Bluetooth scanning retrying every 15 seconds forever for a mower that's never found (e.g. out of range for a long time, or a Homey without Bluetooth support) — it now backs off properly like every other connection problem, reducing unnecessary radio use and log noise"
   }
 }
