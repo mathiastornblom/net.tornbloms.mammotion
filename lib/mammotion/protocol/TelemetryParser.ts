@@ -80,6 +80,17 @@ export function extractTelemetry(msg: Record<string, unknown>): Partial<Telemetr
     // report can still identify a meaning empirically. See
     // docs/WHEEL_LIFT_FAULT_DIAGNOSTIC_PLAN.md.
     if (typeof dev.selfCheckStatus === 'number') telemetry.selfCheckStatusRaw = dev.selfCheckStatus;
+    // Diagnostic-only: rpt_dev_status.sys_time_stamp is never read by Mammotion-HA either,
+    // and its epoch/units are unconfirmed (unix seconds vs. ms vs. device-uptime counter).
+    // Logged (alongside device.ts's own Date.now() at receipt) to test a real hypothesis:
+    // two real diagnostic reports on the same device now show mower_status rapidly
+    // flip-flopping between 'mowing'/'charging' within seconds during a sustained Aliyun
+    // rate-limiting window that later dropped the connection entirely — consistent with
+    // stale/out-of-order buffered reports being applied as if live, not a real physical
+    // oscillation. If sysTimeStampRaw turns out to be wall-clock and lags noticeably behind
+    // receipt time during exactly these windows, that confirms it and gives us a field to
+    // reject stale reports on.
+    if (typeof dev.sysTimeStamp === 'number') telemetry.sysTimeStampRaw = dev.sysTimeStamp;
   }
 
   const rtk = report.rtk as Record<string, number> | undefined;

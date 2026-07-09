@@ -68,6 +68,12 @@ export interface TelemetryState {
    *  at all, so it stays raw pending a real diagnostic capture giving it empirical meaning.
    *  See docs/WHEEL_LIFT_FAULT_DIAGNOSTIC_PLAN.md. */
   selfCheckStatusRaw: number | null;
+  /** Raw rpt_dev_status.sys_time_stamp wire value — diagnostic only, epoch/units
+   *  unconfirmed. Logged to test whether rapid mowing/charging status flip-flops seen in
+   *  real diagnostic reports are stale/out-of-order buffered reports (from a mower stuck
+   *  behind heavy Aliyun rate-limiting) rather than a real physical oscillation. See
+   *  TelemetryParser.ts. */
+  sysTimeStampRaw: number | null;
 }
 
 /** Fired with the changed telemetry fields whenever a report is decoded. */

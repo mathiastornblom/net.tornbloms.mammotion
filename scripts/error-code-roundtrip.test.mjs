@@ -39,3 +39,12 @@ test('extractTelemetry surfaces sensorStatusRaw/selfCheckStatusRaw diagnostic fi
   assert.equal(telemetry.sensorStatusRaw, 4);
   assert.equal(telemetry.selfCheckStatusRaw, 1);
 });
+
+test('extractTelemetry surfaces sysTimeStampRaw diagnostic field', () => {
+  const bytes = encodeLubaMsg({
+    msgtype: 244, sender: 1, rcver: 7, msgattr: 3, seqs: 1, version: 1, subtype: 0, timestamp: Date.now(),
+    sys: { toappReportData: { dev: { batteryVal: 50, sysTimeStamp: 1751234567 } } },
+  });
+  const telemetry = extractTelemetry(decodeLubaMsg(bytes));
+  assert.equal(telemetry.sysTimeStampRaw, 1751234567);
+});

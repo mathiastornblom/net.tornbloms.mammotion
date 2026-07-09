@@ -70,6 +70,8 @@ export default class LubaDevice extends Homey.Device {
    *  lastHeadlampStatusRaw, for the two fault-code candidate fields (see TelemetryParser.ts). */
   private lastSensorStatusRaw: number | null = null;
   private lastSelfCheckStatusRaw: number | null = null;
+  /** Last logged sysTimeStampRaw value — diagnostic change-gating, see TelemetryParser.ts. */
+  private lastSysTimeStampRaw: number | null = null;
 
   // ─── Init / teardown ─────────────────────────────────────────────────────
 
@@ -687,6 +689,19 @@ export default class LubaDevice extends Homey.Device {
     if (state.selfCheckStatusRaw != null && state.selfCheckStatusRaw !== this.lastSelfCheckStatusRaw) {
       this.lastSelfCheckStatusRaw = state.selfCheckStatusRaw;
       changed.push(`selfCheckStatusRaw=${state.selfCheckStatusRaw} [diagnostic, not yet mapped]`);
+    }
+    // Diagnostic-only: testing a real hypothesis (2026-07-09) that rapid mowing/charging
+    // status flip-flops reported under heavy Aliyun rate-limiting are stale/out-of-order
+    // buffered reports, not a real physical oscillation. Units are unconfirmed, so log both
+    // plausible epoch interpretations' skew from receipt time — whichever is small/sane
+    // during normal operation tells us the real unit, and a large lag during a flapping
+    // episode would confirm the staleness theory.
+    if (state.sysTimeStampRaw != null && state.sysTimeStampRaw !== this.lastSysTimeStampRaw) {
+      this.lastSysTimeStampRaw = state.sysTimeStampRaw;
+      const now = Date.now();
+      const skewIfSeconds = Math.round(now / 1000 - state.sysTimeStampRaw);
+      const skewIfMs = Math.round(now - state.sysTimeStampRaw);
+      changed.push(`sysTimeStampRaw=${state.sysTimeStampRaw} [diagnostic; skewIfSeconds=${skewIfSeconds}s skewIfMs=${skewIfMs}ms]`);
     }
 
     if (changed.length > 0) this.log(`[${via}] telemetry changed: ${changed.join(' ')}`);
