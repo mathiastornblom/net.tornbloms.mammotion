@@ -250,5 +250,8 @@
   },
   "2.5.29": {
     "en": "Fixed Bluetooth scanning retrying every 15 seconds forever for a mower that's never found (e.g. out of range for a long time, or a Homey without Bluetooth support) — it now backs off properly like every other connection problem, reducing unnecessary radio use and log noise"
+  },
+  "2.5.30": {
+    "en": "Added more diagnostic logging to continue investigating why an emergency-stop/wheel-lift event doesn't show up as an error yet — no visible change, still looking for the right signal"
   }
 }

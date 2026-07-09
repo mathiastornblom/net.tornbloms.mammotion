@@ -8,7 +8,7 @@ import { extractTelemetry } from '../../lib/mammotion/protocol/TelemetryParser.j
 import { workModeToStatus, isErrorMode, type MowerStatus } from '../../lib/mammotion/protocol/WorkModeStatus.js';
 import { MOWING_ACTIVE_WORK_MODES } from '../../lib/mammotion/constants.js';
 import { extractSchedule, type ScheduleInfo } from '../../lib/mammotion/protocol/ScheduleParser.js';
-import { extractErrorCode } from '../../lib/mammotion/protocol/ErrorCodeParser.js';
+import { extractErrorCode, extractUpdateBuf } from '../../lib/mammotion/protocol/ErrorCodeParser.js';
 import {
   buildTaskControlCommand,
   buildStartMowCommand,
@@ -282,6 +282,8 @@ export default class LubaDevice extends Homey.Device {
     if (schedule) this.handleScheduleResponse(schedule);
     const errorCode = extractErrorCode(msg);
     if (errorCode !== null) this.handleErrorCodeMessage(errorCode);
+    const updateBuf = extractUpdateBuf(msg);
+    if (updateBuf !== null) this.handleUpdateBufMessage(updateBuf);
   }
 
   /** Diagnostic-only: logs a device-pushed fault code (MctlSys.toapp_err_code — see
@@ -291,6 +293,17 @@ export default class LubaDevice extends Homey.Device {
    *  just surfaces the raw value until a real fault event's log data can map it. */
   private handleErrorCodeMessage(code: number): void {
     this.log(`[error_code] device reported errorCode=${code}`);
+  }
+
+  /** Diagnostic-only: logs MctlSys.systemUpdateBuf's raw contents (see
+   *  ErrorCodeParser.ts's extractUpdateBuf) — a completely undecoded message until now,
+   *  and the last untried candidate channel for a wheel-lift/emergency-stop fault code
+   *  after sys_status, sensor_status, self_check_status, and toapp_err_code all showed
+   *  nothing during a real, live-reported emergency stop (diagnostic log
+   *  a66d2bc3-4572-41d1-b8ba-cbc82b05d658, 2026-07-09). Logs the whole array unconditionally
+   *  so a real capture can tell us empirically what this device class actually sends here. */
+  private handleUpdateBufMessage(data: number[]): void {
+    this.log(`[update_buf] device reported systemUpdateBuf=[${data.join(',')}]`);
   }
 
   /** Logs a parsed schedule read response for diagnostics. */
