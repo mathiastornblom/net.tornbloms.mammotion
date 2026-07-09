@@ -256,5 +256,8 @@
   },
   "2.5.31": {
     "en": "Fixed the headlamp toggle being incorrectly hidden on standard Luba 2 and Luba 3 models (it should only have been hidden on non-mower device types) — restores automatically for already-paired mowers on next restart, no re-pairing needed"
+  },
+  "2.5.32": {
+    "en": "Fixed pairing being blocked entirely on Homey hubs without Bluetooth hardware (e.g. Homey Pro Mini without a Bridge) — Bluetooth was incorrectly declared as a hard requirement even though the app already works fully over the cloud connection without it. Also fixed error logs sometimes showing \"[object Object]\" instead of the actual error message."
   }
 }
