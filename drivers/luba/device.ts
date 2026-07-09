@@ -22,6 +22,7 @@ import {
   type StartMowOptions,
 } from '../../lib/mammotion/commands/LubaCommands.js';
 import { MammotionError, AliyunCommandError, DeviceOfflineError } from '../../lib/mammotion/errors.js';
+import { errorMessage } from '../../lib/util/errorMessage.js';
 import { sendAliyunCloudCommand } from '../../lib/mammotion/aliyun/commands.js';
 import {
   DeviceType, resolveDeviceType, capabilitiesForModel, MODEL_STRING,
@@ -339,13 +340,13 @@ export default class LubaDevice extends Homey.Device {
 
     try {
       const session = await this.getSession().catch((err) => {
-        throw new Error(`getSession: ${err instanceof Error ? err.message : String(err)}`);
+        throw new Error(`getSession: ${errorMessage(err)}`);
       });
       this.log(`cloud session OK (iotDomain=${session.iotDomain}, userAccount=${session.userAccount})`);
 
       const [devices, recordsResult] = await Promise.all([
-        MammotionAuth.fetchDevices(session).catch((err) => { throw new Error(`fetchDevices: ${err instanceof Error ? err.message : String(err)}`); }),
-        MammotionAuth.fetchDeviceRecords(session).catch((err) => { throw new Error(`fetchDeviceRecords: ${err instanceof Error ? err.message : String(err)}`); }),
+        MammotionAuth.fetchDevices(session).catch((err) => { throw new Error(`fetchDevices: ${errorMessage(err)}`); }),
+        MammotionAuth.fetchDeviceRecords(session).catch((err) => { throw new Error(`fetchDeviceRecords: ${errorMessage(err)}`); }),
       ]);
       const records = recordsResult.records;
 
@@ -356,7 +357,7 @@ export default class LubaDevice extends Homey.Device {
         + `this device: ${thisContext ? `productKey=${thisContext.productKey} name=${thisContext.recordDeviceName}` : 'NOT FOUND in records'}`);
 
       const mqttCreds = await MammotionAuth.fetchMqttCredentials(session).catch((err) => {
-        throw new Error(`fetchMqttCredentials: ${err instanceof Error ? err.message : String(err)}`);
+        throw new Error(`fetchMqttCredentials: ${errorMessage(err)}`);
       });
       this.log(`MQTT credentials OK (host=${mqttCreds.host})`);
 
@@ -383,12 +384,12 @@ export default class LubaDevice extends Homey.Device {
 
       setTimeout(() => {
         this.requestSync().catch((err) => {
-          this.error(`Initial sync failed: ${err instanceof Error ? err.message : String(err)}`);
+          this.error(`Initial sync failed: ${errorMessage(err)}`);
         });
       }, SYNC_ON_CONNECT_DELAY_MS);
 
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
+      const message = errorMessage(err);
       this.error(`MQTT connect failed: ${message}`);
 
       const isAuthFailure = message.includes(this.homey.__('error.invalid_credentials'))
@@ -460,7 +461,7 @@ export default class LubaDevice extends Homey.Device {
       );
       this.log('[Aliyun] registered on shared transport');
     } catch (err) {
-      this.error(`[Aliyun] registerAliyunDevice failed: ${err instanceof Error ? err.message : String(err)}`);
+      this.error(`[Aliyun] registerAliyunDevice failed: ${errorMessage(err)}`);
     }
   }
 
@@ -542,7 +543,7 @@ export default class LubaDevice extends Homey.Device {
         this.log(`Poll: ${reason} — next check in ${Math.round(delay / 1000)}s (failure #${this.offlinePollFailureCount})`);
         this.schedulePoll(delay);
       } else {
-        this.error(`Poll sync failed: ${err instanceof Error ? err.message : String(err)}`);
+        this.error(`Poll sync failed: ${errorMessage(err)}`);
         this.schedulePoll(TELEMETRY_POLL_INTERVAL_MS);
       }
     }
@@ -828,7 +829,7 @@ export default class LubaDevice extends Homey.Device {
       this.error(
         `Command ${label} (capability=${capability}) failed on model=${MODEL_STRING[deviceType]} `
         + `(deviceType=${DeviceType[deviceType]}, productKey=${context.productKey}, deviceName=${context.deviceName}): `
-        + `${err instanceof Error ? err.message : String(err)}`,
+        + `${errorMessage(err)}`,
       );
       throw err;
     }

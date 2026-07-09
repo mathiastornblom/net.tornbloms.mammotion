@@ -11,6 +11,7 @@ import { checkAliyunConnectivity } from '../../lib/mammotion/aliyun/connectivity
 import { ALIYUN_DOMAIN } from '../../lib/mammotion/aliyun/constants.js';
 import { AliyunCredentialsManager } from '../../lib/mammotion/aliyun/AliyunCredentialsManager.js';
 import { resolveDeviceType, capabilitiesForModel } from '../../lib/mammotion/deviceType.js';
+import { errorMessage } from '../../lib/util/errorMessage.js';
 
 const SESSION_SETTINGS_KEY = 'mammotion_session';
 const CREDENTIALS_SETTINGS_KEY = 'mammotion_credentials';
@@ -300,7 +301,7 @@ export default class LubaDriver extends Homey.Driver {
         }),
         MammotionAuth.fetchDeviceRecords(session).catch((err) => {
           this.error('fetchDeviceRecords failed:', err);
-          throw new Error(`${this.homey.__('error.no_devices_found')} (${err instanceof Error ? err.message : String(err)})`);
+          throw new Error(`${this.homey.__('error.no_devices_found')} (${errorMessage(err)})`);
         }),
       ]);
       const records = recordsResult.records;
@@ -427,7 +428,7 @@ export default class LubaDriver extends Homey.Driver {
       // fail the repair itself; the device's own reconnect/backoff will retry.
       (device as unknown as { retryAfterRepair(): Promise<void> })
         .retryAfterRepair()
-        .catch((err: unknown) => this.error(`retryAfterRepair failed: ${err instanceof Error ? err.message : String(err)}`));
+        .catch((err: unknown) => this.error(`retryAfterRepair failed: ${errorMessage(err)}`));
 
       return true;
     });

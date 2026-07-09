@@ -4,6 +4,7 @@ import { BlufiFrameAssembler, buildFrames, resetSendSequence, PACKAGE_TYPE_DATA,
 import { decodeLubaMsg } from '../protocol/Codec.js';
 import { buildBleSyncCommand } from '../commands/LubaCommands.js';
 import { BLE_SERVICE_UUID, BLE_LOCAL_NAME_PREFIXES } from '../constants.js';
+import { errorMessage } from '../../util/errorMessage.js';
 
 /** UUIDs verified against pymammotion/bluetooth/const.py */
 const UUID_SERVICE = BLE_SERVICE_UUID;
@@ -169,7 +170,7 @@ export class BleTransport {
       this.log('BLE: sent todev_ble_sync(2)');
 
     } catch (err) {
-      this.reportFailure(`BLE: connect failed: ${err instanceof Error ? err.message : String(err)}`);
+      this.reportFailure(`BLE: connect failed: ${errorMessage(err)}`);
       this.onStatus(this.iotId, false);
       await this.disconnectPeripheral();
       this.scheduleReconnect();
@@ -286,7 +287,7 @@ export class BleTransport {
     try {
       decoded = decodeLubaMsg(result.data);
     } catch (err) {
-      this.logError(`BLE: protobuf decode failed: ${err instanceof Error ? err.message : String(err)}`);
+      this.logError(`BLE: protobuf decode failed: ${errorMessage(err)}`);
       return;
     }
 

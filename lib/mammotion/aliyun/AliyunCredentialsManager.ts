@@ -3,6 +3,7 @@
 import type { AuthSession } from '../auth/types.js';
 import { probeLegacyAliyunDevices, type AliyunLegacyCredentials } from './AliyunLegacyProbe.js';
 import { AliyunCircuitOpenError } from '../errors.js';
+import { errorMessage } from '../../util/errorMessage.js';
 
 /**
  * Persisted-credentials + expiry-aware reuse + circuit breaker for the legacy Aliyun
@@ -148,7 +149,7 @@ export class AliyunCredentialsManager {
       return result.credentials;
     } catch (err) {
       this.failures.push(this.now());
-      this.logError(`Aliyun credentials refresh failed: ${err instanceof Error ? err.message : String(err)}`);
+      this.logError(`Aliyun credentials refresh failed: ${errorMessage(err)}`);
       throw err;
     }
   }
