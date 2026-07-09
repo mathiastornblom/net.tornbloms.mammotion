@@ -11,7 +11,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { decodeLubaMsg, encodeLubaMsg } from '../.homeybuild/lib/mammotion/protocol/Codec.js';
-import { extractErrorCode } from '../.homeybuild/lib/mammotion/protocol/ErrorCodeParser.js';
+import { extractErrorCode, extractUpdateBuf } from '../.homeybuild/lib/mammotion/protocol/ErrorCodeParser.js';
 import { extractTelemetry } from '../.homeybuild/lib/mammotion/protocol/TelemetryParser.js';
 
 test('extractErrorCode parses a toapp_err_code push message', () => {
@@ -47,4 +47,20 @@ test('extractTelemetry surfaces sysTimeStampRaw diagnostic field', () => {
   });
   const telemetry = extractTelemetry(decodeLubaMsg(bytes));
   assert.equal(telemetry.sysTimeStampRaw, 1751234567);
+});
+
+test('extractUpdateBuf parses a systemUpdateBuf push message, whatever its buf_id is', () => {
+  const bytes = encodeLubaMsg({
+    msgtype: 244, sender: 1, rcver: 7, msgattr: 3, seqs: 1, version: 1, subtype: 0, timestamp: Date.now(),
+    sys: { systemUpdateBuf: { updateBufData: [1, 0, 3001, 1751234567] } },
+  });
+  assert.deepEqual(extractUpdateBuf(decodeLubaMsg(bytes)), [1, 0, 3001, 1751234567]);
+});
+
+test('extractUpdateBuf returns null for messages without systemUpdateBuf (e.g. telemetry)', () => {
+  const bytes = encodeLubaMsg({
+    msgtype: 244, sender: 1, rcver: 7, msgattr: 3, seqs: 1, version: 1, subtype: 0, timestamp: Date.now(),
+    sys: { toappReportData: { dev: { batteryVal: 50 } } },
+  });
+  assert.equal(extractUpdateBuf(decodeLubaMsg(bytes)), null);
 });

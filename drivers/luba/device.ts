@@ -8,7 +8,7 @@ import { extractTelemetry } from '../../lib/mammotion/protocol/TelemetryParser.j
 import { workModeToStatus, isErrorMode, type MowerStatus } from '../../lib/mammotion/protocol/WorkModeStatus.js';
 import { MOWING_ACTIVE_WORK_MODES } from '../../lib/mammotion/constants.js';
 import { extractSchedule, type ScheduleInfo } from '../../lib/mammotion/protocol/ScheduleParser.js';
-import { extractErrorCode } from '../../lib/mammotion/protocol/ErrorCodeParser.js';
+import { extractErrorCode, extractUpdateBuf } from '../../lib/mammotion/protocol/ErrorCodeParser.js';
 import {
   buildTaskControlCommand,
   buildStartMowCommand,
@@ -93,8 +93,9 @@ export default class LubaDevice extends Homey.Device {
       await this.actionSetBladeSpeed(value as 'economic' | 'standard' | 'performance');
     });
 
-    // Guarded — mow_headlamp is model-gated by migrateCapabilities() (e.g. absent on a Luba 2
-    // Mini) and Homey errors if you register a listener for a capability the device lacks.
+    // Guarded — mow_headlamp is model-gated by migrateCapabilities() (absent on non-mower
+    // device types like RTK base stations) and Homey errors if you register a listener for a
+    // capability the device lacks.
     if (this.hasCapability('mow_headlamp')) {
       this.registerCapabilityListener('mow_headlamp', async (value: boolean) => {
         await this.actionSetHeadlamp(value, 0);
@@ -125,7 +126,7 @@ export default class LubaDevice extends Homey.Device {
 
   /** Reconciles this device's actual capabilities against the model-appropriate set
    *  (docs/CAPABILITY_DIFFERENTIATION_PLAN.md), adding anything missing and removing anything
-   *  the model doesn't actually have (e.g. mow_headlamp on a Luba 2 Mini, which has no
+   *  the model doesn't actually have (e.g. mow_headlamp on an RTK base station, which has no
    *  headlamp). Homey only applies a driver's capabilities list at pairing time — adding (or
    *  gating) a capability in the manifest/pairing-time list does nothing for devices paired on
    *  an older app version, so this needs to run on every init to actually reach existing users
@@ -282,6 +283,8 @@ export default class LubaDevice extends Homey.Device {
     if (schedule) this.handleScheduleResponse(schedule);
     const errorCode = extractErrorCode(msg);
     if (errorCode !== null) this.handleErrorCodeMessage(errorCode);
+    const updateBuf = extractUpdateBuf(msg);
+    if (updateBuf !== null) this.handleUpdateBufMessage(updateBuf);
   }
 
   /** Diagnostic-only: logs a device-pushed fault code (MctlSys.toapp_err_code — see
@@ -291,6 +294,17 @@ export default class LubaDevice extends Homey.Device {
    *  just surfaces the raw value until a real fault event's log data can map it. */
   private handleErrorCodeMessage(code: number): void {
     this.log(`[error_code] device reported errorCode=${code}`);
+  }
+
+  /** Diagnostic-only: logs MctlSys.systemUpdateBuf's raw contents (see
+   *  ErrorCodeParser.ts's extractUpdateBuf) — a completely undecoded message until now,
+   *  and the last untried candidate channel for a wheel-lift/emergency-stop fault code
+   *  after sys_status, sensor_status, self_check_status, and toapp_err_code all showed
+   *  nothing during a real, live-reported emergency stop (diagnostic log
+   *  a66d2bc3-4572-41d1-b8ba-cbc82b05d658, 2026-07-09). Logs the whole array unconditionally
+   *  so a real capture can tell us empirically what this device class actually sends here. */
+  private handleUpdateBufMessage(data: number[]): void {
+    this.log(`[update_buf] device reported systemUpdateBuf=[${data.join(',')}]`);
   }
 
   /** Logs a parsed schedule read response for diagnostics. */
@@ -798,8 +812,8 @@ export default class LubaDevice extends Homey.Device {
    *  failure, logs the resolved model/deviceType alongside the error — capability gating
    *  (docs/CAPABILITY_DIFFERENTIATION_PLAN.md) is based on device-type class, not the
    *  individual physical unit, so a command that fails or silently no-ops for a reason tied to
-   *  real hardware variance within a class (e.g. a Luba 2 Mini without a headlamp) needs this
-   *  context captured to ever close that gap. */
+   *  real hardware variance within a class (e.g. an older firmware revision not supporting a
+   *  given command) needs this context captured to ever close that gap. */
   private async sendCommandAndSync(
     commandB64: string,
     label: string,
