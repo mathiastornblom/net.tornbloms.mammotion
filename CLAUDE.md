@@ -136,7 +136,16 @@ A dedicated second Mammotion account must be created and mowers shared to it bef
 - Log with `this.log()` / `this.error()` — Homey's built-in logger
 
 ## Git Conventions
-- Branch: `main` (protected), feature branches `feature/short-name`
+- **`main`** mirrors whatever version is actually live/approved on the Homey App Store —
+  it only moves forward when a version submitted from `test` has been approved by Homey,
+  never ahead of that. Treat it as a snapshot of production, not the integration branch.
+- **`test`** is the active development/integration branch — all new work lands here first.
+  Homey's build pipeline (GitHub Actions) publishes from `test` to the App Store's test
+  track on every push, so this is what gets submitted for review.
+- **Sync flow**: once Homey approves a version submitted from `test`, fast-forward/reset
+  `main` to that exact commit (so `main`'s version matches what's actually published), then
+  keep developing on `test`. Don't merge `test` → `main` speculatively before approval.
+- Feature branches: `feature/short-name`, merged into `test` (not `main`) via PR.
 - Commit: imperative mood — `Add MQTT auth client`, `Port start_mow command`
 - Never commit credentials or tokens
 
