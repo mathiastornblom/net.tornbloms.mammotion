@@ -17,6 +17,8 @@
   },
   "min": 0,
   "decimals": 0,
+  "chartType": "stepLine",
+  "insights": true,
   "getable": true,
   "setable": false,
   "uiComponent": "sensor",

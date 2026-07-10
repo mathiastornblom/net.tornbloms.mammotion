@@ -262,5 +262,8 @@
   },
   "2.5.33": {
     "en": "Fixed the app retrying every 5 seconds indefinitely (instead of backing off) when Aliyun's cloud service has an outage, which could leave status updates stuck for an extended time with no visible sign anything was wrong"
+  },
+  "2.5.34": {
+    "en": "Added Insights history logging for WiFi Signal, Bluetooth Signal, GPS Satellites and Blade Active, so you can graph and build automations around signal quality and blade activity over time"
   }
 }
