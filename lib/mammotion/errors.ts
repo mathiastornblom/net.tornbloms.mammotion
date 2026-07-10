@@ -88,3 +88,20 @@ export class AliyunCircuitOpenError extends MammotionError {
     this.name = 'AliyunCircuitOpenError';
   }
 }
+
+/** A real Aliyun legacy handshake attempt failed (e.g. getRegion returning HTTP 500) —
+ *  distinct from AliyunCircuitOpenError, which is the *fast-fail* thrown once enough of
+ *  these have happened to open the circuit breaker. This wraps the first 1-2 failures of
+ *  every outage/re-open cycle (AliyunCredentialsManager's circuit only opens after
+ *  ALIYUN_CIRCUIT_BREAKER_LIMIT failures land within the window) so callers like
+ *  LubaDevice's poll loop can treat "Aliyun is unreachable" uniformly regardless of which
+ *  of the two shapes a given attempt happened to fail with — a real diagnostic report
+ *  (2026-07-10) showed the poll loop still hammering at full 5s cadence during exactly
+ *  these pre-circuit-open attempts, even after AliyunCircuitOpenError itself was fixed to
+ *  back off (v2.5.33). */
+export class AliyunCredentialsRefreshError extends MammotionError {
+  constructor(message: string) {
+    super(message);
+    this.name = 'AliyunCredentialsRefreshError';
+  }
+}

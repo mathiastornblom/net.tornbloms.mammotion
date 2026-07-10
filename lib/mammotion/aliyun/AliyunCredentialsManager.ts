@@ -2,7 +2,7 @@
 
 import type { AuthSession } from '../auth/types.js';
 import { probeLegacyAliyunDevices, type AliyunLegacyCredentials } from './AliyunLegacyProbe.js';
-import { AliyunCircuitOpenError } from '../errors.js';
+import { AliyunCircuitOpenError, AliyunCredentialsRefreshError } from '../errors.js';
 import { errorMessage } from '../../util/errorMessage.js';
 
 /**
@@ -149,8 +149,9 @@ export class AliyunCredentialsManager {
       return result.credentials;
     } catch (err) {
       this.failures.push(this.now());
-      this.logError(`Aliyun credentials refresh failed: ${errorMessage(err)}`);
-      throw err;
+      const message = errorMessage(err);
+      this.logError(`Aliyun credentials refresh failed: ${message}`);
+      throw new AliyunCredentialsRefreshError(message);
     }
   }
 

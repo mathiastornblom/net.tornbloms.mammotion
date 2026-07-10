@@ -22,7 +22,7 @@ import {
   type StartMowOptions,
 } from '../../lib/mammotion/commands/LubaCommands.js';
 import {
-  MammotionError, AliyunCommandError, DeviceOfflineError, AliyunCircuitOpenError,
+  MammotionError, AliyunCommandError, DeviceOfflineError, AliyunCircuitOpenError, AliyunCredentialsRefreshError,
 } from '../../lib/mammotion/errors.js';
 import { errorMessage } from '../../lib/util/errorMessage.js';
 import { sendAliyunCloudCommand } from '../../lib/mammotion/aliyun/commands.js';
@@ -525,18 +525,21 @@ export default class LubaDevice extends Homey.Device {
 
   /** Runs one requestSync() attempt and reschedules the next one. A confirmed
    *  DeviceOfflineError, an AliyunCommandError(429) (rate-limited by the Aliyun gateway — see
-   *  sendAliyunCloudCommand), or an AliyunCircuitOpenError (the legacy Aliyun handshake's
-   *  circuit breaker, AliyunCredentialsManager) all back off exponentially (OFFLINE_POLL_BASE_MS
-   *  → _MAX_MS, same backoff shape as BleTransport) instead of hammering at full 5s cadence
-   *  for a mower that could be powered off for hours, or worse, retrying a doomed operation at
-   *  full speed forever (a real diagnostic report showed exactly this for a 429: requestSync
-   *  every 5s for 15+ minutes straight, 2026-07-05). AliyunCircuitOpenError was missing from
-   *  this list until a real report (2026-07-09, "no updates for days") showed it retrying every
-   *  flat 5s indefinitely during an Aliyun outage instead of backing off — the circuit breaker
-   *  itself avoids extra network calls while open, but nothing stopped this loop from re-asking
-   *  it 12x/minute anyway, nor from ever reflecting the failure as device unavailability. Any
-   *  other outcome (success, or a different error, which is likely transient) keeps the normal
-   *  fast cadence. */
+   *  sendAliyunCloudCommand), an AliyunCircuitOpenError (the legacy Aliyun handshake's circuit
+   *  breaker, AliyunCredentialsManager, fast-failing without a network call), or an
+   *  AliyunCredentialsRefreshError (a *real* handshake attempt that failed, e.g. getRegion
+   *  returning HTTP 500 — the 1-2 attempts every outage/re-open cycle makes *before* the
+   *  circuit breaker's failure count reaches its limit and starts fast-failing) all back off
+   *  exponentially (OFFLINE_POLL_BASE_MS → _MAX_MS, same backoff shape as BleTransport) instead
+   *  of hammering at full 5s cadence for a mower that could be powered off for hours, or worse,
+   *  retrying a doomed operation at full speed forever (a real diagnostic report showed exactly
+   *  this for a 429: requestSync every 5s for 15+ minutes straight, 2026-07-05).
+   *  AliyunCircuitOpenError was fixed for this in v2.5.33 (2026-07-09, "no updates for days"),
+   *  but a follow-up report the next day (2026-07-10) showed the *pre-circuit-open* attempts
+   *  during the same kind of outage still hammering at full 5s cadence — this closes that
+   *  residual gap so an entire Aliyun outage backs off end to end, not just the portion the
+   *  circuit breaker has already given up on. Any other outcome (success, or a different error,
+   *  which is likely transient) keeps the normal fast cadence. */
   private async runPollTick(): Promise<void> {
     try {
       await this.requestSync();
@@ -544,13 +547,13 @@ export default class LubaDevice extends Homey.Device {
       this.schedulePoll(TELEMETRY_POLL_INTERVAL_MS);
     } catch (err) {
       const isRateLimited = err instanceof AliyunCommandError && err.code === 429;
-      const isCircuitOpen = err instanceof AliyunCircuitOpenError;
-      if (err instanceof DeviceOfflineError || isRateLimited || isCircuitOpen) {
+      const isAliyunUnreachable = err instanceof AliyunCircuitOpenError || err instanceof AliyunCredentialsRefreshError;
+      if (err instanceof DeviceOfflineError || isRateLimited || isAliyunUnreachable) {
         this.offlinePollFailureCount += 1;
         const delay = Math.min(OFFLINE_POLL_BASE_MS * (2 ** this.offlinePollFailureCount), OFFLINE_POLL_MAX_MS);
         const reason = isRateLimited
           ? 'rate-limited by Aliyun'
-          : isCircuitOpen ? 'Aliyun cloud unreachable' : 'mower still offline';
+          : isAliyunUnreachable ? 'Aliyun cloud unreachable' : 'mower still offline';
         this.log(`Poll: ${reason} — next check in ${Math.round(delay / 1000)}s (failure #${this.offlinePollFailureCount})`);
         this.schedulePoll(delay);
       } else {

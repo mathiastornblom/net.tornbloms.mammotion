@@ -6,7 +6,7 @@ import {
   AliyunCredentialsManager,
   ALIYUN_CREDENTIALS_REFRESH_BUFFER_MS, ALIYUN_CIRCUIT_BREAKER_WINDOW_MS, ALIYUN_CIRCUIT_BREAKER_LIMIT,
 } from '../.homeybuild/lib/mammotion/aliyun/AliyunCredentialsManager.js';
-import { AliyunCircuitOpenError } from '../.homeybuild/lib/mammotion/errors.js';
+import { AliyunCircuitOpenError, AliyunCredentialsRefreshError } from '../.homeybuild/lib/mammotion/errors.js';
 
 // Regression coverage for a real diagnostic report (2026-07-04): the driver previously cached
 // Aliyun legacy credentials only in memory with no expiry check, so a failed handshake meant
@@ -160,6 +160,23 @@ test('AliyunCredentialsManager: circuit breaker opens after repeated failures wi
   // another handshake — verified by the distinct error type/message.
   advance(1000);
   await assert.rejects(() => manager.ensure({}), (err) => err instanceof AliyunCircuitOpenError);
+});
+
+test('AliyunCredentialsManager: a real (pre-circuit-open) handshake failure is wrapped in AliyunCredentialsRefreshError', () => {
+  // Regression coverage for a real diagnostic report (2026-07-10): LubaDevice's poll loop
+  // backs off for AliyunCircuitOpenError (fixed in v2.5.33) but not for the 1-2 real handshake
+  // attempts every outage/re-open cycle makes before the circuit breaker's failure count
+  // reaches its limit — those still hammered at full 5s cadence. Wrapping every real failure
+  // in this dedicated type (instead of rethrowing the raw probe error) lets callers treat
+  // "Aliyun is unreachable" uniformly regardless of which of the two shapes a given attempt
+  // failed with.
+  const { manager } = makeHarness({
+    probeImpl: async () => { throw new Error('simulated handshake failure'); },
+  });
+  return assert.rejects(
+    () => manager.ensure({}),
+    (err) => err instanceof AliyunCredentialsRefreshError && /simulated handshake failure/.test(err.message),
+  );
 });
 
 test('AliyunCredentialsManager: a successful refresh resets the failure count', async () => {

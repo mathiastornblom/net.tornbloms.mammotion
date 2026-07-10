@@ -265,5 +265,8 @@
   },
   "2.5.34": {
     "en": "Added Insights history logging for WiFi Signal, Bluetooth Signal, GPS Satellites and Blade Active, so you can graph and build automations around signal quality and blade activity over time"
+  },
+  "2.5.35": {
+    "en": "Closed a remaining gap from the previous Aliyun-outage fix: the first couple of retries at the start of every outage were still hammering every 5 seconds before backing off. The whole outage now backs off consistently from the very first retry"
   }
 }
