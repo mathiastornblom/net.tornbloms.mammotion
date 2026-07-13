@@ -3,7 +3,7 @@ import Homey from 'homey';
 import { MammotionAuth } from '../../lib/mammotion/auth/MammotionAuth.js';
 import type { AuthSession, DeviceContext, MammotionDevice, DeviceRecord } from '../../lib/mammotion/auth/types.js';
 import { DEVICE_TYPE_NAMES } from '../../lib/mammotion/constants.js';
-import { AuthError } from '../../lib/mammotion/errors.js';
+import { AuthError, AliyunCredentialsRefreshError } from '../../lib/mammotion/errors.js';
 import { probeLegacyAliyunDevices, type AliyunLegacyCredentials } from '../../lib/mammotion/aliyun/AliyunLegacyProbe.js';
 import type { AliyunAccountDevice } from '../../lib/mammotion/aliyun/types.js';
 import { AliyunMqttTransport } from '../../lib/mammotion/aliyun/AliyunMqttTransport.js';
@@ -30,6 +30,11 @@ interface PairedDeviceResult {
 /** Minimum satellite count for the "GPS signal is good" condition. */
 const GPS_GOOD_SATELLITE_THRESHOLD = 6;
 
+/** How many consecutive *real* Aliyun legacy handshake failures (AliyunCredentialsRefreshError
+ *  — not the circuit breaker's fast-fail) to tolerate before forcing a full fresh login. See
+ *  getAliyunCredentials()'s doc comment for why this exists. */
+const ALIYUN_AUTO_RELOGIN_THRESHOLD = 3;
+
 /**
  * LubaDriver manages pairing (cloud login + device discovery) and Flow card registration.
  */
@@ -49,6 +54,9 @@ export default class LubaDriver extends Homey.Driver {
   // registers itself here rather than owning a private transport instance.
   private aliyunTransport: AliyunMqttTransport | null = null;
   private aliyunCredentialsManager!: AliyunCredentialsManager;
+  /** Consecutive real (non-fast-fail) Aliyun handshake failures — drives the auto-relogin
+   *  in getAliyunCredentials(). Reset to 0 on any success. */
+  private aliyunHandshakeFailureStreak = 0;
 
   /** Registers all Flow trigger/condition/action cards for this driver. */
   async onInit(): Promise<void> {
@@ -196,10 +204,40 @@ export default class LubaDriver extends Homey.Driver {
 
   /** Public accessor for LubaDevice's Aliyun command-sending path (sendAliyunCloudCommand)
    *  and requestSync's poll loop. Delegates all caching/expiry/circuit-breaker logic to
-   *  AliyunCredentialsManager (see that module for why this exists). */
+   *  AliyunCredentialsManager (see that module for why this exists).
+   *
+   *  Auto-relogin: `session.authorizationCode` (the OAuth code the legacy Aliyun handshake
+   *  needs) is set once at MammotionAuth.login() and never touched again by
+   *  ensureValidSession()/refreshToken() — confirmed by reading refreshToken()'s `{
+   *  ...session, ... }` spread, which only updates accessToken/refreshToken/expiresAt. A real
+   *  diagnostic report (2026-07-13) showed the legacy handshake's getRegion call failing
+   *  identically for 100+ minutes straight with zero recovery, restart included — which a
+   *  transient Aliyun-side outage wouldn't explain (v2.5.35's backoff was already retrying
+   *  every 60s and never once succeeded), but a permanently stale authorizationCode would:
+   *  nothing before this ever re-derived one short of the user manually re-entering their
+   *  password via Repair (which calls MammotionAuth.login() fresh — see onRepair()). Since
+   *  the plaintext credentials are already stored for exactly this fallback (see
+   *  getValidSession()), force the same fresh login automatically after enough consecutive
+   *  real handshake failures, rather than requiring a user to notice and repair manually. */
   async getAliyunCredentials(): Promise<AliyunLegacyCredentials> {
     const session = await this.getValidSession();
-    return this.aliyunCredentialsManager.ensure(session);
+    try {
+      const credentials = await this.aliyunCredentialsManager.ensure(session);
+      this.aliyunHandshakeFailureStreak = 0;
+      return credentials;
+    } catch (err) {
+      if (!(err instanceof AliyunCredentialsRefreshError)) throw err;
+      this.aliyunHandshakeFailureStreak += 1;
+      if (this.aliyunHandshakeFailureStreak < ALIYUN_AUTO_RELOGIN_THRESHOLD) throw err;
+
+      this.log(`[Aliyun] handshake failed ${this.aliyunHandshakeFailureStreak} times in a row — `
+        + 'forcing a fresh login in case the cached authorization code has gone stale');
+      this.aliyunHandshakeFailureStreak = 0;
+      this.invalidateSession();
+      this.aliyunCredentialsManager.resetCircuitBreaker();
+      const freshSession = await this.getValidSession();
+      return this.aliyunCredentialsManager.ensure(freshSession);
+    }
   }
 
   /** Seeds the credential cache from a probe result the caller already has (e.g. pairing's

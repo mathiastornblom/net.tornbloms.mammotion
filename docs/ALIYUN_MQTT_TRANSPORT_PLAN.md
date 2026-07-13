@@ -480,6 +480,18 @@ as a should-have for Stage 3, not a blocker for Stage 1/2.
   but this is genuinely new wire protocol with zero live verification.
 
 ### Stage 3 — Credential refresh, TLS CA verification, hardening
+- **Partially done (v2.5.36):** a real diagnostic report (2026-07-13) showed the legacy
+  handshake's `getRegion` call failing identically for 100+ minutes straight, surviving both
+  v2.5.35's backoff and a full app restart — inconsistent with a transient Aliyun-side outage,
+  consistent with a permanently stale `session.authorizationCode`. Confirmed by reading
+  `MammotionAuth.refreshToken()`: it spreads `{ ...session, ... }`, so `authorizationCode` is
+  set once at `login()` and never touched again — only a full re-login (previously only
+  triggered by a user manually re-entering their password via Repair) ever gets a fresh one.
+  `LubaDriver.getAliyunCredentials()` now auto-forces a fresh login (via `invalidateSession()`,
+  using the already-stored plaintext credentials) after 3 consecutive real handshake failures,
+  rather than requiring a user to notice and repair manually. **Still not done:** a genuine
+  `checkOrRefreshSession`-equivalent that refreshes the authorization code *before* it goes
+  stale/expires server-side, rather than reactively after a failure streak.
 - Implement `checkOrRefreshSession`-equivalent so long-running sessions don't re-run the
   full 6-step handshake on every `iotToken` expiry.
 - Verify whether a custom CA bundle is actually needed for the MQTT TLS handshake (test

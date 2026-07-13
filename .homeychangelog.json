@@ -268,5 +268,8 @@
   },
   "2.5.35": {
     "en": "Closed a remaining gap from the previous Aliyun-outage fix: the first couple of retries at the start of every outage were still hammering every 5 seconds before backing off. The whole outage now backs off consistently from the very first retry"
+  },
+  "2.5.36": {
+    "en": "Fixed status updates getting permanently stuck (not just slow) after a long-running install — the app now automatically re-logs in after repeated cloud connection failures instead of only recovering when a user manually repairs the device"
   }
 }
