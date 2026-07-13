@@ -274,5 +274,8 @@
   },
   "2.5.37": {
     "en": "Security fix: removed API credentials that were embedded directly in the app's source code, per Homey App Store review feedback. No user-facing behavior change"
+  },
+  "2.5.38": {
+    "en": "Added a new \"Mower started returning to dock\" Flow trigger card — useful for automations like opening a garage door before the mower arrives. Also fixed local build tooling correctly reading env.json during development"
   }
 }

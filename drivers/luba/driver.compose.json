@@ -285,6 +285,24 @@
         }
       },
       {
+        "id": "mower_started_returning",
+        "title": {
+          "en": "Mower started returning to dock",
+          "nl": "Maaier begon terug te keren naar het dock",
+          "de": "Mäher kehrt zur Ladestation zurück",
+          "fr": "La tondeuse a commencé à retourner à la base",
+          "it": "Il tagliaerba ha iniziato a tornare alla base",
+          "sv": "Klipparen började åka tillbaka till dockan",
+          "no": "Klipperen begynte å kjøre tilbake til dokken",
+          "es": "El cortacésped empezó a volver a la base",
+          "da": "Plæneklipperen begyndte at køre tilbage til docken",
+          "ru": "Газонокосилка начала возвращаться на базу",
+          "pl": "Kosiarka zaczęła wracać do stacji",
+          "ko": "잔디깎이가 충전소로 돌아가기 시작함",
+          "ar": "بدأت الجزازة بالعودة إلى القاعدة"
+        }
+      },
+      {
         "id": "mower_docked",
         "title": {
           "en": "Mower docked",

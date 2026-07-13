@@ -754,6 +754,7 @@ export default class LubaDevice extends Homey.Device {
     const driver = this.driver as unknown as LubaDriver;
     driver.triggerMowerStatusChanged(this, status);
     if (status === 'mowing') driver.triggerMowerStartedMowing(this);
+    else if (status === 'returning') driver.triggerMowerStartedReturning(this);
     else if (status === 'charging') driver.triggerMowerDocked(this);
     else if (status === 'error') driver.triggerMowerError(this);
   }

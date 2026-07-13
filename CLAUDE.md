@@ -153,12 +153,20 @@ A dedicated second Mammotion account must be created and mowers shared to it bef
 - Pure Node.js — no native addons, no child_process spawning external binaries
 - All network requests must go through Homey's `https` module or standard `fetch`
 - App ID: `net.tornbloms.mammotion`
-- **No embedded secrets in source** (flagged by Homey review, fixed v2.5.37). All API
-  keys/credentials read via `lib/util/homeyEnv.ts`'s `HOMEY_ENV`, backed by a git-ignored
-  `env.json` (local dev) or repo secrets written to `env.json` in CI before publish (see
-  `.github/workflows/homey-app-publish.yml`). Never hardcode a new key/secret as a string
-  literal — add it to `HOMEY_ENV.<NAME>` instead, and to both `env.json` and the GitHub repo
-  secrets + publish workflow.
+- **No embedded secrets in source** (flagged by Homey review, fixed v2.5.37). Per
+  https://apps.developer.homey.app/the-basics/app (confirmed by reading the actual page):
+  `env.json` lives at the app root, belongs in `.gitignore`, holds flat uppercase-keyed
+  string values, and is documented as readable anywhere via `Homey.env.KEY_NAME` (`import
+  Homey from 'homey'`). It's populated on the real device at install/publish time and isn't
+  meant to be readable by anyone else — but per that page's own hint, don't assume it alone
+  gates access to anything sensitive. `lib/util/homeyEnv.ts`'s `HOMEY_ENV` wraps this: reads
+  `Homey.env` when genuinely populated, else falls back to reading `env.json` off disk
+  directly (`homey app build` generates a local circular-shim `homey` package purely so
+  static imports resolve — it silently resolves to `{}` rather than throwing, so detect via
+  `.env` truthiness, not try/catch). Repo secrets are written to `env.json` in CI before
+  publish (`.github/workflows/homey-app-publish.yml`). Never hardcode a new key/secret as a
+  string literal — add it to `HOMEY_ENV.<NAME>` instead, and to both `env.json` and the
+  GitHub repo secrets + publish workflow.
 
 ## Phases
 | Phase | Weeks | Goal |

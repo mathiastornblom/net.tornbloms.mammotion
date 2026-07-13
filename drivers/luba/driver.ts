@@ -41,6 +41,7 @@ const ALIYUN_AUTO_RELOGIN_THRESHOLD = 3;
 export default class LubaDriver extends Homey.Driver {
 
   private startedMowingTrigger!: Homey.FlowCardTriggerDevice;
+  private startedReturningTrigger!: Homey.FlowCardTriggerDevice;
   private dockedTrigger!: Homey.FlowCardTriggerDevice;
   private errorTrigger!: Homey.FlowCardTriggerDevice;
   private batteryBelowTrigger!: Homey.FlowCardTriggerDevice;
@@ -79,6 +80,9 @@ export default class LubaDriver extends Homey.Driver {
   private registerFlowCards(): void {
     this.startedMowingTrigger = this.homey.flow.getDeviceTriggerCard('mower_started_mowing');
     this.startedMowingTrigger.registerRunListener(() => true);
+
+    this.startedReturningTrigger = this.homey.flow.getDeviceTriggerCard('mower_started_returning');
+    this.startedReturningTrigger.registerRunListener(() => true);
 
     this.dockedTrigger = this.homey.flow.getDeviceTriggerCard('mower_docked');
     this.dockedTrigger.registerRunListener(() => true);
@@ -164,6 +168,13 @@ export default class LubaDriver extends Homey.Driver {
   /** Called by LubaDevice when the mower transitions into the mowing state. */
   triggerMowerStartedMowing(device: Homey.Device): void {
     this.startedMowingTrigger.trigger(device, {}, {}).catch(this.error.bind(this));
+  }
+
+  /** Called by LubaDevice when the mower transitions into the 'returning' state (heading
+   *  back to dock, job not yet finished) — requested so a Flow can react before it actually
+   *  docks, e.g. opening a garage door the mower needs to drive through. */
+  triggerMowerStartedReturning(device: Homey.Device): void {
+    this.startedReturningTrigger.trigger(device, {}, {}).catch(this.error.bind(this));
   }
 
   /** Called by LubaDevice when the mower transitions into the charging/docked state. */
