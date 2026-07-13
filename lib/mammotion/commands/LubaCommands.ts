@@ -156,19 +156,42 @@ export function buildStartMowCommand(
 }
 
 /**
- * Build a rain-protection command (MctlSys.job_plan.rainTactics).
- * rainTactics=0 = stop mowing when rain detected (protection ON).
- * rainTactics=1 = continue mowing in rain (protection OFF).
+ * Build a rain-protection command (MctlSys.bidireCommCmd, id=3 — the general-purpose
+ * read/write parameter channel, `allpowerfull_rw`/`read_write_device` in pymammotion).
+ * Confirmed against pymammotion's `async_set_rain_detection` (id=3, rw=1, context=on/off) and
+ * the official app's own "Rain Protection" toggle (a standalone Safety Features setting,
+ * "Automatically stop task when rain is detected" — independent of any job/route config).
+ * The previous implementation sent `MctlSys.jobPlan.rainTactics`, a *job-start* parameter
+ * that pymammotion only ever bundles inside a full route-generation message alongside
+ * job_id/job_mode/knife_height — never sent bare — so it was very likely a silent no-op, the
+ * same failure mode as the old headlamp command. This device also echoes its current
+ * rain-detection state back on the same `bidireCommCmd` id=3 channel (rw=0), which
+ * ErrorCodeParser.ts's extractRainProtection reads to keep mow_rain_protection in sync
+ * with changes made in the official app.
  */
 export function buildSetRainProtectionCommand(
-  stopInRain: boolean,
+  enabled: boolean,
   userAccount: string,
   seq: { value: number },
 ): string {
   return encodeLubaMsgBase64({
     ...envelope(MsgCmdType.EMBED_SYS, MsgDevice.DEV_MAINCTL, userAccount, seq),
     sys: {
-      jobPlan: { rainTactics: stopInRain ? 0 : 1 },
+      bidireCommCmd: { id: 3, context: enabled ? 1 : 0, rw: 1 },
+    },
+  });
+}
+
+/** Build a read request for the rain-protection state (MctlSys.bidireCommCmd, id=3, rw=0) —
+ *  see buildSetRainProtectionCommand's doc comment for the full protocol context. */
+export function buildReadRainProtectionCommand(
+  userAccount: string,
+  seq: { value: number },
+): string {
+  return encodeLubaMsgBase64({
+    ...envelope(MsgCmdType.EMBED_SYS, MsgDevice.DEV_MAINCTL, userAccount, seq),
+    sys: {
+      bidireCommCmd: { id: 3, context: 0, rw: 0 },
     },
   });
 }

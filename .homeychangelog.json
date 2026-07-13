@@ -280,5 +280,8 @@
   },
   "2.5.39": {
     "en": "Fixed the headlamp toggle doing nothing on the mower even though Homey reported success (it was using the wrong command values) — confirmed working now. Side LED now uses its own correct command instead of reusing the headlamp one. Also added a guard against sending the same start/stop command twice in quick succession, which could make the mower stop after a few seconds thinking the job was already finished"
+  },
+  "2.5.40": {
+    "en": "Fixed Rain Protection using the wrong command (it was silently ignored by the mower). It now uses the correct one, matches the same toggle in the official app, and stays in sync if changed from there too"
   }
 }

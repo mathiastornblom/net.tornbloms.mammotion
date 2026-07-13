@@ -39,3 +39,20 @@ export function extractUpdateBuf(msg: Record<string, unknown>): number[] | null 
   if (!Array.isArray(data) || data.length === 0) return null;
   return data.map(Number);
 }
+
+/**
+ * Extracts MctlSys.bidireCommCmd (SysCommCmd, the general-purpose read/write parameter
+ * channel — pymammotion's `allpowerfull_rw`/`read_write_device`) when it carries id=3, the
+ * rain-detection feature toggle. The device echoes its current state back on this same
+ * channel — both as a direct reply to our own read (rw=0) or write (rw=1) command, and
+ * (per pymammotion's state_reducer) whenever the setting changes from another source, e.g.
+ * the official Mammotion app — so this keeps mow_rain_protection in sync regardless of
+ * which app last changed it. Other rw_ids on this channel (turning_mode, traversal_mode,
+ * etc. — see pymammotion's state_reducer.py) aren't surfaced as capabilities yet.
+ */
+export function extractRainProtection(msg: Record<string, unknown>): boolean | null {
+  const sys = msg.sys as Record<string, unknown> | undefined;
+  const comm = sys?.bidireCommCmd as Record<string, unknown> | undefined;
+  if (!comm || comm.id !== 3 || typeof comm.context !== 'number') return null;
+  return comm.context !== 0;
+}

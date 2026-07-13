@@ -8,7 +8,7 @@ import { extractTelemetry } from '../../lib/mammotion/protocol/TelemetryParser.j
 import { workModeToStatus, isErrorMode, type MowerStatus } from '../../lib/mammotion/protocol/WorkModeStatus.js';
 import { MOWING_ACTIVE_WORK_MODES } from '../../lib/mammotion/constants.js';
 import { extractSchedule, type ScheduleInfo } from '../../lib/mammotion/protocol/ScheduleParser.js';
-import { extractErrorCode, extractUpdateBuf } from '../../lib/mammotion/protocol/ErrorCodeParser.js';
+import { extractErrorCode, extractUpdateBuf, extractRainProtection } from '../../lib/mammotion/protocol/ErrorCodeParser.js';
 import {
   buildTaskControlCommand,
   buildStartMowCommand,
@@ -18,6 +18,7 @@ import {
   buildSetHeadlampCommand,
   buildSetSideLedCommand,
   buildSetRainProtectionCommand,
+  buildReadRainProtectionCommand,
   buildReadScheduleCommand,
   CUTTER_MODE_MAP,
   type StartMowOptions,
@@ -304,6 +305,8 @@ export default class LubaDevice extends Homey.Device {
     if (errorCode !== null) this.handleErrorCodeMessage(errorCode);
     const updateBuf = extractUpdateBuf(msg);
     if (updateBuf !== null) this.handleUpdateBufMessage(updateBuf);
+    const rainProtection = extractRainProtection(msg);
+    if (rainProtection !== null) this.setCapIfChanged('mow_rain_protection', rainProtection);
   }
 
   /** Diagnostic-only: logs a device-pushed fault code (MctlSys.toapp_err_code — see
@@ -403,6 +406,9 @@ export default class LubaDevice extends Homey.Device {
       setTimeout(() => {
         this.requestSync().catch((err) => {
           this.error(`Initial sync failed: ${errorMessage(err)}`);
+        });
+        this.requestRainProtectionState().catch((err) => {
+          this.error(`Initial rain-protection state read failed: ${errorMessage(err)}`);
         });
       }, SYNC_ON_CONNECT_DELAY_MS);
 
@@ -891,11 +897,21 @@ export default class LubaDevice extends Homey.Device {
     return LubaDevice.POS_LEVEL_MAP[level] ?? 'none';
   }
 
-  /** Toggles rain protection (stop mowing in rain vs. continue) and reflects it on mow_rain_protection. */
+  /** Toggles rain protection (auto-stop mowing when rain is detected) and reflects it on
+   *  mow_rain_protection. The device also echoes this state back independently (see
+   *  extractRainProtection) so it stays in sync if changed from the official app instead. */
   async actionSetRainProtection(enabled: boolean): Promise<void> {
     const session = await this.getSession();
     const cmd = buildSetRainProtectionCommand(enabled, session.userAccount, this.seq);
     await this.sendCommandAndSync(cmd, `set_rain_protection(${enabled})`, 'mow_rain_protection', enabled);
+  }
+
+  /** Requests the mower's current rain-protection state; the reply is picked up by
+   *  handleRawMessage/extractRainProtection and reflected on mow_rain_protection. */
+  private async requestRainProtectionState(): Promise<void> {
+    const session = await this.getSession();
+    const cmd = buildReadRainProtectionCommand(session.userAccount, this.seq);
+    await this.sendRaw(Buffer.from(cmd, 'base64'), 'read_rain_protection');
   }
 
   /** Toggles the main headlamp (SocMul.set_lamp, manual on/off) and reflects it on mow_headlamp. */
