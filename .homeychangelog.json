@@ -271,5 +271,8 @@
   },
   "2.5.36": {
     "en": "Fixed status updates getting permanently stuck (not just slow) after a long-running install — the app now automatically re-logs in after repeated cloud connection failures instead of only recovering when a user manually repairs the device"
+  },
+  "2.5.37": {
+    "en": "Security fix: removed API credentials that were embedded directly in the app's source code, per Homey App Store review feedback. No user-facing behavior change"
   }
 }

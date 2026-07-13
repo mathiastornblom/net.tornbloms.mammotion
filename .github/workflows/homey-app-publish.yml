@@ -9,6 +9,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # env.json is git-ignored (never committed — see .gitignore) and supplies the
+      # secrets Homey's App Store review flagged as embedded in source (Mammotion OAuth
+      # credentials, Aliyun app credentials, Sentry ingest key — see lib/util/homeyEnv.ts).
+      # Homey's publish action reads it from the repo root the same way `homey app run`
+      # does locally; without this step every env.json-backed constant would be undefined
+      # in the published build.
+      - name: Write env.json from repository secrets
+        run: |
+          cat > env.json <<'JSON'
+          {
+            "MAMMOTION_OAUTH_APP_KEY": "${{ secrets.MAMMOTION_OAUTH_APP_KEY }}",
+            "MAMMOTION_OAUTH_APP_SECRET": "${{ secrets.MAMMOTION_OAUTH_APP_SECRET }}",
+            "ALIYUN_APP_KEY": "${{ secrets.ALIYUN_APP_KEY }}",
+            "ALIYUN_APP_SECRET": "${{ secrets.ALIYUN_APP_SECRET }}",
+            "SENTRY_KEY": "${{ secrets.SENTRY_KEY }}"
+          }
+          JSON
+
       - name: Publish Homey App
         uses: athombv/github-action-homey-app-publish@master
         id: publish

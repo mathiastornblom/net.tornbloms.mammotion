@@ -1,8 +1,13 @@
 'use strict';
 
-/** OAuth2 client credentials for the Mammotion API. */
-export const OAUTH_APP_KEY = 'GxebgSt8si6pKqR';
-export const OAUTH_APP_SECRET = 'JP0508SRJFa0A90ADpzLINDBxMa4Vj';
+import { HOMEY_ENV } from '../util/homeyEnv.js';
+
+/** OAuth2 client credentials for the Mammotion API — supplied via env.json (see
+ *  lib/util/homeyEnv.ts), never committed to the repo. Populate a local, git-ignored
+ *  env.json for development; CI writes it from repository secrets before publishing
+ *  (see .github/workflows). */
+export const OAUTH_APP_KEY: string = HOMEY_ENV.MAMMOTION_OAUTH_APP_KEY;
+export const OAUTH_APP_SECRET: string = HOMEY_ENV.MAMMOTION_OAUTH_APP_SECRET;
 export const TOKEN_ENDPOINT = '/oauth2/token';
 
 /** Base URLs. */

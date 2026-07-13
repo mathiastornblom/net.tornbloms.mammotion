@@ -153,6 +153,12 @@ A dedicated second Mammotion account must be created and mowers shared to it bef
 - Pure Node.js — no native addons, no child_process spawning external binaries
 - All network requests must go through Homey's `https` module or standard `fetch`
 - App ID: `net.tornbloms.mammotion`
+- **No embedded secrets in source** (flagged by Homey review, fixed v2.5.37). All API
+  keys/credentials read via `lib/util/homeyEnv.ts`'s `HOMEY_ENV`, backed by a git-ignored
+  `env.json` (local dev) or repo secrets written to `env.json` in CI before publish (see
+  `.github/workflows/homey-app-publish.yml`). Never hardcode a new key/secret as a string
+  literal — add it to `HOMEY_ENV.<NAME>` instead, and to both `env.json` and the GitHub repo
+  secrets + publish workflow.
 
 ## Phases
 | Phase | Weeks | Goal |

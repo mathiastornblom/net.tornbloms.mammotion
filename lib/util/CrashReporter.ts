@@ -2,6 +2,7 @@
 
 import https from 'https';
 import { randomBytes } from 'crypto';
+import { HOMEY_ENV } from './homeyEnv.js';
 
 /**
  * Minimal crash-only Sentry reporter.
@@ -23,7 +24,8 @@ import { randomBytes } from 'crypto';
  * lives in the EU region (ingest.de.sentry.io).
  */
 
-const SENTRY_KEY = 'a07a06f014a77af0edded186c871be97';
+/** Ingest key — supplied via env.json (see lib/util/homeyEnv.ts), never committed to the repo. */
+const SENTRY_KEY: string = HOMEY_ENV.SENTRY_KEY;
 const SENTRY_HOST = 'o4507681623769088.ingest.de.sentry.io';
 const SENTRY_PROJECT_ID = '4511667443859537';
 
