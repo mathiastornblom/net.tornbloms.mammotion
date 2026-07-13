@@ -299,6 +299,9 @@ export default class LubaDevice extends Homey.Device {
   /** Dispatch on-demand (non-telemetry) responses, e.g. schedule reads. */
   private handleRawMessage(iotId: string, msg: Record<string, unknown>): void {
     if (iotId !== this.getData().id) return;
+    if (this.homey.settings.get('debugLogging') === true) {
+      this.log(`[debug] received: ${JSON.stringify(msg)}`);
+    }
     const schedule = extractSchedule(msg);
     if (schedule) this.handleScheduleResponse(schedule);
     const errorCode = extractErrorCode(msg);
@@ -802,6 +805,9 @@ export default class LubaDevice extends Homey.Device {
       return;
     }
     this.lastCommandSent = { label, at: now };
+    if (this.homey.settings.get('debugLogging') === true) {
+      this.log(`[debug] sending ${label}: ${bytes.toString('base64')}`);
+    }
     const context = this.getContext();
     if (this.activeTransport === 'ble' && this.ble?.isConnected) {
       this.log(`[BLE] sending command: ${label}`);

@@ -54,6 +54,11 @@
     "crash_reporting": {
       "label": "Enviar informes de fallos anónimos",
       "hint": "Si está activado, la aplicación envía un informe técnico anónimo al desarrollador cuando falla, lo que ayuda a solucionar los problemas más rápido. Los informes solo contienen detalles del error — nunca tu cuenta, ubicación o datos personales."
+    },
+    "advanced_section": "Avanzado",
+    "debug_logging": {
+      "label": "Activar registro de depuración",
+      "hint": "Si está activado, la aplicación registra los datos sin procesar que intercambia con el cortacésped, para ayudar a diagnosticar problemas de protocolo. Actívalo solo temporalmente cuando el desarrollador te lo pida — genera muchos datos de registro e incluye identificadores técnicos (no tu contraseña ni tus credenciales de cuenta)."
     }
   }
 }

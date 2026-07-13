@@ -54,6 +54,11 @@
     "crash_reporting": {
       "label": "Skicka anonyma kraschrapporter",
       "hint": "När detta är aktiverat skickar appen en anonym teknisk rapport till utvecklaren om den kraschar, vilket hjälper till att åtgärda problem snabbare. Rapporterna innehåller endast felinformation — aldrig ditt konto, din plats eller personuppgifter."
+    },
+    "advanced_section": "Avancerat",
+    "debug_logging": {
+      "label": "Aktivera felsökningsloggning",
+      "hint": "När detta är aktiverat loggar appen rådata som utbyts med klipparen, för att hjälpa till att diagnostisera protokollproblem. Aktivera detta endast tillfälligt när utvecklaren ber om det — det genererar mycket loggdata och inkluderar tekniska identifierare (inte ditt lösenord eller kontouppgifter)."
     }
   }
 }

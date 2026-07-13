@@ -21,17 +21,40 @@
     </div>
   </fieldset>
 
+  <fieldset class="homey-form-fieldset">
+    <legend class="homey-form-legend" data-i18n="settings.advanced_section"></legend>
+    <div class="homey-form-group">
+      <label class="homey-form-checkbox">
+        <input class="homey-form-checkbox-input" type="checkbox" id="debugLogging">
+        <span class="homey-form-checkbox-checkmark"></span>
+        <span class="homey-form-checkbox-text" data-i18n="settings.debug_logging.label"></span>
+      </label>
+      <p class="homey-form-help" data-i18n="settings.debug_logging.hint"></p>
+    </div>
+  </fieldset>
+
   <script type="text/javascript">
     function onHomeyReady(Homey) {
-      var checkbox = document.getElementById('crashReporting');
+      var crashReporting = document.getElementById('crashReporting');
+      var debugLogging = document.getElementById('debugLogging');
+
       Homey.get('crashReporting', function (err, value) {
         // Default is on: only an explicit false means the user opted out.
-        checkbox.checked = value !== false;
-        Homey.ready();
+        crashReporting.checked = value !== false;
       });
-      checkbox.addEventListener('change', function () {
-        Homey.set('crashReporting', checkbox.checked);
+      crashReporting.addEventListener('change', function () {
+        Homey.set('crashReporting', crashReporting.checked);
       });
+
+      Homey.get('debugLogging', function (err, value) {
+        // Default is off: verbose, only meant to be turned on temporarily.
+        debugLogging.checked = value === true;
+      });
+      debugLogging.addEventListener('change', function () {
+        Homey.set('debugLogging', debugLogging.checked);
+      });
+
+      Homey.ready();
     }
   </script>
 

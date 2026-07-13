@@ -54,6 +54,11 @@
     "crash_reporting": {
       "label": "Invia segnalazioni anonime di arresto anomalo",
       "hint": "Se attivata, l'app invia una segnalazione tecnica anonima allo sviluppatore in caso di arresto anomalo, aiutando a risolvere i problemi più rapidamente. Le segnalazioni contengono solo dettagli sugli errori — mai il tuo account, la tua posizione o dati personali."
+    },
+    "advanced_section": "Avanzate",
+    "debug_logging": {
+      "label": "Abilita registrazione di debug",
+      "hint": "Se attivata, l'app registra i dati grezzi scambiati con il tagliaerba, per aiutare a diagnosticare problemi di protocollo. Attivala solo temporaneamente su richiesta dello sviluppatore — genera molti dati di log e include identificatori tecnici (non la tua password o le credenziali dell'account)."
     }
   }
 }

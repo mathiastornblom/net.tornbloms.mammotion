@@ -286,5 +286,8 @@
   },
   "2.5.41": {
     "en": "Added a new \"Mower status is...\" condition card, so advanced Flows can check for an exact status (mowing, charging, returning, paused, error, idle) instead of only \"is mowing\""
+  },
+  "2.5.42": {
+    "en": "Added an optional \"Debug logging\" setting (Advanced section) that logs the raw data exchanged with the mower, to help diagnose protocol issues across different mower models. Off by default — only turn it on temporarily if asked to by the developer"
   }
 }

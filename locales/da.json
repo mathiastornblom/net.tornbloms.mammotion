@@ -54,6 +54,11 @@
     "crash_reporting": {
       "label": "Send anonyme nedbrudsrapporter",
       "hint": "Når dette er aktiveret, sender appen en anonym teknisk rapport til udvikleren, hvis den går ned, hvilket hjælper med at løse problemer hurtigere. Rapporter indeholder kun fejldetaljer — aldrig din konto, placering eller personlige data."
+    },
+    "advanced_section": "Avanceret",
+    "debug_logging": {
+      "label": "Aktivér fejlfindingslogning",
+      "hint": "Når dette er aktiveret, logger appen de rådata, den udveksler med plæneklipperen, for at hjælpe med at diagnosticere protokolproblemer. Aktivér kun dette midlertidigt, når udvikleren beder om det — det genererer meget logdata og indeholder tekniske identifikatorer (ikke din adgangskode eller kontooplysninger)."
     }
   }
 }

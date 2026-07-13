@@ -54,6 +54,11 @@
     "crash_reporting": {
       "label": "Anonieme crashrapporten versturen",
       "hint": "Indien ingeschakeld stuurt de app een anoniem technisch rapport naar de ontwikkelaar als deze crasht, zodat problemen sneller kunnen worden opgelost. Rapporten bevatten alleen foutdetails — nooit je account, locatie of persoonlijke gegevens."
+    },
+    "advanced_section": "Geavanceerd",
+    "debug_logging": {
+      "label": "Foutopsporingslogboek inschakelen",
+      "hint": "Indien ingeschakeld registreert de app de ruwe gegevens die worden uitgewisseld met de maaier, om protocolproblemen te helpen diagnosticeren. Schakel dit alleen tijdelijk in wanneer de ontwikkelaar hierom vraagt — het genereert veel logboekgegevens en bevat technische identificatiegegevens (niet je wachtwoord of accountgegevens)."
     }
   }
 }

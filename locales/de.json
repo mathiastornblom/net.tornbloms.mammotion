@@ -54,6 +54,11 @@
     "crash_reporting": {
       "label": "Anonyme Absturzberichte senden",
       "hint": "Wenn aktiviert, sendet die App bei einem Absturz einen anonymen technischen Bericht an den Entwickler, um Probleme schneller zu beheben. Berichte enthalten nur Fehlerdetails — niemals Ihr Konto, Ihren Standort oder persönliche Daten."
+    },
+    "advanced_section": "Erweitert",
+    "debug_logging": {
+      "label": "Debug-Protokollierung aktivieren",
+      "hint": "Wenn aktiviert, protokolliert die App die Rohdaten, die mit dem Mäher ausgetauscht werden, um Protokollprobleme zu diagnostizieren. Aktivieren Sie dies nur vorübergehend, wenn der Entwickler Sie darum bittet — es erzeugt sehr viele Protokolldaten und enthält technische Kennungen (nicht Ihr Passwort oder Kontodaten)."
     }
   }
 }

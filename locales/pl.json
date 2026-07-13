@@ -54,6 +54,11 @@
     "crash_reporting": {
       "label": "Wysyłaj anonimowe raporty o awariach",
       "hint": "Po włączeniu aplikacja wysyła anonimowy raport techniczny do dewelopera w przypadku awarii, co pomaga szybciej rozwiązywać problemy. Raporty zawierają wyłącznie szczegóły błędu — nigdy Twojego konta, lokalizacji ani danych osobowych."
+    },
+    "advanced_section": "Zaawansowane",
+    "debug_logging": {
+      "label": "Włącz rejestrowanie debugowania",
+      "hint": "Po włączeniu aplikacja rejestruje surowe dane wymieniane z kosiarką, aby pomóc zdiagnozować problemy z protokołem. Włączaj to tylko tymczasowo, na prośbę dewelopera — generuje to dużo danych dziennika i zawiera identyfikatory techniczne (nie hasło ani dane konta)."
     }
   }
 }

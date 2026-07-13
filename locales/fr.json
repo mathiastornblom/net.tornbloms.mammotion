@@ -54,6 +54,11 @@
     "crash_reporting": {
       "label": "Envoyer des rapports d'incident anonymes",
       "hint": "Lorsque cette option est activée, l'application envoie un rapport technique anonyme au développeur en cas de plantage, ce qui aide à corriger les problèmes plus rapidement. Les rapports ne contiennent que des détails d'erreur — jamais votre compte, votre position ou vos données personnelles."
+    },
+    "advanced_section": "Avancé",
+    "debug_logging": {
+      "label": "Activer la journalisation de débogage",
+      "hint": "Lorsque cette option est activée, l'application enregistre les données brutes échangées avec la tondeuse, afin d'aider à diagnostiquer les problèmes de protocole. N'activez ceci que temporairement, à la demande du développeur — cela génère beaucoup de données de journal et inclut des identifiants techniques (pas votre mot de passe ni vos identifiants de compte)."
     }
   }
 }
