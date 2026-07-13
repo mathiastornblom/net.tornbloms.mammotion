@@ -16,6 +16,7 @@ import {
   buildSetBladeHeightCommand,
   buildSetBladeSpeedCommand,
   buildSetHeadlampCommand,
+  buildSetSideLedCommand,
   buildSetRainProtectionCommand,
   buildReadScheduleCommand,
   CUTTER_MODE_MAP,
@@ -36,6 +37,18 @@ type TransportPreference = 'auto' | 'ble_only' | 'mqtt_only';
 
 // Re-arm the one-shot report subscription every 5s, matching Mammotion-HA.
 const TELEMETRY_POLL_INTERVAL_MS = 5_000;
+// A real diagnostic report (2026-07-13, Yuka) showed every start_mowing command being sent
+// twice, ~100-260ms apart, every single time the mower was started across the whole session
+// — both dispatches got distinct successful responses, and the mower stopped after ~1m
+// reporting the job "finished" instead of actually mowing. actionStartMowing() is reachable
+// from two legitimate entry points (the onoff capability listener and the start_mowing Flow
+// action card), so a duplicate at this exact cadence is consistent with something upstream
+// (a Flow chaining both, or a platform-level double-dispatch) invoking both — but regardless
+// of which one, the mower's own firmware very plausibly can't distinguish "the same start
+// requested twice in a row" from "start, then immediately cancel/re-evaluate", which would
+// explain the reported behavior. Guards the same *label* from firing twice within this
+// window, at sendRaw() — the one chokepoint every outgoing command already passes through.
+const DUPLICATE_COMMAND_WINDOW_MS = 1_500;
 const SYNC_ON_CONNECT_DELAY_MS = 2_000;
 // Once the mower has confirmed itself offline (DeviceOfflineError, not just a transient
 // send failure), polling every 5s indefinitely is wasted cloud traffic for a mower that
@@ -66,6 +79,9 @@ export default class LubaDevice extends Homey.Device {
   private offlinePollFailureCount = 0;
 
   private seq = { value: 0 };
+  /** Last command label + timestamp sent via sendRaw() — drives the duplicate-command guard
+   *  there (see its doc comment for why this exists). */
+  private lastCommandSent: { label: string; at: number } | null = null;
   private currentStatus: MowerStatus = 'idle';
   /** Last logged headlampStatusRaw value — diagnostic change-gating only, not a capability. */
   private lastHeadlampStatusRaw: number | null = null;
@@ -101,12 +117,12 @@ export default class LubaDevice extends Homey.Device {
     // capability the device lacks.
     if (this.hasCapability('mow_headlamp')) {
       this.registerCapabilityListener('mow_headlamp', async (value: boolean) => {
-        await this.actionSetHeadlamp(value, 0);
+        await this.actionSetHeadlamp(value);
       });
     }
 
     this.registerCapabilityListener('mow_side_led', async (value: boolean) => {
-      await this.actionSetHeadlamp(value, 1);
+      await this.actionSetSideLed(value);
     });
 
     this.registerCapabilityListener('mow_rain_protection', async (value: boolean) => {
@@ -766,8 +782,20 @@ export default class LubaDevice extends Homey.Device {
    *  protocol-identical either way. Below that, branch by transportKind: legacy-Aliyun
    *  devices send via the REST invoke gateway (independent of the shared MQTT connection's
    *  status — sending doesn't need the read/telemetry connection up), everything else uses
-   *  the primary Mammotion MQTT client. */
+   *  the primary Mammotion MQTT client.
+   *
+   *  Guards against sending the exact same command label twice within
+   *  DUPLICATE_COMMAND_WINDOW_MS — see that constant's doc comment for the real diagnostic
+   *  report this fixes. Each command already carries its own incrementing seq number (see
+   *  envelope() in LubaCommands.ts), so a genuine duplicate dispatch isn't byte-identical —
+   *  this compares by label instead, which captures the semantic action regardless. */
   private async sendRaw(bytes: Buffer, label: string): Promise<void> {
+    const now = Date.now();
+    if (this.lastCommandSent?.label === label && now - this.lastCommandSent.at < DUPLICATE_COMMAND_WINDOW_MS) {
+      this.log(`Skipping duplicate ${label} command sent ${now - this.lastCommandSent.at}ms after the previous one`);
+      return;
+    }
+    this.lastCommandSent = { label, at: now };
     const context = this.getContext();
     if (this.activeTransport === 'ble' && this.ble?.isConnected) {
       this.log(`[BLE] sending command: ${label}`);
@@ -870,18 +898,18 @@ export default class LubaDevice extends Homey.Device {
     await this.sendCommandAndSync(cmd, `set_rain_protection(${enabled})`, 'mow_rain_protection', enabled);
   }
 
-  /** setIds: 0 = headlamp, 1 = side LED */
-  private static readonly LAMP_TARGETS: Record<0 | 1, { label: string; capability: string }> = {
-    0: { label: 'headlamp', capability: 'mow_headlamp' },
-    1: { label: 'side_led', capability: 'mow_side_led' },
-  };
-
-  /** Toggles the headlamp (setIds=0) or side LED (setIds=1) and reflects it on the matching capability. */
-  async actionSetHeadlamp(on: boolean, setIds: 0 | 1): Promise<void> {
+  /** Toggles the main headlamp (SocMul.set_lamp, manual on/off) and reflects it on mow_headlamp. */
+  async actionSetHeadlamp(on: boolean): Promise<void> {
     const session = await this.getSession();
-    const cmd = buildSetHeadlampCommand(on, session.userAccount, this.seq, setIds);
-    const target = LubaDevice.LAMP_TARGETS[setIds];
-    await this.sendCommandAndSync(cmd, `set_${target.label}(${on})`, target.capability, on);
+    const cmd = buildSetHeadlampCommand(on, session.userAccount, this.seq);
+    await this.sendCommandAndSync(cmd, `set_headlamp(${on})`, 'mow_headlamp', on);
+  }
+
+  /** Toggles the side LED (MctlSys.todev_time_ctrl_light) and reflects it on mow_side_led. */
+  async actionSetSideLed(on: boolean): Promise<void> {
+    const session = await this.getSession();
+    const cmd = buildSetSideLedCommand(on, session.userAccount, this.seq);
+    await this.sendCommandAndSync(cmd, `set_side_led(${on})`, 'mow_side_led', on);
   }
 
   /** Sends the mower back to its charging dock. */

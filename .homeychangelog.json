@@ -277,5 +277,8 @@
   },
   "2.5.38": {
     "en": "Added a new \"Mower started returning to dock\" Flow trigger card — useful for automations like opening a garage door before the mower arrives. Also fixed local build tooling correctly reading env.json during development"
+  },
+  "2.5.39": {
+    "en": "Fixed the headlamp toggle doing nothing on the mower even though Homey reported success (it was using the wrong command values) — confirmed working now. Side LED now uses its own correct command instead of reusing the headlamp one. Also added a guard against sending the same start/stop command twice in quick succession, which could make the mower stop after a few seconds thinking the job was already finished"
   }
 }

@@ -9,8 +9,8 @@ import {
 } from '../protocol/Codec.js';
 import { LEGACY_LUBA1_PRODUCT_KEYS, NON_MOWER_PRODUCT_KEYS } from '../constants.js';
 
-// lamp_ctrl_sta enum values (luba_mul.proto)
-const LAMP_CTRL = { power_off: 0, power_on: 1 } as const;
+// lamp_manual_ctrl_sta enum values (luba_mul.proto)
+const LAMP_MANUAL_CTRL = { manual_power_off: 0, manual_power_on: 1 } as const;
 
 /** Task-control commands accepted by buildTaskControlCommand. */
 export type DeviceCommand = 'start' | 'pause' | 'resume' | 'stop' | 'dock' | 'cancelJob' | 'cancelDock';
@@ -174,23 +174,64 @@ export function buildSetRainProtectionCommand(
 }
 
 /**
- * Build a set-headlamp command (SocMul.set_lamp / SetHeadlamp in luba_mul.proto).
- * set_ids=0 targets the main headlamp; set_ids=1 targets the side LED.
- * lamp_manual_ctrl=1 (manual_power_on/off) overrides any auto-lighting schedule.
+ * Build a set-headlamp command (SocMul.set_lamp / SetHeadlamp in luba_mul.proto) — the
+ * *manual* on/off toggle (as opposed to the separate night-time auto-lighting mode, which
+ * this app doesn't expose as a capability). Confirmed against pymammotion's
+ * `set_car_manual_light` (mammotion/commands/messages/media.py): `set_ids` is NOT a fixed
+ * per-lamp index — it's 1125 for a manual-ON request and 1127 for a manual-OFF request,
+ * alongside `lamp_power_ctrl=2` (fixed) and `lamp_manual_ctrl` carrying the actual on/off
+ * enum. The previous implementation used `set_ids=0`/`1` (an invented main/side-lamp
+ * index) plus an unrelated `lamp_ctrl` field (that belongs to the separate auto
+ * night-light command, `set_car_light`, `set_ids=1121`) — Aliyun's gateway accepted it as
+ * valid protobuf (`code:0` success) but the mower's firmware had no reason to recognize
+ * those `set_ids` values, matching a real diagnostic report (2026-07-13, Luba 3): the
+ * headlamp toggle showed success in Homey but never lit the physical lamp, while working
+ * fine from the official Mammotion app. Side LED uses a completely different message bus
+ * (MctlSys.todev_time_ctrl_light) — see buildSetSideLedCommand, not this function.
  */
 export function buildSetHeadlampCommand(
   on: boolean,
   userAccount: string,
   seq: { value: number },
-  setIds = 0,
 ): string {
   return encodeLubaMsgBase64({
     ...envelope(MsgCmdType.MUL, MsgDevice.SOC_MODULE_MULTIMEDIA, userAccount, seq),
     mul: {
       setLamp: {
-        setIds,
-        lampCtrl: on ? LAMP_CTRL.power_on : LAMP_CTRL.power_off,
-        lampManualCtrl: on ? 1 : 0, // manual_power_on / manual_power_off
+        setIds: on ? 1125 : 1127,
+        lampPowerCtrl: 2,
+        lampManualCtrl: on ? LAMP_MANUAL_CTRL.manual_power_on : LAMP_MANUAL_CTRL.manual_power_off,
+      },
+    },
+  });
+}
+
+/**
+ * Build a side-LED command (MctlSys.todev_time_ctrl_light / TimeCtrlLight in
+ * mctrl_sys.proto) — a completely different message bus from the headlamp (SYS, not MUL).
+ * Confirmed against pymammotion's `read_and_set_sidelight` (mammotion/commands/messages/
+ * system.py): `operate=0` means write/set (as opposed to 1, read/query); `enable` is
+ * INVERTED — 0 means the light is on, 1 means off. The previous implementation reused
+ * buildSetHeadlampCommand with `set_ids=1`, which was wrong on two levels: wrong message
+ * bus entirely, and `set_ids=1` isn't a real value in either the headlamp or side-LED
+ * protocol (see buildSetHeadlampCommand's doc comment for the real set_ids values).
+ */
+export function buildSetSideLedCommand(
+  on: boolean,
+  userAccount: string,
+  seq: { value: number },
+): string {
+  return encodeLubaMsgBase64({
+    ...envelope(MsgCmdType.EMBED_SYS, MsgDevice.DEV_MAINCTL, userAccount, seq),
+    sys: {
+      todevTimeCtrlLight: {
+        operate: 0,
+        enable: on ? 0 : 1,
+        action: 0,
+        startHour: 0,
+        startMin: 0,
+        endHour: 0,
+        endMin: 0,
       },
     },
   });
