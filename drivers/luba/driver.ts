@@ -163,6 +163,11 @@ export default class LubaDriver extends Homey.Driver {
         const stars = (args.device as any).getCapabilityValue('measure_gps_stars');
         return typeof stars === 'number' && stars >= GPS_GOOD_SATELLITE_THRESHOLD;
       });
+
+    this.homey.flow.getConditionCard('mower_status_is')
+      .registerRunListener((args: { device: Homey.Device; status: string }) => {
+        return (args.device as any).getMowerState() === args.status;
+      });
   }
 
   /** Called by LubaDevice when the mower transitions into the mowing state. */

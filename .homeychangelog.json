@@ -283,5 +283,8 @@
   },
   "2.5.40": {
     "en": "Fixed Rain Protection using the wrong command (it was silently ignored by the mower). It now uses the correct one, matches the same toggle in the official app, and stays in sync if changed from there too"
+  },
+  "2.5.41": {
+    "en": "Added a new \"Mower status is...\" condition card, so advanced Flows can check for an exact status (mowing, charging, returning, paused, error, idle) instead of only \"is mowing\""
   }
 }
