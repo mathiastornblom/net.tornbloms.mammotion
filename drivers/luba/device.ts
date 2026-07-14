@@ -144,13 +144,22 @@ export default class LubaDevice extends Homey.Device {
 
   /** Reconciles this device's actual capabilities against the model-appropriate set
    *  (docs/CAPABILITY_DIFFERENTIATION_PLAN.md), adding anything missing and removing anything
-   *  the model doesn't actually have (e.g. mow_headlamp on an RTK base station, which has no
-   *  headlamp). Homey only applies a driver's capabilities list at pairing time — adding (or
-   *  gating) a capability in the manifest/pairing-time list does nothing for devices paired on
-   *  an older app version, so this needs to run on every init to actually reach existing users
-   *  (confirmed via a real user report, 2026-07-05: last_sync never appeared after updating to
-   *  v2.5.16 on an already-paired device). Safe to run every time — add/removeCapability are
-   *  no-ops when the device already matches the target state. */
+   *  that shouldn't be there. Homey only applies a driver's capabilities list at pairing
+   *  time — adding (or gating, or entirely removing) a capability in the manifest does
+   *  nothing for devices paired on an older app version, so this needs to run on every init
+   *  to actually reach existing users (confirmed via a real user report, 2026-07-05: last_sync
+   *  never appeared after updating to v2.5.16 on an already-paired device). Safe to run every
+   *  time — add/removeCapability are no-ops when the device already matches the target state.
+   *
+   *  The removal side iterates this.getCapabilities() (the device's ACTUAL current
+   *  capabilities), not pairingCapabilities (the current manifest list) — on purpose. A
+   *  capability can end up on a device but not in `expected` for two different reasons: (1)
+   *  it's still declared in the manifest but model-gated out for this device (e.g.
+   *  mow_headlamp on an RTK base station), or (2) it was removed from the manifest entirely
+   *  (deprecated/renamed). Iterating pairingCapabilities would only ever catch case (1),
+   *  since a fully-removed capability isn't in that list to iterate over at all — it'd sit on
+   *  already-paired devices forever, un-removable, with no listener backing it once its code
+   *  is deleted too. Iterating the device's real capabilities catches both cases uniformly. */
   private async migrateCapabilities(): Promise<void> {
     const context = this.getContext();
     const deviceType = resolveDeviceType(context.deviceName, context.productKey);
@@ -158,13 +167,15 @@ export default class LubaDevice extends Homey.Device {
     const expected = new Set(capabilitiesForModel(pairingCapabilities, deviceType));
 
     for (const capability of pairingCapabilities) {
-      const shouldHave = expected.has(capability);
-      const hasIt = this.hasCapability(capability);
-      if (shouldHave && !hasIt) {
+      if (expected.has(capability) && !this.hasCapability(capability)) {
         this.log(`Migrating: adding capability ${capability} (model=${MODEL_STRING[deviceType]})`);
         await this.addCapability(capability).catch(this.error.bind(this));
-      } else if (!shouldHave && hasIt) {
-        this.log(`Migrating: removing capability ${capability} — not supported on model ${MODEL_STRING[deviceType]}`);
+      }
+    }
+
+    for (const capability of this.getCapabilities()) {
+      if (!expected.has(capability)) {
+        this.log(`Migrating: removing capability ${capability} — not used by this app/model (model=${MODEL_STRING[deviceType]})`);
         await this.removeCapability(capability).catch(this.error.bind(this));
       }
     }

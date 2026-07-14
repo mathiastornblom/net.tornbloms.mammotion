@@ -301,5 +301,8 @@
   },
   "2.5.46": {
     "en": "Internal: the app now reads its capability list from a single source instead of a second hand-maintained copy, so a future new sensor/switch can no longer silently fail to reach already-paired devices the way the previous two updates did. No user-facing change"
+  },
+  "2.5.47": {
+    "en": "Internal: if a sensor/switch is ever discontinued in a future update, it will now be properly cleaned up from already-paired devices instead of being left behind permanently. No user-facing change"
   }
 }
