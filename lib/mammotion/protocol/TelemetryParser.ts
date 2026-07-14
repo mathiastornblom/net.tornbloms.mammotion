@@ -133,7 +133,13 @@ export function extractTelemetry(msg: Record<string, unknown>): Partial<Telemetr
     // both plausible against that same device's already-confirmed bladeUsedTime (~24.5h) —
     // work time being slightly higher than blade-spinning time makes sense (positioning/
     // docking time isn't spent cutting).
-    if (typeof maintain.mileage === 'number') telemetry.mileage = maintain.mileage;
+    // mileage is int64 on the wire (mctrl_sys.proto), so decodeLubaMsg's longs:String
+    // setting returns it as a string; workTime is a plain int32 and stays a number. A real
+    // diagnostic report (2026-07-14) showed "mileage":"26721" (string) alongside
+    // "workTime":97140 (number) in the same payload, confirming this split and catching a
+    // regression where this function still only accepted mileage as a number, silently
+    // freezing measure_total_distance for every user since the longs:String change shipped.
+    if (typeof maintain.mileage === 'string') telemetry.mileage = Number(maintain.mileage);
     if (typeof maintain.workTime === 'number') telemetry.workTime = maintain.workTime;
     const bladeUsed = maintain.bladeUsedTime as Record<string, number> | undefined;
     if (bladeUsed && typeof bladeUsed.bladeUsedTime === 'number') {
