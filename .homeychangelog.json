@@ -289,5 +289,8 @@
   },
   "2.5.42": {
     "en": "Added an optional \"Debug logging\" setting (Advanced section) that logs the raw data exchanged with the mower, to help diagnose protocol issues across different mower models. Off by default — only turn it on temporarily if asked to by the developer"
+  },
+  "2.5.43": {
+    "en": "The headlamp switch now updates in Homey when turned on/off from the official Mammotion app too, not just when changed from Homey itself. Confirmed the earlier headlamp fix (v2.5.39) is now working correctly on a real device"
   }
 }

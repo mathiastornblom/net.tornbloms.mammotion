@@ -84,10 +84,8 @@ export default class LubaDevice extends Homey.Device {
    *  there (see its doc comment for why this exists). */
   private lastCommandSent: { label: string; at: number } | null = null;
   private currentStatus: MowerStatus = 'idle';
-  /** Last logged headlampStatusRaw value — diagnostic change-gating only, not a capability. */
-  private lastHeadlampStatusRaw: number | null = null;
-  /** Last logged sensorStatusRaw/selfCheckStatusRaw values — same change-gating purpose as
-   *  lastHeadlampStatusRaw, for the two fault-code candidate fields (see TelemetryParser.ts). */
+  /** Last logged sensorStatusRaw/selfCheckStatusRaw values — diagnostic change-gating only,
+   *  for the two fault-code candidate fields (see TelemetryParser.ts). */
   private lastSensorStatusRaw: number | null = null;
   private lastSelfCheckStatusRaw: number | null = null;
   /** Last logged sysTimeStampRaw value — diagnostic change-gating, see TelemetryParser.ts. */
@@ -715,13 +713,17 @@ export default class LubaDevice extends Homey.Device {
       const hours = Math.round(state.bladeUsedTime / 360) / 10;
       if (this.setCapIfChanged('measure_blade_used_time', hours)) changed.push(`blade=${hours}h`);
     }
-    // Diagnostic-only, not a capability yet — see TelemetryParser.ts's comment on
-    // headlampStatusRaw. Logging every observed value (change-gated like everything
-    // else here) so real device data can be collected before mapping this to
-    // mow_headlamp/mow_side_led.
-    if (state.headlampStatusRaw != null && state.headlampStatusRaw !== this.lastHeadlampStatusRaw) {
-      this.lastHeadlampStatusRaw = state.headlampStatusRaw;
-      changed.push(`headlampStatusRaw=${state.headlampStatusRaw} [diagnostic, not yet mapped]`);
+    // rpt_dev_status.headlamp_status is a plain on/off flag for the main headlamp — confirmed
+    // via a real diagnostic report (2026-07-14, Luba 3) showing it flip 0->1->0 in lockstep
+    // with our own set_headlamp(true)/set_headlamp(false) commands, AND flip on its own
+    // (matching a manual toggle from the official app) with no Homey-sent command involved.
+    // Reflecting it here is what makes an iOS-app-initiated toggle show up in Homey too —
+    // previously this was logged as a diagnostic value and never written to the capability,
+    // so mow_headlamp only ever changed when Homey itself sent the command. No equivalent
+    // raw field has been observed for the side LED yet, so mow_side_led stays write-only.
+    if (state.headlampStatusRaw != null && this.hasCapability('mow_headlamp')
+      && this.setCapIfChanged('mow_headlamp', state.headlampStatusRaw !== 0)) {
+      changed.push(`headlamp=${state.headlampStatusRaw !== 0}`);
     }
     // Raw value kept for diagnostics — sensor_status also carries four ultrasonic-sensor
     // sub-fields (bits 12-23) this app doesn't decode yet. The bumper/blade sub-fields
