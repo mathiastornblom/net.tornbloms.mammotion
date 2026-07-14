@@ -295,5 +295,8 @@
   },
   "2.5.44": {
     "en": "Added two new lifetime sensors: Total Distance (km) and Total Work Time (h), tracking the mower's full history rather than just the current job"
+  },
+  "2.5.45": {
+    "en": "Fixed the new Total Distance and Total Work Time sensors not appearing on already-paired devices after updating (they were missing from the internal list that migrates existing devices onto new capabilities)"
   }
 }
