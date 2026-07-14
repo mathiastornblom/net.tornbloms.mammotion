@@ -118,6 +118,17 @@ export default class LubaDriver extends Homey.Driver {
         });
       });
 
+    this.homey.flow.getActionCard('start_mowing_zone')
+      .registerArgumentAutocompleteListener('zone', async (query: string, args: { device: Homey.Device }) => {
+        const zones = (args.device as any).getZoneList() as Array<{ hash: string; name: string }>;
+        return zones
+          .filter((zone) => zone.name.toLowerCase().includes(query.toLowerCase()))
+          .map((zone) => ({ id: zone.hash, name: zone.name || zone.hash }));
+      })
+      .registerRunListener(async (args: { device: Homey.Device; zone: { id: string; name: string } }) => {
+        await (args.device as any).actionPlanAndStartMowing({ areas: [args.zone.id] });
+      });
+
     this.homey.flow.getActionCard('send_to_dock')
       .registerRunListener(async (args: { device: Homey.Device }) => {
         await (args.device as any).actionDock();

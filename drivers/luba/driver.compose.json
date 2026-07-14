@@ -836,6 +836,60 @@
         ]
       },
       {
+        "id": "start_mowing_zone",
+        "title": {
+          "en": "Start mowing zone [[zone]]",
+          "nl": "Start met maaien van zone [[zone]]",
+          "de": "Zone [[zone]] mähen starten",
+          "fr": "Démarrer la tonte de la zone [[zone]]",
+          "it": "Avvia il taglio della zona [[zone]]",
+          "sv": "Starta klippning av zon [[zone]]",
+          "no": "Start klipping av sone [[zone]]",
+          "es": "Iniciar corte de la zona [[zone]]",
+          "da": "Start klipning af zone [[zone]]",
+          "ru": "Начать кошение зоны [[zone]]",
+          "pl": "Zacznij koszenie strefy [[zone]]",
+          "ko": "구역 [[zone]] 작업 시작",
+          "ar": "بدء جز المنطقة [[zone]]"
+        },
+        "titleFormatted": {
+          "en": "Start mowing zone [[zone]]",
+          "nl": "Start met maaien van zone [[zone]]",
+          "de": "Zone [[zone]] mähen starten",
+          "fr": "Démarrer la tonte de la zone [[zone]]",
+          "it": "Avvia il taglio della zona [[zone]]",
+          "sv": "Starta klippning av zon [[zone]]",
+          "no": "Start klipping av sone [[zone]]",
+          "es": "Iniciar corte de la zona [[zone]]",
+          "da": "Start klipning af zone [[zone]]",
+          "ru": "Начать кошение зоны [[zone]]",
+          "pl": "Zacznij koszenie strefy [[zone]]",
+          "ko": "구역 [[zone]] 작업 시작",
+          "ar": "بدء جز المنطقة [[zone]]"
+        },
+        "args": [
+          {
+            "type": "autocomplete",
+            "name": "zone",
+            "title": {
+              "en": "Zone",
+              "nl": "Zone",
+              "de": "Zone",
+              "fr": "Zone",
+              "it": "Zona",
+              "sv": "Zon",
+              "no": "Sone",
+              "es": "Zona",
+              "da": "Zone",
+              "ru": "Зона",
+              "pl": "Strefa",
+              "ko": "구역",
+              "ar": "المنطقة"
+            }
+          }
+        ]
+      },
+      {
         "id": "send_to_dock",
         "title": {
           "en": "Send to dock",

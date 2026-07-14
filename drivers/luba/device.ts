@@ -442,6 +442,16 @@ export default class LubaDevice extends Homey.Device {
     await this.sendRaw(Buffer.from(cmd, 'base64'), 'get_area_name_list');
   }
 
+  /** Returns the cached zone list immediately (for the start_mowing_zone Flow card's
+   *  autocomplete dropdown) and fires a background refresh so the *next* time the dropdown
+   *  opens it reflects any zones added/renamed since — enumeration is pull-only, there's no
+   *  push notification for map changes made in the official app (see
+   *  docs/ZONE_SELECTION_PLAN.md §1). */
+  getZoneList(): AreaHashName[] {
+    this.requestAreaNameList().catch(this.error.bind(this));
+    return this.zoneCache;
+  }
+
   // ─── MQTT transport ───────────────────────────────────────────────────────
 
   /** Fetches a fresh session and MQTT credentials, then connects the MqttClient for this device. */

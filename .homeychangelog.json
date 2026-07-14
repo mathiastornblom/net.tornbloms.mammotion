@@ -307,5 +307,8 @@
   },
   "2.5.48": {
     "en": "Fixed \"Start Mowing\" sometimes finishing almost instantly and returning to dock without actually mowing. It now properly selects which zone(s) to mow before starting (all known zones by default), instead of just resuming whatever job the mower had cached — which could be one it had already finished"
+  },
+  "2.5.49": {
+    "en": "Added a new \"Start mowing zone...\" Flow action card with a dropdown of your mower's actual mapped zones, so you can build Flows that mow a specific area instead of everywhere"
   }
 }
