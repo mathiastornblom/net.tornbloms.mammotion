@@ -298,5 +298,8 @@
   },
   "2.5.45": {
     "en": "Fixed the new Total Distance and Total Work Time sensors not appearing on already-paired devices after updating (they were missing from the internal list that migrates existing devices onto new capabilities)"
+  },
+  "2.5.46": {
+    "en": "Internal: the app now reads its capability list from a single source instead of a second hand-maintained copy, so a future new sensor/switch can no longer silently fail to reach already-paired devices the way the previous two updates did. No user-facing change"
   }
 }

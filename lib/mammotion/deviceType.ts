@@ -222,8 +222,8 @@ export function supportsBatteryCycleCount(deviceType: DeviceType): boolean {
  *  (docs/CAPABILITY_DIFFERENTIATION_PLAN.md) — used both at pairing time (LubaDriver's
  *  buildDeviceList/buildLegacyDeviceList) and by device.ts's onInit() migration, so a model's
  *  capability set can never drift between a newly paired device and an already-paired one.
- *  Takes the base list as a parameter (rather than importing LubaDriver.PAIRING_CAPABILITIES
- *  directly) to avoid a circular import between this module and driver.ts.
+ *  Takes the base list as a parameter (rather than importing LubaDriver directly) to avoid a
+ *  circular import between this module and driver.ts.
  *
  *  Gated so far (docs/CAPABILITY_DIFFERENTIATION_PLAN.md's verified findings):
  *  - mow_headlamp: any Luba-family or Yuka-family mower (not RTK base stations or

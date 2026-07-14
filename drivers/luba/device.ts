@@ -154,9 +154,10 @@ export default class LubaDevice extends Homey.Device {
   private async migrateCapabilities(): Promise<void> {
     const context = this.getContext();
     const deviceType = resolveDeviceType(context.deviceName, context.productKey);
-    const expected = new Set(capabilitiesForModel(LubaDriver.PAIRING_CAPABILITIES, deviceType));
+    const pairingCapabilities = (this.driver as unknown as LubaDriver).pairingCapabilities;
+    const expected = new Set(capabilitiesForModel(pairingCapabilities, deviceType));
 
-    for (const capability of LubaDriver.PAIRING_CAPABILITIES) {
+    for (const capability of pairingCapabilities) {
       const shouldHave = expected.has(capability);
       const hasIt = this.hasCapability(capability);
       if (shouldHave && !hasIt) {

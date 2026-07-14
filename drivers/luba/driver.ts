@@ -516,7 +516,7 @@ export default class LubaDriver extends Homey.Driver {
         name: context.deviceName || context.iotId,
         data: { id: context.iotId },
         store: { context: { ...context, transportKind: 'mammotion' } },
-        capabilities: capabilitiesForModel(LubaDriver.PAIRING_CAPABILITIES, deviceType),
+        capabilities: capabilitiesForModel(this.pairingCapabilities, deviceType),
       };
     });
   }
@@ -545,7 +545,7 @@ export default class LubaDriver extends Homey.Driver {
         name: device.nickName || context.deviceName || context.iotId,
         data: { id: context.iotId },
         store: { context },
-        capabilities: capabilitiesForModel(LubaDriver.PAIRING_CAPABILITIES, deviceType),
+        capabilities: capabilitiesForModel(this.pairingCapabilities, deviceType),
       };
     });
   }
@@ -554,26 +554,22 @@ export default class LubaDriver extends Homey.Driver {
    *  single device ends up with. Both buildDeviceList/buildLegacyDeviceList (pairing) and
    *  device.ts's onInit() migration run this through capabilitiesForModel() (deviceType.ts,
    *  docs/CAPABILITY_DIFFERENTIATION_PLAN.md) to filter out capabilities the detected model
-   *  doesn't actually have (e.g. mow_headlamp on a Luba 2 Mini) before Homey uses it. Homey
-   *  uses THIS pairing-time list (not driver.compose.json's manifest) to set up a new device's
-   *  capabilities, so anything missing here is silently absent on already-paired devices too —
-   *  adding a capability here (or to the compose manifest) does NOT retroactively add it to
-   *  devices paired on an older app version; Homey only applies it at pairing time. device.ts's
-   *  onInit() migration reconciles existing devices onto the model-filtered set on every app
-   *  start (confirmed via a real user report, 2026-07-05: last_sync never appeared after
-   *  updating to v2.5.16 on an already-paired device). Keep in sync with driver.compose.json's
-   *  top-level "capabilities" array by hand — not private, since device.ts's migration reads
-   *  it too. */
-  static readonly PAIRING_CAPABILITIES: string[] = [
-    'onoff', 'measure_battery', 'alarm_generic',
-    'mower_status', 'measure_mow_progress', 'measure_mow_area', 'mow_blade_height',
-    'measure_wifi_rssi', 'measure_ble_rssi', 'measure_gps_stars',
-    'measure_mowing_speed', 'measure_elapsed_time', 'measure_left_time',
-    'active_transport', 'last_sync', 'mow_cutter_mode', 'mow_headlamp', 'mow_side_led',
-    'mow_pos_level', 'mow_rain_protection', 'measure_battery_cycles', 'measure_blade_used_time',
-    'measure_total_distance', 'measure_total_work_time',
-    'mow_send_to_dock', 'mow_bumper_state', 'mow_blade_active',
-  ];
+   *  doesn't actually have (e.g. mow_headlamp on a Luba 2 Mini) before Homey uses it.
+   *
+   *  Reads `this.manifest.capabilities` — the compiled driver.compose.json entry Homey itself
+   *  loaded to run this driver — rather than duplicating the list as a hand-typed literal.
+   *  A previous version of this property WAS a hand-typed array that had to be kept in sync
+   *  with driver.compose.json by hand; twice (2026-07-14) a new capability was added to the
+   *  compose manifest but not to this list, so neither new pairings nor device.ts's
+   *  migrateCapabilities() (which also reads this property, to backfill new capabilities onto
+   *  already-paired devices on every app start — Homey only applies driver.compose.json's
+   *  capabilities at pairing time, so this is the only thing that reaches existing users)
+   *  ever saw the new capability. Deriving it from the manifest instead makes that entire bug
+   *  class structurally impossible: there is now exactly one place (driver.compose.json) that
+   *  declares this driver's capability superset. */
+  get pairingCapabilities(): string[] {
+    return this.manifest.capabilities as string[];
+  }
 
   /**
    * Retrieve a valid session, refreshing or re-logging in if needed.
