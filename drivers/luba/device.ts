@@ -11,6 +11,10 @@ import { extractSchedule, type ScheduleInfo } from '../../lib/mammotion/protocol
 import { extractErrorCode, extractUpdateBuf, extractRainProtection } from '../../lib/mammotion/protocol/ErrorCodeParser.js';
 import { extractAreaHashNames, type AreaHashName } from '../../lib/mammotion/protocol/AreaNameParser.js';
 import {
+  extractRootHashList, extractCommDataAck, synthesizeAreaZoneNames,
+  type RootHashListFrame, type CommDataAckFrame,
+} from '../../lib/mammotion/protocol/BoundaryHashParser.js';
+import {
   buildTaskControlCommand,
   buildRequestIotSyncCommand,
   buildSetBladeHeightCommand,
@@ -22,6 +26,11 @@ import {
   buildReadScheduleCommand,
   buildGetAreaNameListCommand,
   buildGenerateRouteCommand,
+  buildGetBoundaryHashListCommand,
+  buildGetHashResponseCommand,
+  buildSynchronizeHashDataCommand,
+  buildRegionalDataAckCommand,
+  buildBleSyncCommand,
   CUTTER_MODE_MAP,
   type StartMowOptions,
 } from '../../lib/mammotion/commands/LubaCommands.js';
@@ -63,6 +72,14 @@ const SYNC_ON_CONNECT_DELAY_MS = 2_000;
 const OFFLINE_POLL_BASE_MS = 10_000;
 const OFFLINE_POLL_MAX_MS = 60_000; // 1 min
 
+// requestBoundaryZoneDiscovery() budgets — see docs/ZONE_BOUNDARY_FALLBACK_PLAN.md §5.
+// Deliberately much more generous than waitForZoneCache's 3s: this is a many-round-trip
+// sequence, gated to run at most once ever per device (see actionPlanAndStartMowing).
+const BOUNDARY_FRAME_TIMEOUT_MS = 5_000; // matches the reference's step_timeout
+const BOUNDARY_PER_HASH_TIMEOUT_MS = 8_000; // classify + drain budget for a single hash
+const BOUNDARY_MAX_HASHES = 32; // hash-count cap
+const BOUNDARY_OVERALL_BUDGET_MS = 25_000; // whole-sequence wall-clock cap
+
 /**
  * LubaDevice represents a single Mammotion mower paired to Homey.
  * Supports dual-mode transport (BLE preferred, MQTT fallback, or explicit preference
@@ -103,6 +120,16 @@ export default class LubaDevice extends Homey.Device {
   private zoneCacheWaiters: Array<() => void> = [];
   /** Pending resolvers for a generate-route confirmation echo — see actionPlanAndStartMowing(). */
   private routeConfirmWaiters: Array<() => void> = [];
+  /** Pending resolvers for the next root boundary-hash-list frame — see
+   *  requestBoundaryZoneDiscovery()/waitForRootHashFrame(). */
+  private rootHashWaiters: Array<(frame: RootHashListFrame) => void> = [];
+  /** Pending resolvers for the next per-hash classification ack frame — see
+   *  requestBoundaryZoneDiscovery()/waitForCommDataAck(). */
+  private commDataWaiters: Array<(frame: CommDataAckFrame) => void> = [];
+  /** In-flight requestBoundaryZoneDiscovery() run, if any — de-dupes concurrent callers
+   *  (e.g. two near-simultaneous start requests) onto a single fragile round-trip
+   *  sequence instead of racing two of them against the device at once. */
+  private boundaryDiscoveryInFlight: Promise<AreaHashName[]> | null = null;
 
   // ─── Init / teardown ─────────────────────────────────────────────────────
 
@@ -339,6 +366,10 @@ export default class LubaDevice extends Homey.Device {
     if (rainProtection !== null) this.setCapIfChanged('mow_rain_protection', rainProtection);
     const zones = extractAreaHashNames(msg);
     if (zones !== null) this.handleAreaHashNamesResponse(zones);
+    const rootHashFrame = extractRootHashList(msg);
+    if (rootHashFrame !== null) this.handleRootHashFrame(rootHashFrame);
+    const commDataAck = extractCommDataAck(msg);
+    if (commDataAck !== null) this.handleCommDataAck(commDataAck);
     const nav = msg.nav as Record<string, unknown> | undefined;
     if (nav?.bidireReqconverPath) this.handleRouteConfirmation();
   }
@@ -362,6 +393,47 @@ export default class LubaDevice extends Homey.Device {
     const waiters = this.routeConfirmWaiters;
     this.routeConfirmWaiters = [];
     waiters.forEach((resolve) => resolve());
+  }
+
+  /** Wakes anything waiting on the next root boundary-hash-list frame (subCmd===0) — see
+   *  requestBoundaryZoneDiscovery(). */
+  private handleRootHashFrame(frame: RootHashListFrame): void {
+    const waiters = this.rootHashWaiters;
+    this.rootHashWaiters = [];
+    waiters.forEach((resolve) => resolve(frame));
+  }
+
+  /** Wakes anything waiting on the next per-hash classification ack frame — see
+   *  requestBoundaryZoneDiscovery(). */
+  private handleCommDataAck(frame: CommDataAckFrame): void {
+    const waiters = this.commDataWaiters;
+    this.commDataWaiters = [];
+    waiters.forEach((resolve) => resolve(frame));
+  }
+
+  /** Resolves with the next root-hash-list frame, or null after timeoutMs — degrades to
+   *  the timeout rather than hanging, matching waitForZoneCache's pattern. */
+  private waitForRootHashFrame(timeoutMs: number): Promise<RootHashListFrame | null> {
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        this.rootHashWaiters = this.rootHashWaiters.filter((w) => w !== onFrame);
+        resolve(null);
+      }, timeoutMs);
+      const onFrame = (frame: RootHashListFrame) => { clearTimeout(timer); resolve(frame); };
+      this.rootHashWaiters.push(onFrame);
+    });
+  }
+
+  /** Resolves with the next per-hash classification ack frame, or null after timeoutMs. */
+  private waitForCommDataAck(timeoutMs: number): Promise<CommDataAckFrame | null> {
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        this.commDataWaiters = this.commDataWaiters.filter((w) => w !== onFrame);
+        resolve(null);
+      }, timeoutMs);
+      const onFrame = (frame: CommDataAckFrame) => { clearTimeout(timer); resolve(frame); };
+      this.commDataWaiters.push(onFrame);
+    });
   }
 
   /** Resolves once the zone cache next updates, or after timeoutMs, whichever comes first —
@@ -450,6 +522,151 @@ export default class LubaDevice extends Homey.Device {
   getZoneList(): AreaHashName[] {
     this.requestAreaNameList().catch(this.error.bind(this));
     return this.zoneCache;
+  }
+
+  // ─── Boundary zone discovery (unnamed-zone fallback) ─────────────────────
+  // See docs/ZONE_BOUNDARY_FALLBACK_PLAN.md: get_area_name_list only returns zones the
+  // user has explicitly named in the official app — a device with an unnamed default
+  // boundary returns an empty named list even though a mowable boundary exists. This
+  // fetches the device's raw root hash manifest and classifies each hash's type, keeping
+  // only mowable (AREA) hashes, as a bounded, fail-safe fallback for that case.
+
+  /** Re-sends the BLE keepalive sync immediately before each major discovery step. The
+   *  device only serves hash-list/comm-data frames while it considers the app "synced",
+   *  and that state lapses after a few seconds over BLE (see plan doc §6) — a no-op over
+   *  MQTT/cloud transports, which have no equivalent keepalive. */
+  private async sendBleSyncKeepalive(): Promise<void> {
+    if (this.activeTransport !== 'ble' || !this.ble?.isConnected) return;
+    await this.ble.send(buildBleSyncCommand(2, this.seq));
+  }
+
+  /**
+   * Enumerates unnamed boundary zones as a fallback when get_area_name_list returns an
+   * empty list despite the device holding real boundary data — see
+   * docs/ZONE_BOUNDARY_FALLBACK_PLAN.md for the diagnostic report this fixes. Fetches the
+   * device's raw root hash manifest (get_all_boundary_hash_list) via an ack-driven frame
+   * loop, classifies each hash via a per-hash type probe (synchronize_hash_data), and keeps
+   * only PathType.AREA (mowable) hashes — never an obstacle/path/no-go hash. Synthesizes
+   * "Area N" names (sorted by hash, matching the reference's own fallback naming) and
+   * persists them via the same warm-cache path as the named-list response, so this fragile
+   * multi-round-trip sequence only needs to succeed once per device (see
+   * actionPlanAndStartMowing's gating). Bounded by hard per-frame/per-hash/overall timeouts
+   * and a hash-count cap; returns whatever AREA hashes were found (possibly none) rather
+   * than hanging or throwing on a stalled/interrupted sequence.
+   *
+   * Known caveat: a later, genuinely-empty get_area_name_list response (e.g. from the next
+   * MQTT reconnect's routine re-sync) will still overwrite the cache populated here, same as
+   * it would for any other zoneCache update — see handleAreaHashNamesResponse, deliberately
+   * left untouched by this feature. Worst case this re-triggers discovery on a later start.
+   */
+  async requestBoundaryZoneDiscovery(): Promise<AreaHashName[]> {
+    if (this.boundaryDiscoveryInFlight) return this.boundaryDiscoveryInFlight;
+    const run = this.runBoundaryZoneDiscovery();
+    this.boundaryDiscoveryInFlight = run;
+    try {
+      return await run;
+    } finally {
+      this.boundaryDiscoveryInFlight = null;
+    }
+  }
+
+  /** Actual discovery sequence run by requestBoundaryZoneDiscovery() — split out so the
+   *  public method can de-dupe concurrent callers onto a single in-flight promise. */
+  private async runBoundaryZoneDiscovery(): Promise<AreaHashName[]> {
+    const deadline = Date.now() + BOUNDARY_OVERALL_BUDGET_MS;
+    let session: AuthSession;
+    let context: DeviceContext;
+    try {
+      session = await this.getSession();
+      context = this.getContext();
+    } catch (err) {
+      this.error(`Boundary zone discovery: could not get session/context: ${errorMessage(err)}`);
+      return [];
+    }
+
+    const areaHashes: string[] = [];
+    try {
+      await this.sendBleSyncKeepalive();
+      const rootHashes = await this.collectRootHashList(session, context, deadline);
+      this.log(`Boundary discovery: root hash list has ${rootHashes.length} hash(es)`);
+
+      if (rootHashes.length > 0) {
+        await this.sendBleSyncKeepalive();
+        for (const hash of rootHashes.slice(0, BOUNDARY_MAX_HASHES)) {
+          if (Date.now() >= deadline) {
+            this.log('Boundary discovery: overall budget exhausted, stopping per-hash probe');
+            break;
+          }
+          const isArea = await this.probeHashIsArea(hash, session, context, deadline);
+          this.log(`Boundary discovery: hash=${hash} isArea=${isArea}`);
+          if (isArea) areaHashes.push(hash);
+        }
+      }
+    } catch (err) {
+      this.error(`Boundary zone discovery failed: ${errorMessage(err)}`);
+    }
+
+    if (areaHashes.length === 0) {
+      this.log('Boundary discovery: no AREA hashes found');
+      return [];
+    }
+
+    const zones = synthesizeAreaZoneNames(areaHashes);
+    this.handleAreaHashNamesResponse(zones);
+    return zones;
+  }
+
+  /** Sends the root hash-list request once, then acks each received frame (never
+   *  proactively) until the device reports currentFrame >= totalFrame or the overall
+   *  deadline is hit. Returns whatever hashes were collected so far in either case. */
+  private async collectRootHashList(session: AuthSession, context: DeviceContext, deadline: number): Promise<string[]> {
+    const cmd = buildGetBoundaryHashListCommand(session.userAccount, context.deviceName, this.seq, context.productKey);
+    await this.sendRaw(Buffer.from(cmd, 'base64'), 'get_boundary_hash_list');
+
+    const hashes: string[] = [];
+    for (;;) {
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) break;
+      const frame = await this.waitForRootHashFrame(Math.min(BOUNDARY_FRAME_TIMEOUT_MS, remaining));
+      if (!frame) break; // timed out — keep whatever was collected so far
+      hashes.push(...frame.dataCouple);
+      const ackCmd = buildGetHashResponseCommand(
+        frame.totalFrame, frame.currentFrame, session.userAccount, context.deviceName, this.seq, context.productKey,
+      );
+      // Label includes the frame counters — each ack in the loop is otherwise the same
+      // label, and sendRaw's duplicate-command guard (DUPLICATE_COMMAND_WINDOW_MS) would
+      // otherwise silently drop a legitimate ack sent in quick succession after the last.
+      await this.sendRaw(Buffer.from(ackCmd, 'base64'), `get_hash_response:${frame.currentFrame}/${frame.totalFrame}`);
+      if (frame.currentFrame >= frame.totalFrame) break;
+    }
+    return hashes;
+  }
+
+  /** Classifies a single root hash via synchronize_hash_data, reading `.type` from the
+   *  first ack frame and draining/acking every subsequent frame of that hash's stream
+   *  (get_regional_data) before moving on — leaving a hash's stream unacked risks the
+   *  device retransmitting it with an incrementing dataHash, adding noise to a small-MTU
+   *  BLE link. Returns true only for a confirmed PathType.AREA (type===0); returns false
+   *  on any other type, a stale/mismatched hash, or a timeout — a probe that can't
+   *  complete is never assumed to be a mowable area. */
+  private async probeHashIsArea(hash: string, session: AuthSession, context: DeviceContext, deadline: number): Promise<boolean> {
+    const hashDeadline = Math.min(deadline, Date.now() + BOUNDARY_PER_HASH_TIMEOUT_MS);
+    const cmd = buildSynchronizeHashDataCommand(hash, session.userAccount, context.deviceName, this.seq, context.productKey);
+    await this.sendRaw(Buffer.from(cmd, 'base64'), `synchronize_hash_data:${hash}`);
+
+    let isArea: boolean | null = null;
+    for (;;) {
+      const remaining = hashDeadline - Date.now();
+      if (remaining <= 0) break;
+      const ack = await this.waitForCommDataAck(Math.min(BOUNDARY_FRAME_TIMEOUT_MS, remaining));
+      if (!ack) break; // timed out mid-stream — abandon this hash
+      if (ack.hash !== hash) continue; // stale frame for a different hash — keep waiting
+      if (isArea === null) isArea = ack.type === 0; // `.type` is present on the very first frame
+      const ackCmd = buildRegionalDataAckCommand(ack, session.userAccount, context.deviceName, this.seq, context.productKey);
+      await this.sendRaw(Buffer.from(ackCmd, 'base64'), `get_regional_data:${hash}:${ack.currentFrame}`);
+      if (ack.currentFrame >= ack.totalFrame) break;
+    }
+    return isArea === true;
   }
 
   // ─── MQTT transport ───────────────────────────────────────────────────────
@@ -986,6 +1203,19 @@ export default class LubaDevice extends Homey.Device {
         await this.requestAreaNameList().catch(this.error.bind(this));
         await this.waitForZoneCache(3_000);
         areas = this.zoneCache.map((zone) => zone.hash);
+      }
+      if (areas.length === 0) {
+        // Named list is genuinely empty (and the warm cache holds nothing — this is only
+        // reached when zoneCache, loaded from the store at onInit, was already empty
+        // before either check above) — fall back to the raw-hash-manifest discovery
+        // (docs/ZONE_BOUNDARY_FALLBACK_PLAN.md). Runs at most once ever per device: a
+        // successful run persists synthetic "Area N" zones to zoneCache/the store, so
+        // every subsequent call resolves at the very first check above instead.
+        const discovered = await this.requestBoundaryZoneDiscovery().catch((err) => {
+          this.error(`Boundary zone discovery fallback failed: ${errorMessage(err)}`);
+          return [];
+        });
+        areas = discovered.map((zone) => zone.hash);
       }
       if (areas.length === 0) {
         throw new NoZonesKnownError(this.homey.__('error.no_zones_known'));

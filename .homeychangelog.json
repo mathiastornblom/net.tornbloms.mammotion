@@ -313,5 +313,8 @@
   },
   "2.5.50": {
     "en": "Fixed the Total Distance sensor silently freezing for everyone since the last update (a precision fix for 64-bit zone data changed how that value is delivered internally, and the sensor wasn't updated to match)"
+  },
+  "2.5.51": {
+    "en": "Fixed \"Start Mowing\" failing with \"No mowing zones known\" on mowers whose zone was never explicitly named in the official Mammotion app. The app now also checks the mower's raw boundary data directly, so a never-named default yard is found and mowed instead of being reported as unknown"
   }
 }

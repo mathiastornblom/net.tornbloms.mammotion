@@ -335,6 +335,121 @@ export function buildGetAreaNameListCommand(
 }
 
 /**
+ * Build a request for the device's raw root boundary/obstacle/path hash manifest
+ * (MctlNav.todev_gethash, sub_cmd=0 — pymammotion's `get_all_boundary_hash_list(sub_cmd=0)`).
+ * Unlike buildGetAreaNameListCommand, this is unfiltered by naming: it returns EVERY hash
+ * the device holds (areas, obstacles, paths, no-go zones, ...), classified later per-hash
+ * via buildSynchronizeHashDataCommand. Reply = toapp_gethash_ack, multi-frame and ack-driven
+ * — see BoundaryHashParser.extractRootHashList and buildGetHashResponseCommand.
+ */
+export function buildGetBoundaryHashListCommand(
+  userAccount: string,
+  deviceName: string,
+  seq: { value: number },
+  productKey?: string,
+): string {
+  const receiver = isLubaProDevice(deviceName, productKey) ? MsgDevice.DEV_NAVIGATION : MsgDevice.DEV_MAINCTL;
+  return encodeLubaMsgBase64({
+    ...envelope(MsgCmdType.NAV, receiver, userAccount, seq),
+    nav: {
+      todevGethash: { pver: 1, subCmd: 0 },
+    },
+  });
+}
+
+/**
+ * Build the per-frame ack for a root hash-list response (MctlNav.todev_gethash, sub_cmd=2)
+ * — tells the device "got this frame, send the next one". Confirmed against pymammotion's
+ * `get_hash_response`: this must NEVER be sent proactively, only in direct response to a
+ * received toapp_gethash_ack frame — sending it early desyncs the ack-driven loop.
+ */
+export function buildGetHashResponseCommand(
+  totalFrame: number,
+  currentFrame: number,
+  userAccount: string,
+  deviceName: string,
+  seq: { value: number },
+  productKey?: string,
+): string {
+  const receiver = isLubaProDevice(deviceName, productKey) ? MsgDevice.DEV_NAVIGATION : MsgDevice.DEV_MAINCTL;
+  return encodeLubaMsgBase64({
+    ...envelope(MsgCmdType.NAV, receiver, userAccount, seq),
+    nav: {
+      todevGethash: { pver: 1, subCmd: 2, currentFrame, totalFrame },
+    },
+  });
+}
+
+/**
+ * Build a per-hash type-classification probe (MctlNav.todev_get_commondata, action=8,
+ * sub_cmd=1 — pymammotion's `synchronize_hash_data`). The device replies with
+ * toapp_get_commondata_ack, whose `.type` (PathType; 0=AREA) is the only thing this app
+ * reads — see BoundaryHashParser.extractCommDataAck. `hash` is a decimal string (int64 on
+ * the wire) and must never be coerced to a JS number. Must not be re-sent for a hash
+ * already mid-stream, or the device restarts that hash's frames from 1.
+ */
+export function buildSynchronizeHashDataCommand(
+  hash: string,
+  userAccount: string,
+  deviceName: string,
+  seq: { value: number },
+  productKey?: string,
+): string {
+  const receiver = isLubaProDevice(deviceName, productKey) ? MsgDevice.DEV_NAVIGATION : MsgDevice.DEV_MAINCTL;
+  return encodeLubaMsgBase64({
+    ...envelope(MsgCmdType.NAV, receiver, userAccount, seq),
+    nav: {
+      todevGetCommondata: { pver: 1, action: 8, hash, subCmd: 1 },
+    },
+  });
+}
+
+/** A single per-hash classification ack frame, as needed to build its drain/ack echo —
+ *  see buildRegionalDataAckCommand. Matches BoundaryHashParser.CommDataAckFrame's shape. */
+export interface CommDataAckEcho {
+  action: number;
+  type: number;
+  hash: string;
+  totalFrame: number;
+  currentFrame: number;
+}
+
+/**
+ * Build the per-frame drain/ack for a classification response (MctlNav.todev_get_commondata,
+ * sub_cmd=2 — pymammotion's `get_regional_data`), echoing action/type/hash/totalFrame/
+ * currentFrame back from the received frame. Tells the device "got this frame, send the
+ * next" so its stream for that hash keeps flowing until fully drained — abandoning a hash
+ * mid-stream risks the device retransmitting it with an incrementing dataHash, adding noise
+ * to a small-MTU BLE link. Only the `.type` this drains past has already been read by the
+ * caller (requestBoundaryZoneDiscovery) by the time this is used; the polygon data itself
+ * (dataCouple/x-y points) is discarded, matching this feature's "classification, not
+ * mapping" scope.
+ */
+export function buildRegionalDataAckCommand(
+  ack: CommDataAckEcho,
+  userAccount: string,
+  deviceName: string,
+  seq: { value: number },
+  productKey?: string,
+): string {
+  const receiver = isLubaProDevice(deviceName, productKey) ? MsgDevice.DEV_NAVIGATION : MsgDevice.DEV_MAINCTL;
+  return encodeLubaMsgBase64({
+    ...envelope(MsgCmdType.NAV, receiver, userAccount, seq),
+    nav: {
+      todevGetCommondata: {
+        pver: 1,
+        action: ack.action,
+        type: ack.type,
+        hash: ack.hash,
+        totalFrame: ack.totalFrame,
+        currentFrame: ack.currentFrame,
+        subCmd: 2,
+      },
+    },
+  });
+}
+
+/**
  * Replicates pymammotion's `create_path_order` (data/model/device_config.py) for a Luba
  * 2/3-class mower (`is_luba_pro`, non-Yuka, non-Luba1 — the only class this driver targets;
  * Yuka/Luba1 support is deferred, see docs/ROADMAP.md). An 8-byte buffer, encoded as a
