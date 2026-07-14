@@ -105,3 +105,15 @@ export class AliyunCredentialsRefreshError extends MammotionError {
     this.name = 'AliyunCredentialsRefreshError';
   }
 }
+
+/** No zone hashes are known yet when a plan-and-start was requested (fresh pairing, zone
+ *  enumeration hasn't returned yet, or the mower genuinely has no saved zones). Deliberately
+ *  fails closed here rather than falling back to a bare start signal — that bare-start
+ *  fallback is exactly the behaviour that produced the "starts then immediately returns" bug
+ *  this error exists to prevent (docs/ZONE_SELECTION_PLAN.md). */
+export class NoZonesKnownError extends MammotionError {
+  constructor(message: string) {
+    super(message);
+    this.name = 'NoZonesKnownError';
+  }
+}

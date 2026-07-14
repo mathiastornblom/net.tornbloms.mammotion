@@ -20,6 +20,9 @@ export interface StartMowOptions {
   bladeHeight?: number;
   speed?: number;
   isEdge?: boolean;
+  /** Zone hashes (fixed64, as strings — see AreaNameParser.ts) to mow. Omitted/empty means
+   *  "mow every known zone", matching the reference app's own `async_plan_route` default. */
+  areas?: string[];
 }
 
 /** Blade/cutter speed mode (CutterWorkMode enum in mctrl_driver.proto). */
@@ -137,22 +140,6 @@ export function buildTaskControlCommand(
       todevTaskctrl: { type: 1, action: TASK_ACTION[command], result: 0 },
     },
   });
-}
-
-/**
- * Build a start-mowing command. Starts/resumes the device's configured job via
- * todev_taskctrl (action=1). Blade height/speed are applied separately by the
- * caller (set_blade_height); full per-job route planning is deferred to the maps
- * phase, so route options other than those are not sent.
- */
-export function buildStartMowCommand(
-  _options: StartMowOptions,
-  userAccount: string,
-  deviceName: string,
-  seq: { value: number },
-  productKey?: string,
-): string {
-  return buildTaskControlCommand('start', userAccount, deviceName, seq, productKey);
 }
 
 /**
@@ -321,6 +308,92 @@ export function buildReadScheduleCommand(
     ...envelope(MsgCmdType.NAV, receiver, userAccount, seq),
     nav: {
       todevPlanjobSet: { subCmd: 2, planIndex },
+    },
+  });
+}
+
+/**
+ * Build a request for the device's full zone hash/name list (MctlNav.toapp_map_name_msg,
+ * rw=0, hash=0 — a read-all request on the same channel `set_area_name` uses to write one).
+ * Confirmed against pymammotion's `get_area_name_list`: `device_id` is the iotId, not the
+ * deviceName. The device replies with `toapp_all_hash_name` — see AreaNameParser.ts.
+ */
+export function buildGetAreaNameListCommand(
+  userAccount: string,
+  deviceName: string,
+  iotId: string,
+  seq: { value: number },
+  productKey?: string,
+): string {
+  const receiver = isLubaProDevice(deviceName, productKey) ? MsgDevice.DEV_NAVIGATION : MsgDevice.DEV_MAINCTL;
+  return encodeLubaMsgBase64({
+    ...envelope(MsgCmdType.NAV, receiver, userAccount, seq),
+    nav: {
+      toappMapNameMsg: { rw: 0, hash: '0', result: 0, deviceId: iotId },
+    },
+  });
+}
+
+/**
+ * Replicates pymammotion's `create_path_order` (data/model/device_config.py) for a Luba
+ * 2/3-class mower (`is_luba_pro`, non-Yuka, non-Luba1 — the only class this driver targets;
+ * Yuka/Luba1 support is deferred, see docs/ROADMAP.md). An 8-byte buffer, encoded as a
+ * latin1/ASCII-safe string (every byte is in the 0-10 range) since NavReqCoverPath.reserved
+ * is a proto `string` field, matching the Python source's own `bArr.decode()`.
+ *
+ * Byte layout (OperationSettings defaults: border_mode=0, obstacle_laps=1, start_progress=0,
+ * is_dump=true, collect_grass_frequency=10): [border_mode, obstacle_laps, 0, start_progress,
+ * 0, 8 (is_luba_pro), collect_grass_frequency, 0] = [0,1,0,0,0,8,10,0]. This encoding is
+ * load-bearing — a wrong `reserved` risks the device computing an empty or wrong route.
+ */
+function createPathOrder(): string {
+  return String.fromCharCode(0, 1, 0, 0, 0, 8, 10, 0);
+}
+
+/**
+ * Build a "generate route" / plan-route command (MctlNav.bidire_reqconver_path,
+ * NavReqCoverPath, sub_cmd=0 — "generate"). This is the step the reference app always runs
+ * before starting a fresh job (`async_plan_route` → `generate_route_information`), which our
+ * "start" command never sent — see docs/ZONE_SELECTION_PLAN.md for the real diagnostic
+ * report this fixes (mower resuming an already-fully-mowed cached job and returning within
+ * seconds). `areas` defaults to every known zone hash when empty, matching
+ * `async_plan_route`'s own "mow everything" default — resolving that default is the caller's
+ * job (LubaDevice.actionPlanAndStartMowing), not this builder's; this function just encodes
+ * whatever hash list it's given.
+ *
+ * Route parameters this app doesn't yet expose as options (channel width/mode, ultrasonic
+ * sensitivity, heading) use the same fixed defaults pymammotion's OperationSettings does —
+ * matching the "not exposed yet" set already deferred for the same reason in
+ * StartMowOptions/CLAUDE.md's Phase 3+ backlog.
+ */
+export function buildGenerateRouteCommand(
+  areas: string[],
+  options: Pick<StartMowOptions, 'bladeHeight' | 'speed'>,
+  userAccount: string,
+  deviceName: string,
+  seq: { value: number },
+  productKey?: string,
+): string {
+  const receiver = isLubaProDevice(deviceName, productKey) ? MsgDevice.DEV_NAVIGATION : MsgDevice.DEV_MAINCTL;
+  return encodeLubaMsgBase64({
+    ...envelope(MsgCmdType.NAV, receiver, userAccount, seq),
+    nav: {
+      bidireReqconverPath: {
+        pver: 1,
+        subCmd: 0,
+        zoneHashs: areas,
+        jobMode: 4,
+        edgeMode: 1,
+        knifeHeight: Math.trunc(options.bladeHeight ?? 25),
+        channelWidth: 25,
+        UltraWave: 2,
+        channelMode: 0,
+        toward: 0,
+        speed: options.speed ?? 0.3,
+        towardMode: 0,
+        towardIncludedAngle: 0,
+        reserved: createPathOrder(),
+      },
     },
   });
 }

@@ -6,7 +6,8 @@
     "device_offline": "Mower is offline",
     "command_failed": "Command failed",
     "no_devices_found": "No mowers found on this account. Open the Mammotion app and check that the sharing invitation has been accepted, then try again — it can take a few minutes after accepting before the mower appears.",
-    "legacy_devices_found": "Found your mower(s) registered under Mammotion's older cloud system, which this app doesn't support yet — I've informed the developer, who is working on adding support. Please try again in a future update."
+    "legacy_devices_found": "Found your mower(s) registered under Mammotion's older cloud system, which this app doesn't support yet — I've informed the developer, who is working on adding support. Please try again in a future update.",
+    "no_zones_known": "No mowing zones known yet. Open the mower in the Mammotion app, or wait a moment and try again."
   },
   "pair": {
     "account_setup": {

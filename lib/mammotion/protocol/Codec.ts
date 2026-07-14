@@ -96,12 +96,23 @@ export function encodeLubaMsgBase64(payload: Record<string, unknown>): string {
  * "field explicitly 0" on the wire, so protobufjs omits zero-valued fields from
  * the decoded object unless told otherwise. A legitimate 0 (e.g. man_run_speed=0
  * while stationary) would otherwise silently vanish instead of being reported.
+ *
+ * `longs: String` (not the previous `Number`) is required for correctness, not just
+ * style: several int64/fixed64 fields carry map zone hashes (e.g. AreaHashName.hash,
+ * NavReqCoverPath.zoneHashs) whose real values exceed 2^53 and silently round to the
+ * nearest representable double under `longs: Number` — harmless for fields we only ever
+ * log, but a zone hash decoded this way and later sent back to the device (zone
+ * selection, see AreaNameParser.ts/LubaCommands.buildGenerateRouteCommand) would no
+ * longer match the hash the device actually reported, referencing the wrong zone or
+ * none at all. `sysTimeStamp` is the one existing field this affects that's consumed as
+ * a number (see TelemetryParser.ts) — parsed back via Number() there, which is safe
+ * since it's a plain Unix timestamp well under 2^53.
  */
 export function decodeLubaMsg(buf: Buffer): Record<string, unknown> {
   const type = getLubaMsgType();
   const message = type.decode(buf);
   return type.toObject(message, {
-    longs: Number,
+    longs: String,
     enums: Number,
     defaults: true,
   });

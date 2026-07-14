@@ -304,5 +304,8 @@
   },
   "2.5.47": {
     "en": "Internal: if a sensor/switch is ever discontinued in a future update, it will now be properly cleaned up from already-paired devices instead of being left behind permanently. No user-facing change"
+  },
+  "2.5.48": {
+    "en": "Fixed \"Start Mowing\" sometimes finishing almost instantly and returning to dock without actually mowing. It now properly selects which zone(s) to mow before starting (all known zones by default), instead of just resuming whatever job the mower had cached — which could be one it had already finished"
   }
 }

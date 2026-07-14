@@ -90,7 +90,10 @@ export function extractTelemetry(msg: Record<string, unknown>): Partial<Telemetr
     // oscillation. If sysTimeStampRaw turns out to be wall-clock and lags noticeably behind
     // receipt time during exactly these windows, that confirms it and gives us a field to
     // reject stale reports on.
-    if (typeof dev.sysTimeStamp === 'number') telemetry.sysTimeStampRaw = dev.sysTimeStamp;
+    // sysTimeStamp is int64 on the wire — decoded as a string (see Codec.ts's decodeLubaMsg
+    // doc comment for why); it's a plain Unix timestamp well under 2^53, so Number() here
+    // loses no precision.
+    if (typeof dev.sysTimeStamp === 'string') telemetry.sysTimeStampRaw = Number(dev.sysTimeStamp);
   }
 
   const rtk = report.rtk as Record<string, number> | undefined;

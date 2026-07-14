@@ -6,7 +6,8 @@
     "device_offline": "Plæneklipperen er offline",
     "command_failed": "Kommandoen mislykkedes",
     "no_devices_found": "Ingen plæneklippere fundet på denne konto. Åbn Mammotion-appen og kontrollér, at delingsinvitationen er accepteret, og prøv derefter igen — der kan gå et par minutter efter accept, før plæneklipperen vises.",
-    "legacy_devices_found": "Din/dine plæneklipper(e) blev fundet registreret under Mammotions ældre cloud-system, som denne app endnu ikke understøtter — udvikleren er blevet informeret og arbejder på at tilføje understøttelse. Prøv igen i en fremtidig opdatering."
+    "legacy_devices_found": "Din/dine plæneklipper(e) blev fundet registreret under Mammotions ældre cloud-system, som denne app endnu ikke understøtter — udvikleren er blevet informeret og arbejder på at tilføje understøttelse. Prøv igen i en fremtidig opdatering.",
+    "no_zones_known": "Ingen klippezoner kendt endnu. Åbn plæneklipperen i Mammotion-appen, eller vent et øjeblik og prøv igen."
   },
   "pair": {
     "account_setup": {

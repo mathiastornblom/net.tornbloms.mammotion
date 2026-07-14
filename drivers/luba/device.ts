@@ -9,9 +9,9 @@ import { workModeToStatus, isErrorMode, type MowerStatus } from '../../lib/mammo
 import { MOWING_ACTIVE_WORK_MODES } from '../../lib/mammotion/constants.js';
 import { extractSchedule, type ScheduleInfo } from '../../lib/mammotion/protocol/ScheduleParser.js';
 import { extractErrorCode, extractUpdateBuf, extractRainProtection } from '../../lib/mammotion/protocol/ErrorCodeParser.js';
+import { extractAreaHashNames, type AreaHashName } from '../../lib/mammotion/protocol/AreaNameParser.js';
 import {
   buildTaskControlCommand,
-  buildStartMowCommand,
   buildRequestIotSyncCommand,
   buildSetBladeHeightCommand,
   buildSetBladeSpeedCommand,
@@ -20,11 +20,14 @@ import {
   buildSetRainProtectionCommand,
   buildReadRainProtectionCommand,
   buildReadScheduleCommand,
+  buildGetAreaNameListCommand,
+  buildGenerateRouteCommand,
   CUTTER_MODE_MAP,
   type StartMowOptions,
 } from '../../lib/mammotion/commands/LubaCommands.js';
 import {
   MammotionError, AliyunCommandError, DeviceOfflineError, AliyunCircuitOpenError, AliyunCredentialsRefreshError,
+  NoZonesKnownError,
 } from '../../lib/mammotion/errors.js';
 import { errorMessage } from '../../lib/util/errorMessage.js';
 import { sendAliyunCloudCommand } from '../../lib/mammotion/aliyun/commands.js';
@@ -41,8 +44,8 @@ const TELEMETRY_POLL_INTERVAL_MS = 5_000;
 // A real diagnostic report (2026-07-13, Yuka) showed every start_mowing command being sent
 // twice, ~100-260ms apart, every single time the mower was started across the whole session
 // — both dispatches got distinct successful responses, and the mower stopped after ~1m
-// reporting the job "finished" instead of actually mowing. actionStartMowing() is reachable
-// from two legitimate entry points (the onoff capability listener and the start_mowing Flow
+// reporting the job "finished" instead of actually mowing. actionPlanAndStartMowing() is
+// reachable from two legitimate entry points (the onoff capability listener and the start_mowing Flow
 // action card), so a duplicate at this exact cadence is consistent with something upstream
 // (a Flow chaining both, or a platform-level double-dispatch) invoking both — but regardless
 // of which one, the mower's own firmware very plausibly can't distinguish "the same start
@@ -91,6 +94,16 @@ export default class LubaDevice extends Homey.Device {
   /** Last logged sysTimeStampRaw value — diagnostic change-gating, see TelemetryParser.ts. */
   private lastSysTimeStampRaw: number | null = null;
 
+  /** Last-known zone hash/name list (see AreaNameParser.ts) — refreshed once after every
+   *  connect and again on every zone-enumeration request, mirrored to the store so a warm
+   *  cache survives an app restart. "Mow all known zones" (actionPlanAndStartMowing's
+   *  default) resolves against this. */
+  private zoneCache: AreaHashName[] = [];
+  /** Pending resolvers for a fresh zone-list response — see waitForZoneCache(). */
+  private zoneCacheWaiters: Array<() => void> = [];
+  /** Pending resolvers for a generate-route confirmation echo — see actionPlanAndStartMowing(). */
+  private routeConfirmWaiters: Array<() => void> = [];
+
   // ─── Init / teardown ─────────────────────────────────────────────────────
 
   /** Registers capability listeners and starts BLE/MQTT transports per the device's transport_preference setting. */
@@ -100,7 +113,7 @@ export default class LubaDevice extends Homey.Device {
     await this.migrateCapabilities();
 
     this.registerCapabilityListener('onoff', async (value: boolean) => {
-      await (value ? this.actionStartMowing({}) : this.actionDock());
+      await (value ? this.actionPlanAndStartMowing({}) : this.actionDock());
     });
 
     this.registerCapabilityListener('mow_blade_height', async (value: number) => {
@@ -138,6 +151,10 @@ export default class LubaDevice extends Homey.Device {
     if (this.getCapabilityValue('mow_cutter_mode') === null) {
       this.setCapabilityValue('mow_cutter_mode', 'standard').catch(this.error.bind(this));
     }
+    // Warm the zone cache from the last-known list so a start requested before the fresh
+    // enumeration round-trip completes can still resolve "mow all known zones".
+    const storedZones = this.getStoreValue('zones') as AreaHashName[] | null;
+    if (Array.isArray(storedZones)) this.zoneCache = storedZones;
 
     await this.startTransports();
   }
@@ -320,6 +337,59 @@ export default class LubaDevice extends Homey.Device {
     if (updateBuf !== null) this.handleUpdateBufMessage(updateBuf);
     const rainProtection = extractRainProtection(msg);
     if (rainProtection !== null) this.setCapIfChanged('mow_rain_protection', rainProtection);
+    const zones = extractAreaHashNames(msg);
+    if (zones !== null) this.handleAreaHashNamesResponse(zones);
+    const nav = msg.nav as Record<string, unknown> | undefined;
+    if (nav?.bidireReqconverPath) this.handleRouteConfirmation();
+  }
+
+  /** Caches a fresh zone hash/name list (see AreaNameParser.ts) and wakes anything waiting
+   *  on waitForZoneCache() — e.g. a plan-and-start that had to trigger a best-effort
+   *  enumeration because it started with an empty cache. Mirrored to the store so a warm
+   *  cache survives an app restart (see onInit). */
+  private handleAreaHashNamesResponse(zones: AreaHashName[]): void {
+    this.zoneCache = zones;
+    this.setStoreValue('zones', zones).catch(this.error.bind(this));
+    this.log(`Zones: ${zones.length ? zones.map((z) => `${z.name || '(unnamed)'}(${z.hash})`).join(', ') : '(none)'}`);
+    const waiters = this.zoneCacheWaiters;
+    this.zoneCacheWaiters = [];
+    waiters.forEach((resolve) => resolve());
+  }
+
+  /** Wakes anything waiting on a generate-route confirmation echo (bidireReqconverPath) —
+   *  see actionPlanAndStartMowing(). */
+  private handleRouteConfirmation(): void {
+    const waiters = this.routeConfirmWaiters;
+    this.routeConfirmWaiters = [];
+    waiters.forEach((resolve) => resolve());
+  }
+
+  /** Resolves once the zone cache next updates, or after timeoutMs, whichever comes first —
+   *  used by actionPlanAndStartMowing's best-effort enumeration when it starts with an
+   *  empty cache (e.g. right after pairing, before the first scheduled enumeration lands). */
+  private waitForZoneCache(timeoutMs: number): Promise<void> {
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        this.zoneCacheWaiters = this.zoneCacheWaiters.filter((w) => w !== onUpdate);
+        resolve();
+      }, timeoutMs);
+      const onUpdate = () => { clearTimeout(timer); resolve(); };
+      this.zoneCacheWaiters.push(onUpdate);
+    });
+  }
+
+  /** Resolves once the device echoes a generate-route response, or after timeoutMs,
+   *  whichever comes first — see actionPlanAndStartMowing(). Degrades to the timeout rather
+   *  than failing if a given transport doesn't echo (docs/ZONE_SELECTION_PLAN.md §5). */
+  private waitForRouteConfirmation(timeoutMs: number): Promise<void> {
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        this.routeConfirmWaiters = this.routeConfirmWaiters.filter((w) => w !== onConfirm);
+        resolve();
+      }, timeoutMs);
+      const onConfirm = () => { clearTimeout(timer); resolve(); };
+      this.routeConfirmWaiters.push(onConfirm);
+    });
   }
 
   /** Diagnostic-only: logs a device-pushed fault code (MctlSys.toapp_err_code — see
@@ -361,6 +431,15 @@ export default class LubaDevice extends Homey.Device {
     const context = this.getContext();
     const cmd = buildReadScheduleCommand(session.userAccount, context.deviceName, planIndex, this.seq, context.productKey);
     await this.sendRaw(Buffer.from(cmd, 'base64'), 'read_schedule');
+  }
+
+  /** Requests the device's full zone hash/name list; the reply is picked up by
+   *  handleRawMessage/extractAreaHashNames and cached (see handleAreaHashNamesResponse). */
+  async requestAreaNameList(): Promise<void> {
+    const session = await this.getSession();
+    const context = this.getContext();
+    const cmd = buildGetAreaNameListCommand(session.userAccount, context.deviceName, context.iotId, this.seq, context.productKey);
+    await this.sendRaw(Buffer.from(cmd, 'base64'), 'get_area_name_list');
   }
 
   // ─── MQTT transport ───────────────────────────────────────────────────────
@@ -422,6 +501,9 @@ export default class LubaDevice extends Homey.Device {
         });
         this.requestRainProtectionState().catch((err) => {
           this.error(`Initial rain-protection state read failed: ${errorMessage(err)}`);
+        });
+        this.requestAreaNameList().catch((err) => {
+          this.error(`Initial zone list read failed: ${errorMessage(err)}`);
         });
       }, SYNC_ON_CONNECT_DELAY_MS);
 
@@ -880,13 +962,34 @@ export default class LubaDevice extends Homey.Device {
     }
   }
 
-  /** Starts (or resumes) the mower's configured job, applying blade height first if given. */
-  async actionStartMowing(options: StartMowOptions): Promise<void> {
+  /** Starts a fresh mowing job: plans a route (selecting the given zones, or every known
+   *  zone when none are given) then starts it — see docs/ZONE_SELECTION_PLAN.md. Fixes a
+   *  real diagnostic report where a bare start signal (the previous implementation) resumed
+   *  an already-fully-mowed cached job and returned to dock within seconds. Fails closed
+   *  (NoZonesKnownError) rather than falling back to that bare-start behaviour if no zones
+   *  can be resolved even after a best-effort enumeration attempt. */
+  async actionPlanAndStartMowing(options: StartMowOptions): Promise<void> {
+    let areas = options.areas?.filter((hash) => hash !== '');
+    if (!areas || areas.length === 0) {
+      areas = this.zoneCache.map((zone) => zone.hash);
+      if (areas.length === 0) {
+        await this.requestAreaNameList().catch(this.error.bind(this));
+        await this.waitForZoneCache(3_000);
+        areas = this.zoneCache.map((zone) => zone.hash);
+      }
+      if (areas.length === 0) {
+        throw new NoZonesKnownError(this.homey.__('error.no_zones_known'));
+      }
+    }
+
     const session = await this.getSession();
     const context = this.getContext();
+    const routeCmd = buildGenerateRouteCommand(areas, options, session.userAccount, context.deviceName, this.seq, context.productKey);
+    await this.sendRaw(Buffer.from(routeCmd, 'base64'), 'generate_route');
+    await this.waitForRouteConfirmation(3_000);
+
     if (typeof options.bladeHeight === 'number') await this.sendBladeHeight(options.bladeHeight);
-    const bytes = Buffer.from(buildStartMowCommand(options, session.userAccount, context.deviceName, this.seq, context.productKey), 'base64');
-    await this.sendRaw(bytes, 'start_mowing');
+    await this.sendTaskControlRaw('start');
   }
 
   /** Sends a pre-built raw command, then reflects the new value on the given capability. On

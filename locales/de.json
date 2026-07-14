@@ -6,7 +6,8 @@
     "device_offline": "Mäher ist offline",
     "command_failed": "Befehl fehlgeschlagen",
     "no_devices_found": "Keine Mäher auf diesem Konto gefunden. Öffne die Mammotion-App und prüfe, ob die Freigabe-Einladung angenommen wurde, und versuche es dann erneut — nach dem Annehmen kann es einige Minuten dauern, bis der Mäher erscheint.",
-    "legacy_devices_found": "Dein(e) Mäher wurde(n) im älteren Cloud-System von Mammotion gefunden, das diese App noch nicht unterstützt — der Entwickler wurde informiert und arbeitet an der Unterstützung. Bitte versuche es in einem zukünftigen Update erneut."
+    "legacy_devices_found": "Dein(e) Mäher wurde(n) im älteren Cloud-System von Mammotion gefunden, das diese App noch nicht unterstützt — der Entwickler wurde informiert und arbeitet an der Unterstützung. Bitte versuche es in einem zukünftigen Update erneut.",
+    "no_zones_known": "Noch keine Mähzonen bekannt. Öffne den Mäher in der Mammotion-App oder warte einen Moment und versuche es erneut."
   },
   "pair": {
     "account_setup": {

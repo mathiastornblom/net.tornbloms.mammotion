@@ -111,7 +111,7 @@ export default class LubaDriver extends Homey.Driver {
         speed?: number;
         edge_mowing?: boolean;
       }) => {
-        await (args.device as any).actionStartMowing({
+        await (args.device as any).actionPlanAndStartMowing({
           bladeHeight: args.blade_height,
           speed: args.speed,
           isEdge: args.edge_mowing,
