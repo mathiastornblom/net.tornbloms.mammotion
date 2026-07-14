@@ -713,6 +713,17 @@ export default class LubaDevice extends Homey.Device {
       const hours = Math.round(state.bladeUsedTime / 360) / 10;
       if (this.setCapIfChanged('measure_blade_used_time', hours)) changed.push(`blade=${hours}h`);
     }
+    if (state.mileage != null) {
+      // mileage is in METRES (lifetime distance) — see TelemetryParser.ts. Exposed in km
+      // with 1 decimal, matching how measure_mow_area/other measures round for display.
+      const km = Math.round(state.mileage / 100) / 10;
+      if (this.setCapIfChanged('measure_total_distance', km)) changed.push(`distance=${km}km`);
+    }
+    if (state.workTime != null) {
+      // workTime is in SECONDS (lifetime work time) — see TelemetryParser.ts.
+      const hours = Math.round(state.workTime / 360) / 10;
+      if (this.setCapIfChanged('measure_total_work_time', hours)) changed.push(`worktime=${hours}h`);
+    }
     // rpt_dev_status.headlamp_status is a plain on/off flag for the main headlamp — confirmed
     // via a real diagnostic report (2026-07-14, Luba 3) showing it flip 0->1->0 in lockstep
     // with our own set_headlamp(true)/set_headlamp(false) commands, AND flip on its own

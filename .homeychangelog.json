@@ -292,5 +292,8 @@
   },
   "2.5.43": {
     "en": "The headlamp switch now updates in Homey when turned on/off from the official Mammotion app too, not just when changed from Homey itself. Confirmed the earlier headlamp fix (v2.5.39) is now working correctly on a real device"
+  },
+  "2.5.44": {
+    "en": "Added two new lifetime sensors: Total Distance (km) and Total Work Time (h), tracking the mower's full history rather than just the current job"
   }
 }

@@ -38,6 +38,8 @@
     "mow_rain_protection",
     "measure_battery_cycles",
     "measure_blade_used_time",
+    "measure_total_distance",
+    "measure_total_work_time",
     "mow_send_to_dock",
     "mow_bumper_state",
     "mow_blade_active"

@@ -1,7 +1,7 @@
 {
   "_comment": "This file is generated. Please edit .homeycompose/app.json instead.",
   "id": "net.tornbloms.mammotion",
-  "version": "2.5.42",
+  "version": "2.5.43",
   "homeyCommunityTopicId": 156754,
   "homepage": "https://mathiastornblom.github.io/net.tornbloms.mammotion/",
   "compatibility": ">=12.9.0",
@@ -1097,6 +1097,8 @@
         "mow_rain_protection",
         "measure_battery_cycles",
         "measure_blade_used_time",
+        "measure_total_distance",
+        "measure_total_work_time",
         "mow_send_to_dock",
         "mow_bumper_state",
         "mow_blade_active"
@@ -1675,6 +1677,54 @@
       "setable": false,
       "uiComponent": "sensor",
       "icon": "/assets/speed.svg"
+    },
+    "measure_total_distance": {
+      "type": "number",
+      "title": {
+        "en": "Total Distance",
+        "nl": "Totale afstand",
+        "de": "Gesamtstrecke",
+        "fr": "Distance totale",
+        "it": "Distanza totale",
+        "sv": "Total sträcka",
+        "no": "Total distanse",
+        "es": "Distancia total",
+        "da": "Samlet distance",
+        "ru": "Общее расстояние",
+        "pl": "Całkowity dystans",
+        "ko": "총 이동 거리",
+        "ar": "المسافة الإجمالية"
+      },
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "units": "km",
+      "decimals": 1,
+      "icon": "/assets/area.svg"
+    },
+    "measure_total_work_time": {
+      "type": "number",
+      "title": {
+        "en": "Total Work Time",
+        "nl": "Totale werktijd",
+        "de": "Gesamtbetriebszeit",
+        "fr": "Temps de travail total",
+        "it": "Tempo di lavoro totale",
+        "sv": "Total arbetstid",
+        "no": "Total arbeidstid",
+        "es": "Tiempo de trabajo total",
+        "da": "Samlet arbejdstid",
+        "ru": "Общее время работы",
+        "pl": "Całkowity czas pracy",
+        "ko": "총 작업 시간",
+        "ar": "إجمالي وقت العمل"
+      },
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "units": "h",
+      "decimals": 1,
+      "icon": "/assets/timer.svg"
     },
     "measure_wifi_rssi": {
       "type": "number",

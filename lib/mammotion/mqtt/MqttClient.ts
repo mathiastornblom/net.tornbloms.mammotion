@@ -47,10 +47,15 @@ export interface TelemetryState {
   // maintain report (RIT_MAINTAIN)
   batteryCycles: number | null;
   bladeUsedTime: number | null;
-  /** Raw rpt_dev_status.headlamp_status wire value — diagnostic only, not yet mapped to a
-   *  capability. Encoding (on/off vs. a bitmask for headlamp + side LED) is unverified
-   *  since Mammotion-HA never reads this field either; logged so real values can be
-   *  collected before implementing. See docs/ROADMAP.md. */
+  /** Lifetime distance travelled, metres — see TelemetryParser.ts. */
+  mileage: number | null;
+  /** Lifetime work (job-active) time, seconds — see TelemetryParser.ts. */
+  workTime: number | null;
+  /** Raw rpt_dev_status.headlamp_status wire value — a plain on/off flag for the main
+   *  headlamp, mapped directly to mow_headlamp in device.ts (confirmed via a real
+   *  diagnostic report, 2026-07-14: flips in lockstep with our own set_headlamp commands,
+   *  and also flips on its own to match a manual toggle from the official app). No
+   *  equivalent field has been observed for the side LED yet. */
   headlampStatusRaw: number | null;
   /** Raw rpt_dev_status.sensor_status wire value — kept alongside the decoded
    *  bumperState/bladeActive fields below since sensor_status also carries four

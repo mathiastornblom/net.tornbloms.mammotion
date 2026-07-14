@@ -1,0 +1,24 @@
+{
+  "type": "number",
+  "title": {
+    "en": "Total Work Time",
+    "nl": "Totale werktijd",
+    "de": "Gesamtbetriebszeit",
+    "fr": "Temps de travail total",
+    "it": "Tempo di lavoro totale",
+    "sv": "Total arbetstid",
+    "no": "Total arbeidstid",
+    "es": "Tiempo de trabajo total",
+    "da": "Samlet arbejdstid",
+    "ru": "Общее время работы",
+    "pl": "Całkowity czas pracy",
+    "ko": "총 작업 시간",
+    "ar": "إجمالي وقت العمل"
+  },
+  "getable": true,
+  "setable": false,
+  "uiComponent": "sensor",
+  "units": "h",
+  "decimals": 1,
+  "icon": "/assets/timer.svg"
+}

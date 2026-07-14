@@ -1,0 +1,24 @@
+{
+  "type": "number",
+  "title": {
+    "en": "Total Distance",
+    "nl": "Totale afstand",
+    "de": "Gesamtstrecke",
+    "fr": "Distance totale",
+    "it": "Distanza totale",
+    "sv": "Total sträcka",
+    "no": "Total distanse",
+    "es": "Distancia total",
+    "da": "Samlet distance",
+    "ru": "Общее расстояние",
+    "pl": "Całkowity dystans",
+    "ko": "총 이동 거리",
+    "ar": "المسافة الإجمالية"
+  },
+  "getable": true,
+  "setable": false,
+  "uiComponent": "sensor",
+  "units": "km",
+  "decimals": 1,
+  "icon": "/assets/area.svg"
+}

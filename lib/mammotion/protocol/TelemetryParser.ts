@@ -122,6 +122,16 @@ export function extractTelemetry(msg: Record<string, unknown>): Partial<Telemetr
   const maintain = report.maintain as Record<string, unknown> | undefined;
   if (maintain) {
     if (typeof maintain.batCycles === 'number') telemetry.batteryCycles = maintain.batCycles;
+    // mileage (metres) and workTime (seconds) are lifetime totals — confirmed against
+    // pymammotion's report_info.py (`mileage: int = 0  # lifetime distance travelled,
+    // metres`) and Mammotion-HA's sensor.py (maintenance_distance/maintenance_work_time,
+    // native units METERS/SECONDS respectively). Cross-checked against a real device's
+    // reported values (2026-07-14): mileage=26546m (~26.5km) and workTime=96415s (~26.8h),
+    // both plausible against that same device's already-confirmed bladeUsedTime (~24.5h) —
+    // work time being slightly higher than blade-spinning time makes sense (positioning/
+    // docking time isn't spent cutting).
+    if (typeof maintain.mileage === 'number') telemetry.mileage = maintain.mileage;
+    if (typeof maintain.workTime === 'number') telemetry.workTime = maintain.workTime;
     const bladeUsed = maintain.bladeUsedTime as Record<string, number> | undefined;
     if (bladeUsed && typeof bladeUsed.bladeUsedTime === 'number') {
       // bladeUsedTime is in SECONDS — confirmed against Mammotion-HA's sensor.py
