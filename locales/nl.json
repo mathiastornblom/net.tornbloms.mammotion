@@ -7,7 +7,7 @@
     "command_failed": "Opdracht mislukt",
     "no_devices_found": "Geen maaiers gevonden op dit account. Open de Mammotion-app en controleer of de deeluitnodiging is geaccepteerd, en probeer het daarna opnieuw — het kan na het accepteren enkele minuten duren voordat de maaier verschijnt.",
     "legacy_devices_found": "Je maaier(s) zijn gevonden, geregistreerd onder Mammotions oudere cloudsysteem, dat deze app nog niet ondersteunt — de ontwikkelaar is op de hoogte gebracht en werkt aan ondersteuning. Probeer het later opnieuw in een toekomstige update.",
-    "no_zones_known": "Nog geen maaizones bekend. Open de maaier in de Mammotion-app, of wacht even en probeer het opnieuw."
+    "no_zones_known": "Nog geen maaizones bekend. Open de maaier in de Mammotion-app, of wacht even en probeer het opnieuw. Tip: geef je zones een naam in de Mammotion-app voor directe, betrouwbare zoneselectie."
   },
   "pair": {
     "account_setup": {

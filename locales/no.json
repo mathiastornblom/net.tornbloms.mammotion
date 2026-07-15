@@ -7,7 +7,7 @@
     "command_failed": "Kommandoen mislyktes",
     "no_devices_found": "Ingen gressklippere funnet på denne kontoen. Åpne Mammotion-appen og sjekk at delingsinvitasjonen er akseptert, og prøv deretter på nytt — det kan ta noen minutter etter aksept før gressklipperen vises.",
     "legacy_devices_found": "Gressklipperen(e) din/dine ble funnet registrert under Mammotions eldre skysystem, som denne appen ikke støtter ennå — utvikleren er informert og jobber med å legge til støtte. Prøv igjen i en fremtidig oppdatering.",
-    "no_zones_known": "Ingen klippesoner kjent ennå. Åpne klipperen i Mammotion-appen, eller vent litt og prøv igjen."
+    "no_zones_known": "Ingen klippesoner kjent ennå. Åpne klipperen i Mammotion-appen, eller vent litt og prøv igjen. Tips: gi sonene navn i Mammotion-appen for et umiddelbart og pålitelig sonevalg."
   },
   "pair": {
     "account_setup": {

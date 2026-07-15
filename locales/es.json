@@ -7,7 +7,7 @@
     "command_failed": "Error al ejecutar el comando",
     "no_devices_found": "No se encontraron cortacéspedes en esta cuenta. Abre la aplicación Mammotion y comprueba que la invitación de uso compartido ha sido aceptada, luego inténtalo de nuevo — tras aceptarla pueden pasar unos minutos antes de que aparezca el cortacésped.",
     "legacy_devices_found": "Se encontró tu(s) cortacésped(es) registrado(s) en el sistema en la nube antiguo de Mammotion, que esta aplicación aún no admite — se ha informado al desarrollador, que está trabajando para añadir compatibilidad. Vuelve a intentarlo en una futura actualización.",
-    "no_zones_known": "Aún no se conocen zonas de corte. Abre el cortacésped en la aplicación Mammotion, o espera un momento e inténtalo de nuevo."
+    "no_zones_known": "Aún no se conocen zonas de corte. Abre el cortacésped en la aplicación Mammotion, o espera un momento e inténtalo de nuevo. Consejo: asigna un nombre a tus zonas en la aplicación Mammotion para una selección de zona instantánea y fiable."
   },
   "pair": {
     "account_setup": {

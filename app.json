@@ -1,7 +1,7 @@
 {
   "_comment": "This file is generated. Please edit .homeycompose/app.json instead.",
   "id": "net.tornbloms.mammotion",
-  "version": "2.5.51",
+  "version": "2.5.53",
   "homeyCommunityTopicId": 156754,
   "homepage": "https://mathiastornblom.github.io/net.tornbloms.mammotion/",
   "compatibility": ">=12.9.0",
@@ -758,6 +758,21 @@
           "pl": "Zacznij koszenie strefy [[zone]]",
           "ko": "구역 [[zone]] 작업 시작",
           "ar": "بدء جز المنطقة [[zone]]"
+        },
+        "hint": {
+          "en": "Lists the zones your mower already knows. For instant, reliable selection, name your zones first in the official Mammotion app — unnamed zones still work, but require a slower on-the-fly boundary scan.",
+          "nl": "Toont de zones die je maaier al kent. Voor directe, betrouwbare selectie kun je je zones eerst een naam geven in de officiële Mammotion-app — naamloze zones werken ook, maar vereisen een langzamere scan ter plekke.",
+          "de": "Listet die Zonen auf, die dein Mäher bereits kennt. Für eine sofortige, zuverlässige Auswahl benenne deine Zonen zuerst in der offiziellen Mammotion-App — unbenannte Zonen funktionieren ebenfalls, erfordern aber einen langsameren Scan vor Ort.",
+          "fr": "Répertorie les zones déjà connues de votre tondeuse. Pour une sélection instantanée et fiable, nommez d'abord vos zones dans l'application officielle Mammotion — les zones sans nom fonctionnent aussi, mais nécessitent une analyse des limites plus lente sur place.",
+          "it": "Elenca le zone già note al tuo tagliaerba. Per una selezione istantanea e affidabile, assegna prima un nome alle tue zone nell'app ufficiale Mammotion — le zone senza nome funzionano comunque, ma richiedono una scansione dei confini più lenta al momento.",
+          "sv": "Listar de zoner din klippare redan känner till. För ett snabbt och pålitligt val, namnge dina zoner först i den officiella Mammotion-appen — namnlösa zoner fungerar också, men kräver en långsammare gränsavsökning direkt på plats.",
+          "no": "Viser sonene klipperen allerede kjenner til. For et umiddelbart og pålitelig valg, gi sonene navn først i den offisielle Mammotion-appen — navnløse soner fungerer også, men krever en tregere grenseskanning der og da.",
+          "es": "Muestra las zonas que tu cortacésped ya conoce. Para una selección instantánea y fiable, asigna primero un nombre a tus zonas en la aplicación oficial de Mammotion — las zonas sin nombre también funcionan, pero requieren un escaneo de límites más lento al momento.",
+          "da": "Viser de zoner din plæneklipper allerede kender. For et øjeblikkeligt og pålideligt valg, navngiv dine zoner først i den officielle Mammotion-app — unavngivne zoner fungerer også, men kræver en langsommere grænsescanning på stedet.",
+          "ru": "Показывает зоны, которые уже известны газонокосилке. Для мгновенного и надёжного выбора сначала назовите свои зоны в официальном приложении Mammotion — безымянные зоны тоже работают, но требуют более медленного сканирования границ на месте.",
+          "pl": "Wyświetla listę stref już znanych kosiarce. Aby uzyskać natychmiastowy i niezawodny wybór, najpierw nadaj nazwy swoim strefom w oficjalnej aplikacji Mammotion — nienazwane strefy również działają, ale wymagają wolniejszego skanowania granic na bieżąco.",
+          "ko": "잔디깎이가 이미 알고 있는 구역 목록을 보여줍니다. 즉시 안정적으로 선택하려면 공식 Mammotion 앱에서 먼저 구역 이름을 지정하세요 — 이름이 없는 구역도 작동하지만, 그때그때 더 느린 경계 스캔이 필요합니다.",
+          "ar": "يعرض المناطق التي تعرفها الجزازة بالفعل. للحصول على اختيار فوري وموثوق، قم أولاً بتسمية مناطقك في تطبيق Mammotion الرسمي — المناطق غير المسماة تعمل أيضًا، لكنها تتطلب مسحًا أبطأ للحدود في حينه."
         },
         "args": [
           {

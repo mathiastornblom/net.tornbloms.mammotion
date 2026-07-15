@@ -316,5 +316,11 @@
   },
   "2.5.51": {
     "en": "Fixed \"Start Mowing\" failing with \"No mowing zones known\" on mowers whose zone was never explicitly named in the official Mammotion app. The app now also checks the mower's raw boundary data directly, so a never-named default yard is found and mowed instead of being reported as unknown"
+  },
+  "2.5.52": {
+    "en": "Added a tip to the README, the \"Start mowing zone...\" Flow card and the \"no zones known\" error: name your mowing zones in the official Mammotion app for instant, reliable zone selection here — unnamed zones still work, but need a slower on-the-fly scan every time"
+  },
+  "2.5.53": {
+    "en": "Fixed restarting the app during an Aliyun rate-limit making things worse instead of better: it now remembers it was rate-limited across the restart and waits out the same cooldown, instead of immediately hammering an account that's still being throttled and getting shown \"unavailable\" again a few minutes later"
   }
 }

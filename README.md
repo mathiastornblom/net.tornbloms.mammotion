@@ -30,6 +30,12 @@ npx homey app run
 
 Pairing walks you through setting up a **dedicated second Mammotion account** before asking for login credentials — Mammotion's mobile app logs you out whenever another app (like Homey) signs in with the same account, so using your primary account isn't practical. The in-app instructions cover: create a new account → invite it from your normal account (sharing your mower) → accept the invite on the new account → come back and log in here with it. You only do this once; your normal account keeps working in the Mammotion app exactly as before.
 
+## Tip: name your mowing zones
+
+The "Start mowing zone" Flow action picks from the zones your mower already knows. If a mower's zones have never been named, this app can still discover and mow them, but it has to fall back to a slower on-the-fly boundary scan (roughly 20 seconds) every time, and the result isn't kept in sync with the official app.
+
+For instant, reliable zone selection, open the mower in the official Mammotion iOS/Android app and give each zone a name (e.g. "Front lawn", "Back garden"). Once named there, this app picks them up immediately under their real names — no scan needed.
+
 ## Development
 
 ```bash

@@ -71,6 +71,13 @@ const SYNC_ON_CONNECT_DELAY_MS = 2_000;
 // however long a looser cap would allow.
 const OFFLINE_POLL_BASE_MS = 10_000;
 const OFFLINE_POLL_MAX_MS = 60_000; // 1 min
+// Persisted across app restarts (see startPollTimer/runPollTick) so restarting the app during
+// an active Aliyun rate-limit window doesn't reset straight back to full-speed polling — a real
+// diagnostic report (2026-07-15) showed a user stuck repeatedly restarting because of "device
+// unavailable", each restart firing an immediate requestSync that got 429'd again 5s later,
+// never actually letting the rate-limit window clear. Capped at OFFLINE_POLL_MAX_MS so a stale
+// or clock-skewed value can never delay startup by more than the normal backoff ceiling.
+const RATE_LIMIT_COOLDOWN_STORE_KEY = 'rateLimitCooldownUntil';
 
 // requestBoundaryZoneDiscovery() budgets — see docs/ZONE_BOUNDARY_FALLBACK_PLAN.md §5.
 // Deliberately much more generous than waitForZoneCache's 3s: this is a many-round-trip
@@ -854,9 +861,15 @@ export default class LubaDevice extends Homey.Device {
 
   // ─── Telemetry ────────────────────────────────────────────────────────────
 
-  /** Starts the periodic re-arm of the one-shot telemetry report subscription (MQTT mode only). */
+  /** Starts the periodic re-arm of the one-shot telemetry report subscription (MQTT mode only).
+   *  Honors a still-active rate-limit cooldown persisted from before an app restart — see
+   *  RATE_LIMIT_COOLDOWN_STORE_KEY's doc comment — instead of always starting at full 5s speed. */
   private startPollTimer(): void {
-    this.schedulePoll(TELEMETRY_POLL_INTERVAL_MS);
+    const cooldownUntil = this.getStoreValue(RATE_LIMIT_COOLDOWN_STORE_KEY) as number | null;
+    const remaining = typeof cooldownUntil === 'number' ? cooldownUntil - Date.now() : 0;
+    const delay = remaining > 0 ? Math.min(remaining, OFFLINE_POLL_MAX_MS) : TELEMETRY_POLL_INTERVAL_MS;
+    if (remaining > 0) this.log(`Poll: resuming a rate-limit cooldown from before restart — first check in ${Math.round(delay / 1000)}s`);
+    this.schedulePoll(delay);
   }
 
   /** Schedules the next poll tick — a plain setTimeout, not setInterval, so the delay can
@@ -888,6 +901,9 @@ export default class LubaDevice extends Homey.Device {
     try {
       await this.requestSync();
       this.offlinePollFailureCount = 0;
+      if (this.getStoreValue(RATE_LIMIT_COOLDOWN_STORE_KEY)) {
+        this.setStoreValue(RATE_LIMIT_COOLDOWN_STORE_KEY, null).catch(this.error.bind(this));
+      }
       this.schedulePoll(TELEMETRY_POLL_INTERVAL_MS);
     } catch (err) {
       const isRateLimited = err instanceof AliyunCommandError && err.code === 429;
@@ -899,6 +915,13 @@ export default class LubaDevice extends Homey.Device {
           ? 'rate-limited by Aliyun'
           : isAliyunUnreachable ? 'Aliyun cloud unreachable' : 'mower still offline';
         this.log(`Poll: ${reason} — next check in ${Math.round(delay / 1000)}s (failure #${this.offlinePollFailureCount})`);
+        // Only persist the cooldown for account-wide Aliyun-side penalties (rate-limit/circuit
+        // breaker) — a DeviceOfflineError is mower-specific (e.g. powered off) and says nothing
+        // about whether a fresh poll after restart would still be penalized, so it shouldn't
+        // delay the next app startup's first check.
+        if (isRateLimited || isAliyunUnreachable) {
+          this.setStoreValue(RATE_LIMIT_COOLDOWN_STORE_KEY, Date.now() + delay).catch(this.error.bind(this));
+        }
         this.schedulePoll(delay);
       } else {
         this.error(`Poll sync failed: ${errorMessage(err)}`);
