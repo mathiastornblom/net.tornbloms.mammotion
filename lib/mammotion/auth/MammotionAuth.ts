@@ -25,6 +25,11 @@ import type {
   ShareRecordsPage,
 } from './types.js';
 
+// See gateway.ts's identical constant for the full rationale: without this, a silently-dropped
+// (not actively refused) connection to Mammotion's cloud can hang for minutes instead of
+// seconds, vastly outliving Homey's own ~30s pairing-UI timeout.
+const MAMMOTION_REQUEST_TIMEOUT_MS = 8_000;
+
 /** Performs all Mammotion cloud HTTP calls: login, token refresh, device list, MQTT credentials. */
 export class MammotionAuth {
 
@@ -93,6 +98,7 @@ export class MammotionAuth {
           path: parsedUrl.pathname + parsedUrl.search,
           method: method || 'GET',
           headers: reqHeaders,
+          timeout: MAMMOTION_REQUEST_TIMEOUT_MS,
         },
         (res) => {
           const chunks: Buffer[] = [];
@@ -108,6 +114,9 @@ export class MammotionAuth {
       );
 
       req.on('error', reject);
+      // The `timeout` option only starts a socket-inactivity timer — it doesn't abort the
+      // request on its own. destroy()ing with an Error routes through the 'error' listener above.
+      req.on('timeout', () => req.destroy(new Error(`Mammotion request timed out after ${MAMMOTION_REQUEST_TIMEOUT_MS}ms`)));
       if (bodyStr) req.write(bodyStr);
       req.end();
     });

@@ -8,6 +8,19 @@ import {
 } from './signing.js';
 import { ALIYUN_APP_KEY, ALIYUN_APP_SECRET } from './constants.js';
 
+// Without an explicit timeout, https.request() waits on the OS's own TCP-level retry budget
+// when a network path is silently dropping packets (as opposed to actively refusing/resetting
+// the connection) — a real diagnostic report (2026-07-16) showed exactly this: one blocked
+// request to Aliyun's Chinese servers hung for ~4.5 minutes before finally rejecting with
+// ETIMEDOUT. probeLegacyAliyunDevices makes up to 6-7 sequential calls through this function,
+// and list_devices awaits up to two full attempts of that probe — so on a fully-blocked network
+// path, worst case is roughly 2 attempts x 2 unrecovered hangs (getRegion's own internal
+// catch-and-fallback absorbs one; the very next step, connectDevice, isn't wrapped the same way
+// and actually propagates) before the whole thing gives up, which needs to stay well under
+// Homey's own ~30s pairing-UI timeout. Kept a bit above connectivityCheck.ts's proven ~5s
+// TLS-only reachability result for headroom on real request/response processing time.
+const ALIYUN_GATEWAY_REQUEST_TIMEOUT_MS = 6_000;
+
 /**
  * Shared plumbing for every Aliyun API Gateway CA-signature-scheme call this app makes —
  * region/aep/session/list/notice/invoke. `connect()` and `loginByOAuth()` in
@@ -31,6 +44,7 @@ export function httpsRequestJsonWithStatus<T>(opts: {
     const req = https.request(
       {
         hostname: opts.hostname, path: opts.path, method: opts.method, headers: opts.headers,
+        timeout: ALIYUN_GATEWAY_REQUEST_TIMEOUT_MS,
       },
       (res) => {
         const chunks: Buffer[] = [];
@@ -57,6 +71,9 @@ export function httpsRequestJsonWithStatus<T>(opts: {
       },
     );
     req.on('error', reject);
+    // The `timeout` option above only starts a socket-inactivity timer — it doesn't abort the
+    // request on its own. destroy()ing with an Error routes through the 'error' listener above.
+    req.on('timeout', () => req.destroy(new Error(`Aliyun request timed out after ${ALIYUN_GATEWAY_REQUEST_TIMEOUT_MS}ms`)));
     if (opts.body) req.write(opts.body);
     req.end();
   });

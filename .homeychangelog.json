@@ -322,5 +322,8 @@
   },
   "2.5.53": {
     "en": "Fixed restarting the app during an Aliyun rate-limit making things worse instead of better: it now remembers it was rate-limited across the restart and waits out the same cooldown, instead of immediately hammering an account that's still being throttled and getting shown \"unavailable\" again a few minutes later"
+  },
+  "2.5.54": {
+    "en": "Fixed pairing showing a blank \"no devices found\" screen with nothing to click when your network can't reach Mammotion's Chinese cloud servers cleanly — cloud requests used to wait several minutes to time out (far longer than Homey's own pairing screen waits), so you'd never actually see the helpful error explaining what to check. They now give up after a few seconds instead"
   }
 }
