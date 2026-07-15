@@ -16,6 +16,13 @@ import { errorMessage } from '../../util/errorMessage.js';
  *  success and any other code carrying a specific meaning in `msg`. */
 const MQTT_DEVICE_OFFLINE_CODE = 50104;
 
+// See gateway.ts's identical constant for the full rationale: without this, a silently-dropped
+// (not actively refused) connection to Mammotion's cloud can hang for minutes instead of
+// seconds — here that would stall a command send indefinitely, never reaching the caller's own
+// offline/backoff handling (handleMqttCommandError in device.ts), which assumes this eventually
+// rejects.
+const MQTT_INVOKE_REQUEST_TIMEOUT_MS = 8_000;
+
 /** Decoded mower telemetry fields, as extracted from a LubaMsg report by TelemetryParser. */
 export interface TelemetryState {
   workMode: number | null;
@@ -337,6 +344,7 @@ export class MqttClient {
             'Accept-Language': 'en-US',
             'L-T-Z': `${Date.now()}/0/0`,
           },
+          timeout: MQTT_INVOKE_REQUEST_TIMEOUT_MS,
         },
         (res) => {
           const chunks: Buffer[] = [];
@@ -345,6 +353,9 @@ export class MqttClient {
         },
       );
       req.on('error', reject);
+      // The `timeout` option only starts a socket-inactivity timer — it doesn't abort the
+      // request on its own. destroy()ing with an Error routes through the 'error' listener above.
+      req.on('timeout', () => req.destroy(new Error(`Mammotion invoke request timed out after ${MQTT_INVOKE_REQUEST_TIMEOUT_MS}ms`)));
       req.write(body);
       req.end();
     });
