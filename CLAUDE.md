@@ -180,7 +180,10 @@ A dedicated second Mammotion account must be created and mowers shared to it bef
 | 7 — Advanced | 12+ | Firmware OTA, camera stream investigation |
 
 ## Current status & subagents
-Published on the Homey App Store, post-launch (v2.3.5+). Prioritized backlog: `docs/ROADMAP.md`.
+Published on the Homey App Store, post-launch. `main` = v2.5.53 (last Homey-approved build),
+`test` = v2.5.54 (active development, awaiting approval). ~180 users as of the 2026-07 forum
+announcement. Prioritized backlog: `docs/ROADMAP.md` — currently one P0 open (the `gh-pages`
+branch disappeared from the remote, unconfirmed whether the live homepage is actually affected).
 Role-specific subagents in `.claude/agents/`: `architect` (research/scoping, opus), `developer`
 (implementation), `qa` (verification), `technical-writer` (docs/i18n), `marketing` (App
 Store/community copy), `design` (icons/pairing-screen UX).

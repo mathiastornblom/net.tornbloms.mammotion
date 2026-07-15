@@ -1,29 +1,22 @@
 # Roadmap & prioritized backlog
 
-Last reviewed: 2026-07-03, app version v2.4.0. This is the single source of truth for "what's
-next" — check here before starting new work. Update this file (not just memory) whenever
-priority shifts, since it's versioned with the code and visible to anyone reading the repo.
+Last reviewed: 2026-07-15, app version v2.5.54 (`test`; `main` mirrors the last Homey-approved
+build, v2.5.53). This is the single source of truth for "what's next" — check here before
+starting new work. Update this file (not just memory) whenever priority shifts, since it's
+versioned with the code and visible to anyone reading the repo.
 
 ## P0 — Active / blocking
 
-- **Legacy Aliyun IoT device support — BUILT (v2.4.0), needs live verification.**
-  Full read+write support shipped: pairing now returns real, pairable devices for
-  legacy-bound mowers; a shared `AliyunMqttTransport` (one connection per account) delivers
-  telemetry; commands send via the same proven CA-signature gateway. Built via two parallel
-  implementation passes on the independent write/read modules
-  (`lib/mammotion/aliyun/commands.ts`, `lib/mammotion/aliyun/AliyunMqttTransport.ts`), then
-  integrated centrally into `drivers/luba/{driver,device}.ts`. Full writeup:
-  `docs/ALIYUN_MQTT_TRANSPORT_PLAN.md`.
-  **What's NOT done:** Stage 3 (credential refresh before expiry, full rate-limit handling)
-  and Stage 4 (live verification) — this shipped with **zero live-server testing** of the
-  write and MQTT-read paths specifically (the read-only *listing* path was proven live in
-  v2.3.5; sending commands and receiving telemetry were not). Designed to fail safely: BLE
-  keeps working independently regardless, and Aliyun-specific failures are caught/logged,
-  never propagated.
-  **Next action:** reach out to the confirmed affected user (Anders_Gregow /
-  mammotion_homey@gregow.se) for a live test — a single `dock`/`pause` command first (low
-  risk, easily reversible), then telemetry. Watch for diagnostic reports from that account
-  on v2.4.0+ in the meantime.
+- **GitHub Pages homepage (`gh-pages` branch) has disappeared from the remote.** Discovered
+  2026-07-15 via `git fetch --prune` reporting `origin/gh-pages` as deleted; confirmed via
+  `list_branches` that only `main`, `test`, and the current feature branch exist — not a local
+  caching artifact. No workflow in `.github/workflows/` builds or publishes this branch, so it
+  won't regenerate on its own. Nobody on this session deleted it. Live-site status is
+  unconfirmed (a `WebFetch` check returned 403, which is more likely this environment's own
+  proxy restrictions than the real public page's status). **Next action:** ask the maintainer
+  to confirm whether `https://mathiastornblom.github.io/net.tornbloms.mammotion/` actually
+  loads for them, and whether the branch's source content exists anywhere to rebuild from,
+  before attempting any recreation.
 
 ## P1 — High value, unblocked, ready to scope
 
@@ -32,9 +25,10 @@ priority shifts, since it's versioned with the code and visible to anyone readin
   candidates: at-a-glance mower status + battery + progress card; a start/dock quick-action
   widget; a connection-type (BLE/Cloud) indicator. Pick 2-4 focused widgets, not one crowded
   dump of every capability.
-- **Monitor Sentry for real crash signal.** Crash reporting shipped in v2.3.0 — nothing has
-  been triaged from it yet since it's new. Check `tornblomsnet` org / `mammotion-homey`
-  project periodically (Sentry MCP is connected) once there's enough install base for signal.
+- **Monitor Sentry for real crash signal.** Crash reporting shipped in v2.3.0. Check
+  `tornblomsnet` org / `mammotion-homey` project periodically (Sentry MCP is connected) — now
+  that the app has ~180 users (as of the 2026-07 forum announcement), there should be enough
+  volume for real signal.
 
 ## P2 — Medium value, low-to-medium complexity
 
@@ -47,17 +41,44 @@ priority shifts, since it's versioned with the code and visible to anyone readin
 
 ## P3 — Large, deferred, needs its own planning pass when picked up
 
-- **Schedule write support** — struct already known from the existing read-only
-  `read_schedule` action, but requires `zone_hashs` which depend on the Maps/Zones phase
-  below — blocked on that, not independently schedulable.
-- **Maps & Zones (Phase 5)** — protobuf RTK map data, SVG zone overlays. Very complex,
+- **Full Maps & Zones (Phase 5)** — protobuf RTK map data, SVG zone overlays. Zone *selection*
+  for Start Mowing has already shipped in stages (see below) without full map sync; this item
+  is specifically the visual map/zone-editing feature, which is still very complex and
   deserves its own `docs/MAPS_PLAN.md` before any implementation starts, same pattern as
   `BLE_PLAN.md`/`PROTOCOL_PLAN.md`/`ALIYUN_LEGACY_PLAN.md`.
+- **Schedule write support** — struct already known from the existing read-only
+  `read_schedule` action, but requires `zone_hashs` which depend on the full Maps/Zones phase
+  above — blocked on that, not independently schedulable.
 
 ## Explicitly not planned (Phase 7, skip unless priorities change)
 
 - **Firmware OTA** — skip.
 - **Camera / Agora WebRTC** — skip, high complexity for uncertain value.
+
+## Recently shipped (context for what's no longer open)
+
+- **Legacy Aliyun IoT device support — verified live, no longer P0.** What was an unverified
+  P0 item as of v2.4.0 has since been exercised live by multiple real accounts across dozens of
+  point releases (v2.4.1 → v2.5.54): persisted expiry-aware credentials + circuit breaker
+  (v2.5.13), 429 rate-limit recovery (v2.5.15, v2.5.53), auto-relogin after sustained handshake
+  failures (v2.5.36), and — most recently — explicit HTTP timeouts across every Aliyun/Mammotion
+  request path so a blocked network route fails fast instead of hanging for minutes past
+  Homey's own ~30s pairing-UI timeout (v2.5.54, `lib/mammotion/aliyun/gateway.ts` +
+  `lib/mammotion/auth/MammotionAuth.ts` + `lib/mammotion/mqtt/MqttClient.ts`). Full writeup:
+  `docs/ALIYUN_MQTT_TRANSPORT_PLAN.md`.
+- **Zone-aware Start Mowing (Phases 1-3)** — v2.5.48 (plan a route before a bare start),
+  v2.5.49 ("Start mowing zone..." Flow action), v2.5.51 (unnamed-zone boundary fallback so
+  zones without a name set in the official app still enumerate), plus v2.5.52 documenting that
+  naming zones in the official Mammotion app improves selection reliability. See
+  `docs/ZONE_SELECTION_PLAN.md` and `docs/ZONE_BOUNDARY_FALLBACK_PLAN.md`.
+- **Per-model capability differentiation** — see `docs/CAPABILITY_DIFFERENTIATION_PLAN.md`
+  (status tracked in that file).
+- **Wheel-lift/emergency-stop fault diagnostics** — investigation ongoing via structured
+  captures, not yet root-caused; see `docs/WHEEL_LIFT_FAULT_DIAGNOSTIC_PLAN.md` for current
+  state.
+- **LED ring status feedback — superseded**, current hardware (Homey Pro Early 2023/2026) can
+  only use Homey's built-in "Then → LED ring" Flow actions, not a programmatic animation API;
+  see `docs/LEDRING_STATUS_PLAN.md`.
 
 ## Ongoing maintenance (not features, but don't ignore)
 
@@ -68,4 +89,6 @@ priority shifts, since it's versioned with the code and visible to anyone readin
   in unrelated PRs; a dedicated cleanup pass is fine to schedule but isn't urgent.
 - **Dependabot `minimatch` alert** — intentionally left unfixed (transitive devDependency
   only, never shipped, a previous fix attempt broke `eslint-plugin-import`). Don't re-attempt
-  unless `eslint-config-athom` ships a version with patched deps.
+  unless `eslint-config-athom` ships a version with patched deps. (If a *new*, separate
+  Dependabot high-severity alert shows up — one was flagged mid-session on 2026-07-15 but never
+  triaged — check what it actually is before assuming it's this same known one.)
