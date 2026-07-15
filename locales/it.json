@@ -7,7 +7,7 @@
     "command_failed": "Comando non riuscito",
     "no_devices_found": "Nessun robot tagliaerba trovato su questo account. Apri l'app Mammotion e verifica che l'invito di condivisione sia stato accettato, poi riprova — dopo l'accettazione possono servire alcuni minuti prima che il tagliaerba appaia.",
     "legacy_devices_found": "Il tuo/i tuoi tagliaerba risultano registrati nel vecchio sistema cloud di Mammotion, non ancora supportato da questa app — lo sviluppatore è stato informato e sta lavorando per aggiungere il supporto. Riprova in un futuro aggiornamento.",
-    "no_zones_known": "Nessuna zona di taglio nota al momento. Apri il tagliaerba nell'app Mammotion, oppure attendi un momento e riprova."
+    "no_zones_known": "Nessuna zona di taglio nota al momento. Apri il tagliaerba nell'app Mammotion, oppure attendi un momento e riprova. Suggerimento: assegna un nome alle tue zone nell'app Mammotion per una selezione delle zone istantanea e affidabile."
   },
   "pair": {
     "account_setup": {
