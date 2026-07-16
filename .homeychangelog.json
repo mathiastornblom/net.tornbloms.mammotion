@@ -325,5 +325,8 @@
   },
   "2.5.54": {
     "en": "Fixed pairing showing a blank \"no devices found\" screen with nothing to click when your network can't reach Mammotion's Chinese cloud servers cleanly — cloud requests used to wait several minutes to time out (far longer than Homey's own pairing screen waits), so you'd never actually see the helpful error explaining what to check. They now give up after a few seconds instead"
+  },
+  "2.5.55": {
+    "en": "Fixed mowers going \"unavailable\" daily and needing an app restart to recover. A gateway-overload error from Mammotion's cloud (distinct from the rate-limit already handled) was being retried every 5 seconds instead of backing off, which could snowball into the exact same rate-limit lockout this app already knows how to survive"
   }
 }
