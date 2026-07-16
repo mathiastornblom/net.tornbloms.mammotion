@@ -881,9 +881,10 @@ export default class LubaDevice extends Homey.Device {
   }
 
   /** Runs one requestSync() attempt and reschedules the next one. A confirmed
-   *  DeviceOfflineError, an AliyunCommandError(429) (rate-limited by the Aliyun gateway — see
-   *  sendAliyunCloudCommand), an AliyunCircuitOpenError (the legacy Aliyun handshake's circuit
-   *  breaker, AliyunCredentialsManager, fast-failing without a network call), or an
+   *  DeviceOfflineError, any AliyunCommandError (429 rate-limited, or any other non-200 invoke
+   *  gateway code such as 20056 gateway.hsf.invoke.timeout — see sendAliyunCloudCommand),
+   *  an AliyunCircuitOpenError (the legacy Aliyun handshake's circuit breaker,
+   *  AliyunCredentialsManager, fast-failing without a network call), or an
    *  AliyunCredentialsRefreshError (a *real* handshake attempt that failed, e.g. getRegion
    *  returning HTTP 500 — the 1-2 attempts every outage/re-open cycle makes *before* the
    *  circuit breaker's failure count reaches its limit and starts fast-failing) all back off
@@ -895,8 +896,10 @@ export default class LubaDevice extends Homey.Device {
    *  but a follow-up report the next day (2026-07-10) showed the *pre-circuit-open* attempts
    *  during the same kind of outage still hammering at full 5s cadence — this closes that
    *  residual gap so an entire Aliyun outage backs off end to end, not just the portion the
-   *  circuit breaker has already given up on. Any other outcome (success, or a different error,
-   *  which is likely transient) keeps the normal fast cadence. */
+   *  circuit breaker has already given up on. Non-429 AliyunCommandError codes were only added
+   *  to this list later (v2.5.55, 2026-07-16) — see runPollTick's inline comment. Any other
+   *  outcome (success, or a different error, which is likely transient) keeps the normal fast
+   *  cadence. */
   private async runPollTick(): Promise<void> {
     try {
       await this.requestSync();
@@ -907,19 +910,28 @@ export default class LubaDevice extends Homey.Device {
       this.schedulePoll(TELEMETRY_POLL_INTERVAL_MS);
     } catch (err) {
       const isRateLimited = err instanceof AliyunCommandError && err.code === 429;
+      // Any *other* non-200 code from the invoke gateway (e.g. 20056 "gateway.hsf.invoke.timeout",
+      // an Aliyun-side backend overload signal, not anything device-specific) used to fall through
+      // to the "any other outcome" branch below and retry at full 5s cadence — hammering an
+      // already-struggling gateway every 5s instead of backing off, which two real diagnostic
+      // reports from the same account (2026-07-16, log IDs 6018d080 and 938a4a56) showed
+      // escalating into a sustained account-wide 429 that lasted for hours and recurred daily.
+      // No AliyunCommandError code is ever worth fast-retrying — same reasoning as 429 below.
+      const isAliyunGatewayError = err instanceof AliyunCommandError && !isRateLimited;
       const isAliyunUnreachable = err instanceof AliyunCircuitOpenError || err instanceof AliyunCredentialsRefreshError;
-      if (err instanceof DeviceOfflineError || isRateLimited || isAliyunUnreachable) {
+      if (err instanceof DeviceOfflineError || isRateLimited || isAliyunGatewayError || isAliyunUnreachable) {
         this.offlinePollFailureCount += 1;
         const delay = Math.min(OFFLINE_POLL_BASE_MS * (2 ** this.offlinePollFailureCount), OFFLINE_POLL_MAX_MS);
         const reason = isRateLimited
           ? 'rate-limited by Aliyun'
-          : isAliyunUnreachable ? 'Aliyun cloud unreachable' : 'mower still offline';
+          : isAliyunGatewayError ? `Aliyun gateway error (${(err as AliyunCommandError).code})`
+            : isAliyunUnreachable ? 'Aliyun cloud unreachable' : 'mower still offline';
         this.log(`Poll: ${reason} — next check in ${Math.round(delay / 1000)}s (failure #${this.offlinePollFailureCount})`);
-        // Only persist the cooldown for account-wide Aliyun-side penalties (rate-limit/circuit
-        // breaker) — a DeviceOfflineError is mower-specific (e.g. powered off) and says nothing
-        // about whether a fresh poll after restart would still be penalized, so it shouldn't
-        // delay the next app startup's first check.
-        if (isRateLimited || isAliyunUnreachable) {
+        // Only persist the cooldown for account-wide Aliyun-side penalties (rate-limit/gateway
+        // error/circuit breaker) — a DeviceOfflineError is mower-specific (e.g. powered off) and
+        // says nothing about whether a fresh poll after restart would still be penalized, so it
+        // shouldn't delay the next app startup's first check.
+        if (isRateLimited || isAliyunGatewayError || isAliyunUnreachable) {
           this.setStoreValue(RATE_LIMIT_COOLDOWN_STORE_KEY, Date.now() + delay).catch(this.error.bind(this));
         }
         this.schedulePoll(delay);
