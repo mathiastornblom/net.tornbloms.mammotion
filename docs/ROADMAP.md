@@ -55,6 +55,16 @@ versioned with the code and visible to anyone reading the repo.
 - **Firmware OTA** — skip.
 - **Camera / Agora WebRTC** — skip, high complexity for uncertain value.
 
+## P1 — High value, unblocked, ready to scope (continued)
+
+- **Confirm remaining Yuka models.** A community member ("Ramstein") confirmed Yuka Mini 800
+  works via the app's existing generic aliyun_legacy pairing path — no Yuka-specific code was
+  needed (`lib/mammotion/deviceType.ts` already resolves Yuka device types and gates
+  capabilities for the whole Yuka family). README now documents this and invites the community
+  to confirm the remaining Yuka models (Mini 2, VP, ML, MiniV, base Yuka) the same way. No
+  action needed unless/until reports come in — this is a low-effort, community-driven way to
+  broaden confirmed device support without guessing.
+
 ## Recently shipped (context for what's no longer open)
 
 - **Legacy Aliyun IoT device support — verified live, no longer P0.** What was an unverified

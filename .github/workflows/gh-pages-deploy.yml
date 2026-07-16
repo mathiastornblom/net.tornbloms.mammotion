@@ -1,0 +1,26 @@
+name: Deploy GitHub Pages homepage
+on:
+  push:
+    branches: [main, test]
+    paths:
+      - "docs/homepage/**"
+  workflow_dispatch:
+
+# The gh-pages branch this used to publish to disappeared from the remote once with no
+# workflow to regenerate it (2026-07-15) — the site's only source of truth is now
+# docs/homepage/ on main/test, and this workflow rebuilds gh-pages from it on every
+# change, so a deleted branch is a one-push fix instead of a lost site.
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    name: Publish docs/homepage to gh-pages
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: docs/homepage
+          publish_branch: gh-pages

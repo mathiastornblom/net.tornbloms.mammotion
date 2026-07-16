@@ -15,8 +15,9 @@ A [Homey](https://homey.app) app that brings Mammotion robot lawn mowers (Luba 2
 
 - Luba 2 (primary target)
 - Luba 3 (same protocol family)
+- Yuka Mini 800 — confirmed working by a community member (2026-07-16, same pairing/cloud path as Luba, no Yuka-specific code needed)
 
-Yuka and Spino are not yet supported.
+Other Yuka models (Yuka, Yuka Mini 2, Yuka VP, Yuka ML, Yuka MiniV) use the same underlying protocol family and are expected to work the same way, but haven't been confirmed yet — if you pair one successfully, please [open an issue](https://github.com/mathiastornblom/net.tornbloms.mammotion/issues) or post in the [Homey Community topic](https://community.homey.app/t/app-pro-mammotion/156754) to confirm it for others. Spino is not yet confirmed either way.
 
 ## Installation
 
