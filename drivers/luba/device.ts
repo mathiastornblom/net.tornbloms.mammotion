@@ -40,6 +40,7 @@ import {
 } from '../../lib/mammotion/errors.js';
 import { errorMessage } from '../../lib/util/errorMessage.js';
 import { sendAliyunCloudCommand } from '../../lib/mammotion/aliyun/commands.js';
+import type { AliyunRequestGovernor } from '../../lib/mammotion/aliyun/RequestGovernor.js';
 import {
   DeviceType, resolveDeviceType, capabilitiesForModel, MODEL_STRING,
 } from '../../lib/mammotion/deviceType.js';
@@ -48,8 +49,22 @@ import LubaDriver from './driver.js';
 type TransportName = 'ble' | 'mqtt' | 'aliyun_legacy' | 'none';
 type TransportPreference = 'auto' | 'ble_only' | 'mqtt_only';
 
-// Re-arm the one-shot report subscription every 5s, matching Mammotion-HA.
+// Re-arm the one-shot report subscription every 5s, matching Mammotion-HA. Modern (non-legacy)
+// devices only — see currentPollIntervalMs()'s doc comment for why aliyun_legacy devices use a
+// much slower, mowing-state-aware cadence instead.
 const TELEMETRY_POLL_INTERVAL_MS = 5_000;
+// aliyun_legacy poll cadence. pymammotion documents Aliyun's own send_cloud_command limit as
+// `_SEND_LIMIT = 600` requests per rolling 12h window (docs/ALIYUN_MQTT_TRANSPORT_PLAN.md Stage
+// 3) — ~1 request/72s on average with zero margin. This app's old flat 5s cadence sent ~14x
+// that, which is the confirmed root cause of the repeated "mower goes unavailable daily,
+// recovers after restart" reports (2026-07-16 log IDs 6018d080/938a4a56, 2026-07-18 log ID
+// dc1bf4f1) — not a transient Aliyun outage, a structurally-too-aggressive poll rate hitting
+// the account's real, documented ceiling. 90s while a job is actively running keeps telemetry
+// reasonably fresh when it matters most; 120s otherwise leaves more headroom, since nothing
+// time-sensitive is happening. Both still share the account-wide budget with explicit commands
+// via AliyunRequestGovernor (see currentPollIntervalMs() and runPollTick()).
+const ALIYUN_LEGACY_POLL_ACTIVE_MS = 90_000;
+const ALIYUN_LEGACY_POLL_IDLE_MS = 120_000;
 // A real diagnostic report (2026-07-13, Yuka) showed every start_mowing command being sent
 // twice, ~100-260ms apart, every single time the mower was started across the whole session
 // — both dispatches got distinct successful responses, and the mower stopped after ~1m
@@ -863,13 +878,22 @@ export default class LubaDevice extends Homey.Device {
 
   /** Starts the periodic re-arm of the one-shot telemetry report subscription (MQTT mode only).
    *  Honors a still-active rate-limit cooldown persisted from before an app restart — see
-   *  RATE_LIMIT_COOLDOWN_STORE_KEY's doc comment — instead of always starting at full 5s speed. */
+   *  RATE_LIMIT_COOLDOWN_STORE_KEY's doc comment — instead of always starting at full speed. */
   private startPollTimer(): void {
     const cooldownUntil = this.getStoreValue(RATE_LIMIT_COOLDOWN_STORE_KEY) as number | null;
     const remaining = typeof cooldownUntil === 'number' ? cooldownUntil - Date.now() : 0;
-    const delay = remaining > 0 ? Math.min(remaining, OFFLINE_POLL_MAX_MS) : TELEMETRY_POLL_INTERVAL_MS;
+    const delay = remaining > 0 ? Math.min(remaining, OFFLINE_POLL_MAX_MS) : this.currentPollIntervalMs();
     if (remaining > 0) this.log(`Poll: resuming a rate-limit cooldown from before restart — first check in ${Math.round(delay / 1000)}s`);
     this.schedulePoll(delay);
+  }
+
+  /** aliyun_legacy devices use a much slower, mowing-state-aware cadence than modern (MQTT)
+   *  devices — see ALIYUN_LEGACY_POLL_ACTIVE_MS's doc comment for why. Modern devices are
+   *  unaffected: they use a different command channel (MQTT publish, not the REST invoke
+   *  gateway) and have shown none of this rate-limit pattern. */
+  private currentPollIntervalMs(): number {
+    if (this.getContext().transportKind !== 'aliyun_legacy') return TELEMETRY_POLL_INTERVAL_MS;
+    return this.currentStatus === 'mowing' ? ALIYUN_LEGACY_POLL_ACTIVE_MS : ALIYUN_LEGACY_POLL_IDLE_MS;
   }
 
   /** Schedules the next poll tick — a plain setTimeout, not setInterval, so the delay can
@@ -898,16 +922,27 @@ export default class LubaDevice extends Homey.Device {
    *  residual gap so an entire Aliyun outage backs off end to end, not just the portion the
    *  circuit breaker has already given up on. Non-429 AliyunCommandError codes were only added
    *  to this list later (v2.5.55, 2026-07-16) — see runPollTick's inline comment. Any other
-   *  outcome (success, or a different error, which is likely transient) keeps the normal fast
-   *  cadence. */
+   *  outcome (success, or a different error, which is likely transient) keeps the normal
+   *  cadence — "full 5s cadence" above describes aliyun_legacy's cadence as it was until
+   *  v2.5.56; see ALIYUN_LEGACY_POLL_ACTIVE_MS/currentPollIntervalMs() for its current,
+   *  much slower baseline and why 5s turned out to be the actual root cause, not just a
+   *  symptom amplifier. */
   private async runPollTick(): Promise<void> {
+    if (this.getContext().transportKind === 'aliyun_legacy') {
+      const governor = (this.driver as unknown as LubaDriver).getAliyunRequestGovernor();
+      if (governor.shouldSkipPoll()) {
+        this.log(`Poll: skipping — account-wide Aliyun request budget nearly exhausted (${governor.remaining()} left in the current 12h window)`);
+        this.schedulePoll(this.currentPollIntervalMs());
+        return;
+      }
+    }
     try {
       await this.requestSync();
       this.offlinePollFailureCount = 0;
       if (this.getStoreValue(RATE_LIMIT_COOLDOWN_STORE_KEY)) {
         this.setStoreValue(RATE_LIMIT_COOLDOWN_STORE_KEY, null).catch(this.error.bind(this));
       }
-      this.schedulePoll(TELEMETRY_POLL_INTERVAL_MS);
+      this.schedulePoll(this.currentPollIntervalMs());
     } catch (err) {
       const isRateLimited = err instanceof AliyunCommandError && err.code === 429;
       // Any *other* non-200 code from the invoke gateway (e.g. 20056 "gateway.hsf.invoke.timeout",
@@ -937,7 +972,7 @@ export default class LubaDevice extends Homey.Device {
         this.schedulePoll(delay);
       } else {
         this.error(`Poll sync failed: ${errorMessage(err)}`);
-        this.schedulePoll(TELEMETRY_POLL_INTERVAL_MS);
+        this.schedulePoll(this.currentPollIntervalMs());
       }
     }
   }
@@ -1208,9 +1243,11 @@ export default class LubaDevice extends Homey.Device {
    *  docs/ALIYUN_MQTT_TRANSPORT_PLAN.md Stage 3). */
   private async sendAliyunRaw(bytes: Buffer, label: string, iotId: string): Promise<void> {
     const driver = this.driver as unknown as LubaDriver;
+    const governor: AliyunRequestGovernor = driver.getAliyunRequestGovernor();
     this.log(`[Aliyun] sending command: ${label}`);
     const credentials = await driver.getAliyunCredentials();
     try {
+      governor.recordRequest();
       const messageId = await sendAliyunCloudCommand(credentials, iotId, bytes);
       this.log(`[Aliyun] command ${label} sent (messageId=${messageId})`);
     } catch (err) {
@@ -1219,6 +1256,7 @@ export default class LubaDevice extends Homey.Device {
       this.log(`[Aliyun] command ${label} failed with auth-expiry (code=${(err as AliyunCommandError).code}) — retrying once with fresh credentials`);
       driver.invalidateAliyunCredentials();
       const freshCredentials = await driver.getAliyunCredentials();
+      governor.recordRequest();
       const messageId = await sendAliyunCloudCommand(freshCredentials, iotId, bytes);
       this.log(`[Aliyun] command ${label} sent on retry (messageId=${messageId})`);
     }

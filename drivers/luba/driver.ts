@@ -10,6 +10,7 @@ import { AliyunMqttTransport } from '../../lib/mammotion/aliyun/AliyunMqttTransp
 import { checkAliyunConnectivity } from '../../lib/mammotion/aliyun/connectivityCheck.js';
 import { ALIYUN_DOMAIN } from '../../lib/mammotion/aliyun/constants.js';
 import { AliyunCredentialsManager } from '../../lib/mammotion/aliyun/AliyunCredentialsManager.js';
+import { AliyunRequestGovernor } from '../../lib/mammotion/aliyun/RequestGovernor.js';
 import { resolveDeviceType, capabilitiesForModel } from '../../lib/mammotion/deviceType.js';
 import { errorMessage } from '../../lib/util/errorMessage.js';
 
@@ -55,6 +56,8 @@ export default class LubaDriver extends Homey.Driver {
   // registers itself here rather than owning a private transport instance.
   private aliyunTransport: AliyunMqttTransport | null = null;
   private aliyunCredentialsManager!: AliyunCredentialsManager;
+  /** Shared across every aliyun_legacy device on the account — see RequestGovernor.ts. */
+  private readonly aliyunRequestGovernor = new AliyunRequestGovernor();
   /** Consecutive real (non-fast-fail) Aliyun handshake failures — drives the auto-relogin
    *  in getAliyunCredentials(). Reset to 0 on any success. */
   private aliyunHandshakeFailureStreak = 0;
@@ -279,6 +282,12 @@ export default class LubaDriver extends Homey.Driver {
    *  AliyunCommandError) before retrying, rather than retrying with the same stale token. */
   invalidateAliyunCredentials(): void {
     this.aliyunCredentialsManager.invalidate();
+  }
+
+  /** The shared account-wide request governor every aliyun_legacy device polls/commands
+   *  through — see RequestGovernor.ts. */
+  getAliyunRequestGovernor(): AliyunRequestGovernor {
+    return this.aliyunRequestGovernor;
   }
 
   /** Full manual reset of the legacy Aliyun connection state — drops cached credentials AND
