@@ -24,6 +24,7 @@ import {
   buildSetRainProtectionCommand,
   buildReadRainProtectionCommand,
   buildReadScheduleCommand,
+  buildStartScheduleCommand,
   buildGetAreaNameListCommand,
   buildGenerateRouteCommand,
   buildGetBoundaryHashListCommand,
@@ -102,6 +103,19 @@ const BOUNDARY_PER_HASH_TIMEOUT_MS = 8_000; // classify + drain budget for a sin
 const BOUNDARY_MAX_HASHES = 32; // hash-count cap
 const BOUNDARY_OVERALL_BUDGET_MS = 25_000; // whole-sequence wall-clock cap
 
+// refreshScheduleCache() budgets — see docs/SCHEDULE_START_PLAN.md §4. Each stored task
+// requires its own read/echo round-trip (planIndex 0..totalPlanCount-1), so this is bounded
+// the same way requestBoundaryZoneDiscovery() is: a per-read timeout plus a hard cap on both
+// count and total wall-clock time, so a device that stops responding mid-enumeration degrades
+// to "whatever was collected so far" instead of hanging.
+const SCHEDULE_READ_TIMEOUT_MS = 5_000;
+const SCHEDULE_MAX_PLANS = 20;
+const SCHEDULE_REFRESH_OVERALL_BUDGET_MS = 20_000;
+// The one reliable "job actually finished" signal — see docs/SCHEDULE_START_PLAN.md §5: there
+// is no work-mode status meaning "job complete", only progress reaching ~100% before the
+// returning/docked transition. Not exactly 100 since a device may report 99 at the true end.
+const JOB_FINISHED_PROGRESS_THRESHOLD = 98;
+
 /**
  * LubaDevice represents a single Mammotion mower paired to Homey.
  * Supports dual-mode transport (BLE preferred, MQTT fallback, or explicit preference
@@ -152,6 +166,26 @@ export default class LubaDevice extends Homey.Device {
    *  (e.g. two near-simultaneous start requests) onto a single fragile round-trip
    *  sequence instead of racing two of them against the device at once. */
   private boundaryDiscoveryInFlight: Promise<AreaHashName[]> | null = null;
+
+  /** Last-known list of stored mowing tasks/schedules (see docs/SCHEDULE_START_PLAN.md §4),
+   *  mirrored to the store so a warm cache survives an app restart — same pattern as
+   *  zoneCache. Populated by sequentially reading each planIndex via refreshScheduleCache(). */
+  private scheduleCache: ScheduleInfo[] = [];
+  /** Pending resolvers for the next schedule-read echo — see refreshScheduleCache(). */
+  private scheduleCacheWaiters: Array<(schedule: ScheduleInfo) => void> = [];
+  /** In-flight refreshScheduleCache() run, if any — de-dupes concurrent callers (e.g. the
+   *  autocomplete dropdown opening twice in quick succession) onto one round-trip sequence. */
+  private scheduleRefreshInFlight: Promise<void> | null = null;
+  /** Highest mow progress (0-100) seen since the current job started — not just the most
+   *  recent reading, since progress and status can arrive in separate telemetry messages and
+   *  the last one before docking doesn't always carry a fresh progress value. Reset to 0 the
+   *  next time the mower starts actively mowing again (see updateMowerStatus()). Drives
+   *  mower_job_finished — see docs/SCHEDULE_START_PLAN.md §5. */
+  private highestMowProgressThisJob = 0;
+  /** Whether mower_job_finished has already fired for the current job — prevents re-firing
+   *  on every telemetry tick while the mower sits docked at high progress. Cleared the next
+   *  time the mower starts actively mowing again (see updateMowerStatus()). */
+  private jobFinishedFired = false;
 
   // ─── Init / teardown ─────────────────────────────────────────────────────
 
@@ -204,6 +238,9 @@ export default class LubaDevice extends Homey.Device {
     // enumeration round-trip completes can still resolve "mow all known zones".
     const storedZones = this.getStoreValue('zones') as AreaHashName[] | null;
     if (Array.isArray(storedZones)) this.zoneCache = storedZones;
+    // Same warm-cache rationale as zones, for start_mowing_schedule's autocomplete.
+    const storedSchedules = this.getStoreValue('schedules') as ScheduleInfo[] | null;
+    if (Array.isArray(storedSchedules)) this.scheduleCache = storedSchedules;
 
     await this.startTransports();
   }
@@ -506,7 +543,10 @@ export default class LubaDevice extends Homey.Device {
     this.log(`[update_buf] device reported systemUpdateBuf=[${data.join(',')}]`);
   }
 
-  /** Logs a parsed schedule read response for diagnostics. */
+  /** Logs a parsed schedule read response for diagnostics and wakes anything waiting on the
+   *  next one — see refreshScheduleCache(). Any schedule-read echo resolves pending waiters
+   *  regardless of who triggered the read (the diagnostic "Read mowing schedule" action or a
+   *  background refresh), same characteristic as handleAreaHashNamesResponse/zoneCacheWaiters. */
   private handleScheduleResponse(schedule: ScheduleInfo): void {
     this.log(
       `Schedule [${schedule.planIndex + 1}/${schedule.totalPlanCount || '?'}] `
@@ -516,6 +556,9 @@ export default class LubaDevice extends Homey.Device {
       + `dates=${schedule.startDate || '-'}..${schedule.endDate || '-'} `
       + `blade=${schedule.bladeHeightMm}mm speed=${schedule.speedMs}m/s`,
     );
+    const waiters = this.scheduleCacheWaiters;
+    this.scheduleCacheWaiters = [];
+    waiters.forEach((resolve) => resolve(schedule));
   }
 
   /** Diagnostic/read-only: request the mower's stored mowing schedule (logged, not yet
@@ -525,6 +568,78 @@ export default class LubaDevice extends Homey.Device {
     const context = this.getContext();
     const cmd = buildReadScheduleCommand(session.userAccount, context.deviceName, planIndex, this.seq, context.productKey);
     await this.sendRaw(Buffer.from(cmd, 'base64'), 'read_schedule');
+  }
+
+  /** Resolves the next schedule-read echo, or null if none arrives within timeoutMs — see
+   *  refreshScheduleCache(). */
+  private waitForScheduleResponse(timeoutMs: number): Promise<ScheduleInfo | null> {
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        const idx = this.scheduleCacheWaiters.indexOf(onResponse);
+        if (idx !== -1) this.scheduleCacheWaiters.splice(idx, 1);
+        resolve(null);
+      }, timeoutMs);
+      const onResponse = (schedule: ScheduleInfo) => {
+        clearTimeout(timer);
+        resolve(schedule);
+      };
+      this.scheduleCacheWaiters.push(onResponse);
+    });
+  }
+
+  /** Returns the cached task list immediately (for start_mowing_schedule's autocomplete
+   *  dropdown) and fires a background refresh so the *next* time the dropdown opens it
+   *  reflects any tasks added/renamed since — same pull-only pattern as getZoneList (see
+   *  docs/SCHEDULE_START_PLAN.md §4). */
+  getScheduleList(): ScheduleInfo[] {
+    this.refreshScheduleCache().catch(this.error.bind(this));
+    return this.scheduleCache;
+  }
+
+  /** De-dupes concurrent refresh callers onto a single enumeration sequence — see
+   *  runScheduleRefresh(). */
+  private refreshScheduleCache(): Promise<void> {
+    if (this.scheduleRefreshInFlight) return this.scheduleRefreshInFlight;
+    const run = this.runScheduleRefresh();
+    this.scheduleRefreshInFlight = run;
+    return run.finally(() => { this.scheduleRefreshInFlight = null; });
+  }
+
+  /** Enumerates every stored task by sequentially reading planIndex 0, 1, 2, … — each read's
+   *  response reports totalPlanCount, discovered only once the first response arrives. Bounded
+   *  by SCHEDULE_MAX_PLANS/SCHEDULE_REFRESH_OVERALL_BUDGET_MS so a device that stops
+   *  responding mid-enumeration degrades to "whatever was collected so far" rather than
+   *  hanging — same shape as requestBoundaryZoneDiscovery(). Only overwrites the cache if at
+   *  least one task was actually read back, so a failed refresh leaves the last-known list
+   *  (and the store's warm copy) intact rather than blanking the autocomplete dropdown. */
+  private async runScheduleRefresh(): Promise<void> {
+    const deadline = Date.now() + SCHEDULE_REFRESH_OVERALL_BUDGET_MS;
+    const collected: ScheduleInfo[] = [];
+    let totalPlanCount = 1; // unknown until the first response arrives
+    for (let planIndex = 0; planIndex < totalPlanCount && planIndex < SCHEDULE_MAX_PLANS; planIndex += 1) {
+      if (Date.now() > deadline) break;
+      await this.requestSchedule(planIndex).catch(() => {});
+      const response = await this.waitForScheduleResponse(SCHEDULE_READ_TIMEOUT_MS);
+      if (!response) break;
+      collected.push(response);
+      if (response.totalPlanCount > 0) totalPlanCount = response.totalPlanCount;
+    }
+    if (collected.length > 0) {
+      this.scheduleCache = collected;
+      this.setStoreValue('schedules', collected).catch(this.error.bind(this));
+    }
+  }
+
+  /** Sends the "run this stored task now" command (MctlNav.plan_task_execute, sub_cmd=1) —
+   *  see docs/SCHEDULE_START_PLAN.md §1 for why this is a completely different, higher-fidelity
+   *  mechanism than actionPlanAndStartMowing's own ad-hoc route building. Throws if planId is
+   *  falsy rather than silently sending an empty id to the device. */
+  async actionStartSchedule(planId: string): Promise<void> {
+    if (!planId) throw new MammotionError('No task selected');
+    const session = await this.getSession();
+    const context = this.getContext();
+    const cmd = buildStartScheduleCommand(session.userAccount, context.deviceName, planId, this.seq, context.productKey);
+    await this.sendRaw(Buffer.from(cmd, 'base64'), 'start_schedule');
   }
 
   /** Requests the device's full zone hash/name list; the reply is picked up by
@@ -1081,7 +1196,10 @@ export default class LubaDevice extends Homey.Device {
       if (status !== this.currentStatus) changed.push(`status=${status}(${state.workMode},charge=${state.chargeState ?? 'n/a'})`);
       this.updateMowerStatus(status, state.workMode);
     }
-    if (state.progress != null && this.setCapIfChanged('measure_mow_progress', state.progress)) changed.push(`progress=${state.progress}`);
+    if (state.progress != null) {
+      if (this.setCapIfChanged('measure_mow_progress', state.progress)) changed.push(`progress=${state.progress}`);
+      this.highestMowProgressThisJob = Math.max(this.highestMowProgressThisJob, state.progress);
+    }
     if (state.area != null && this.setCapIfChanged('measure_mow_area', state.area)) changed.push(`area=${state.area}`);
     if (state.bladeHeight != null && this.setCapIfChanged('mow_blade_height', state.bladeHeight)) changed.push(`blade=${state.bladeHeight}`);
     if (state.wifiRssi != null && this.setCapIfChanged('measure_wifi_rssi', state.wifiRssi)) changed.push(`wifi=${state.wifiRssi}`);
@@ -1182,10 +1300,29 @@ export default class LubaDevice extends Homey.Device {
     if (status === wasStatus) return;
     const driver = this.driver as unknown as LubaDriver;
     driver.triggerMowerStatusChanged(this, status);
-    if (status === 'mowing') driver.triggerMowerStartedMowing(this);
-    else if (status === 'returning') driver.triggerMowerStartedReturning(this);
-    else if (status === 'charging') driver.triggerMowerDocked(this);
-    else if (status === 'error') driver.triggerMowerError(this);
+    if (status === 'mowing') {
+      driver.triggerMowerStartedMowing(this);
+      // A fresh start (not a resume from 'paused') begins tracking a new job — see
+      // docs/SCHEDULE_START_PLAN.md §5 and highestMowProgressThisJob's doc comment.
+      if (wasStatus === 'idle' || wasStatus === 'charging') {
+        this.highestMowProgressThisJob = 0;
+        this.jobFinishedFired = false;
+      }
+    } else if (status === 'returning') {
+      driver.triggerMowerStartedReturning(this);
+    } else if (status === 'charging') {
+      driver.triggerMowerDocked(this);
+      // No work-mode status means "job complete" — progress reaching ~100% before docking is
+      // the one reliable differentiator from a battery/rain/manual-stop dock (see
+      // docs/SCHEDULE_START_PLAN.md §5). De-duped via jobFinishedFired so a mower that stays
+      // docked at high progress doesn't re-fire on every subsequent telemetry tick.
+      if (!this.jobFinishedFired && this.highestMowProgressThisJob >= JOB_FINISHED_PROGRESS_THRESHOLD) {
+        this.jobFinishedFired = true;
+        driver.triggerMowerJobFinished(this);
+      }
+    } else if (status === 'error') {
+      driver.triggerMowerError(this);
+    }
   }
 
   // ─── Commands ─────────────────────────────────────────────────────────────

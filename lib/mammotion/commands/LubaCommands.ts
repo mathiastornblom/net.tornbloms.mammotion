@@ -313,6 +313,34 @@ export function buildReadScheduleCommand(
 }
 
 /**
+ * Build a request to run a stored mowing task ("schedule") right now, identified by its
+ * `planId` (MctlNav.plan_task_execute, sub_cmd=1 — pymammotion's `single_schedule(plan_id)`,
+ * the same command Home Assistant's per-schedule buttons call). The device looks up the
+ * plan it already has stored and applies ALL of that plan's own settings itself — zones,
+ * blade height, speed, route model/spacing, and cutting angle — none of which we decode,
+ * re-derive, or re-send. This is a completely different message from buildReadScheduleCommand
+ * (NavPlanJobSet, read/create/edit/delete) and from buildGenerateRouteCommand (which builds
+ * our own ad-hoc route and cannot express a cutting angle at all — see
+ * docs/SCHEDULE_START_PLAN.md). Never touches sub_cmd 1/3/4 on NavPlanJobSet itself, so this
+ * carries none of the risk docs/SCHEDULING_PLAN.md flagged for full schedule write support.
+ */
+export function buildStartScheduleCommand(
+  userAccount: string,
+  deviceName: string,
+  planId: string,
+  seq: { value: number },
+  productKey?: string,
+): string {
+  const receiver = isLubaProDevice(deviceName, productKey) ? MsgDevice.DEV_NAVIGATION : MsgDevice.DEV_MAINCTL;
+  return encodeLubaMsgBase64({
+    ...envelope(MsgCmdType.NAV, receiver, userAccount, seq),
+    nav: {
+      planTaskExecute: { subCmd: 1, id: planId },
+    },
+  });
+}
+
+/**
  * Build a request for the device's full zone hash/name list (MctlNav.toapp_map_name_msg,
  * rw=0, hash=0 — a read-all request on the same channel `set_area_name` uses to write one).
  * Confirmed against pymammotion's `get_area_name_list`: `device_id` is the iotId, not the

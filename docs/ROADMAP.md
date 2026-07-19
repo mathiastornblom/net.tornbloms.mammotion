@@ -1,22 +1,23 @@
 # Roadmap & prioritized backlog
 
-Last reviewed: 2026-07-15, app version v2.5.54 (`test`; `main` mirrors the last Homey-approved
-build, v2.5.53). This is the single source of truth for "what's next" — check here before
+Last reviewed: 2026-07-19, app version v2.5.57 (`test`; `main` mirrors the last Homey-approved
+build, v2.5.56). This is the single source of truth for "what's next" — check here before
 starting new work. Update this file (not just memory) whenever priority shifts, since it's
 versioned with the code and visible to anyone reading the repo.
 
 ## P0 — Active / blocking
 
-- **GitHub Pages homepage (`gh-pages` branch) has disappeared from the remote.** Discovered
-  2026-07-15 via `git fetch --prune` reporting `origin/gh-pages` as deleted; confirmed via
-  `list_branches` that only `main`, `test`, and the current feature branch exist — not a local
-  caching artifact. No workflow in `.github/workflows/` builds or publishes this branch, so it
-  won't regenerate on its own. Nobody on this session deleted it. Live-site status is
-  unconfirmed (a `WebFetch` check returned 403, which is more likely this environment's own
-  proxy restrictions than the real public page's status). **Next action:** ask the maintainer
-  to confirm whether `https://mathiastornblom.github.io/net.tornbloms.mammotion/` actually
-  loads for them, and whether the branch's source content exists anywhere to rebuild from,
-  before attempting any recreation.
+- **"Start mowing task" + "Mower finished a mowing job" (v2.5.57) need live hardware
+  verification.** Built per `docs/SCHEDULE_START_PLAN.md`: `start_mowing_schedule` action sends
+  `plan_task_execute` (sub_cmd=1) to run a stored Mammotion-app task by name, applying its own
+  zones/blade height/speed/cutting angle; `mower_job_finished` fires on the progress≈98%+
+  returning→docked transition, a heuristic since no work-mode status means "job complete"
+  outright. Unit-tested at the protocol level only (`scripts/start-schedule.test.mjs`) — whether
+  `plan_task_execute` actually triggers a stored plan on real Luba/Yuka firmware, and whether
+  finished-job telemetry really reaches that progress threshold before docking, is unverified.
+  The reporting forum user has volunteered to test live with their own mower. **Next action:**
+  wait for their confirmation (or a failure report) before considering this done; if invoke
+  fails live, fall back to Option B (read-and-replay via `zoneHashs`) per the plan doc.
 
 ## P1 — High value, unblocked, ready to scope
 
@@ -57,21 +58,6 @@ versioned with the code and visible to anyone reading the repo.
 
 ## P1 — High value, unblocked, ready to scope (continued)
 
-- **Start a saved Mammotion-app schedule from Homey.** Scoped 2026-07-19 in
-  `docs/SCHEDULE_START_PLAN.md` following a forum request: user configures mowing "tasks" (zones,
-  blade height, speed, per-zone cutting angle) in the official app and wants to trigger them in
-  sequence from Homey, reusing those exact settings. Found a direct `plan_task_execute` command
-  (pymammotion's `single_schedule(plan_id)`, HA's per-schedule buttons) already expressible in our
-  current protocol descriptor with zero regeneration — no schedule write/create/edit involved, so
-  none of `docs/SCHEDULING_PLAN.md`'s rejection reasons apply. Confirmed gap: our existing
-  `start_mowing_zone` action hardcodes `toward:0`/`towardIncludedAngle:0` and can't reproduce a
-  per-zone cutting angle at all, so Flow-chaining the existing zone action doesn't fully cover
-  this user's need. Recommended scope: a `start_mowing_schedule` autocomplete action (name→plan_id)
-  plus a new `mower_job_finished` trigger (progress≈100 + returning/docked transition — no
-  "job complete" work mode exists to key off directly). **Needs live hardware verification**
-  before shipping (same class of risk as the legacy Aliyun subsystem) — the reporting forum user
-  is a plausible test partner.
-
 - **Confirm remaining Yuka models.** A community member ("Ramstein") confirmed Yuka Mini 800
   works via the app's existing generic aliyun_legacy pairing path — no Yuka-specific code was
   needed (`lib/mammotion/deviceType.ts` already resolves Yuka device types and gates
@@ -82,6 +68,14 @@ versioned with the code and visible to anyone reading the repo.
 
 ## Recently shipped (context for what's no longer open)
 
+- **Aliyun rate-limit root cause fixed (v2.5.55-56)** — `aliyun_legacy` devices polled every 5s,
+  ~14x pymammotion's documented 600-requests/12h Aliyun account limit, which is what caused the
+  recurring "mower unavailable daily, needs a restart" reports. Fixed with a mowing-aware poll
+  interval (90s active / 120s idle) plus a shared per-account `AliyunRequestGovernor` rate
+  limiter (`lib/mammotion/aliyun/RequestGovernor.ts`). See PR history and commit messages for
+  the diagnostic report log IDs.
+- **"Start mowing task" + auto-chaining (v2.5.57)** — see the P0 entry above; built, not yet
+  live-verified.
 - **Legacy Aliyun IoT device support — verified live, no longer P0.** What was an unverified
   P0 item as of v2.4.0 has since been exercised live by multiple real accounts across dozens of
   point releases (v2.4.1 → v2.5.54): persisted expiry-aware credentials + circuit breaker
