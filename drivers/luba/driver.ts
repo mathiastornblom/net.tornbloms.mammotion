@@ -49,6 +49,7 @@ export default class LubaDriver extends Homey.Driver {
   private offlineTrigger!: Homey.FlowCardTriggerDevice;
   private onlineTrigger!: Homey.FlowCardTriggerDevice;
   private statusChangedTrigger!: Homey.FlowCardTriggerDevice;
+  private jobFinishedTrigger!: Homey.FlowCardTriggerDevice;
 
   // ─── Legacy Aliyun IoT support ────────────────────────────────────────────
   // ONE shared connection/credential set per account, not per device — see
@@ -107,6 +108,9 @@ export default class LubaDriver extends Homey.Driver {
     this.statusChangedTrigger = this.homey.flow.getDeviceTriggerCard('mower_status_changed');
     this.statusChangedTrigger.registerRunListener(() => true);
 
+    this.jobFinishedTrigger = this.homey.flow.getDeviceTriggerCard('mower_job_finished');
+    this.jobFinishedTrigger.registerRunListener(() => true);
+
     this.homey.flow.getActionCard('start_mowing')
       .registerRunListener(async (args: {
         device: Homey.Device;
@@ -130,6 +134,17 @@ export default class LubaDriver extends Homey.Driver {
       })
       .registerRunListener(async (args: { device: Homey.Device; zone: { id: string; name: string } }) => {
         await (args.device as any).actionPlanAndStartMowing({ areas: [args.zone.id] });
+      });
+
+    this.homey.flow.getActionCard('start_mowing_schedule')
+      .registerArgumentAutocompleteListener('task', async (query: string, args: { device: Homey.Device }) => {
+        const schedules = (args.device as any).getScheduleList() as Array<{ planId: string; taskName: string }>;
+        return schedules
+          .filter((schedule) => schedule.planId && schedule.taskName.toLowerCase().includes(query.toLowerCase()))
+          .map((schedule) => ({ id: schedule.planId, name: schedule.taskName || schedule.planId }));
+      })
+      .registerRunListener(async (args: { device: Homey.Device; task: { id: string; name: string } }) => {
+        await (args.device as any).actionStartSchedule(args.task.id);
       });
 
     this.homey.flow.getActionCard('send_to_dock')
@@ -228,6 +243,13 @@ export default class LubaDriver extends Homey.Driver {
    *  status itself as a token rather than reacting to one particular transition. */
   triggerMowerStatusChanged(device: Homey.Device, status: string): void {
     this.statusChangedTrigger.trigger(device, { status }, {}).catch(this.error.bind(this));
+  }
+
+  /** Called by LubaDevice when a mowing job reaches ~100% progress and then docks — see
+   *  docs/SCHEDULE_START_PLAN.md §5 for why this heuristic exists (no work-mode status means
+   *  "job complete" outright). Fired at most once per job. */
+  triggerMowerJobFinished(device: Homey.Device): void {
+    this.jobFinishedTrigger.trigger(device, {}, {}).catch(this.error.bind(this));
   }
 
   // ─── Legacy Aliyun IoT support ────────────────────────────────────────────

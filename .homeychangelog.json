@@ -331,5 +331,8 @@
   },
   "2.5.56": {
     "en": "Found and fixed the actual root cause of the recurring \"mower unavailable, needs a restart\" reports: cloud-connected mowers were checked for updates every 5 seconds, far more often than Mammotion's own cloud allows (about 14x its documented limit) — which is what kept tripping the rate-limit in the first place. Checks now happen every 90 seconds while mowing and every 2 minutes otherwise, with a shared safety margin across every mower on your account so manual commands like start/stop always still get through"
+  },
+  "2.5.57": {
+    "en": "Added \"Start mowing task...\" — run one of the tasks you've already set up in the official Mammotion app (zones, blade height, speed, and cutting angle included) directly from a Flow, exactly as configured there. Added a matching \"Mower finished a mowing job\" trigger so you can chain several tasks in a row automatically. Needs live testing on real hardware before it's fully confirmed working"
   }
 }

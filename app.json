@@ -1,7 +1,7 @@
 {
   "_comment": "This file is generated. Please edit .homeycompose/app.json instead.",
   "id": "net.tornbloms.mammotion",
-  "version": "2.5.56",
+  "version": "2.5.57",
   "homeyCommunityTopicId": 156754,
   "homepage": "https://mathiastornblom.github.io/net.tornbloms.mammotion/",
   "compatibility": ">=12.9.0",
@@ -328,6 +328,46 @@
             "example": "mowing"
           }
         ],
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=luba"
+          }
+        ]
+      },
+      {
+        "id": "mower_job_finished",
+        "title": {
+          "en": "Mower finished a mowing job",
+          "nl": "Maaier heeft een maaitaak voltooid",
+          "de": "Mäher hat einen Mähauftrag abgeschlossen",
+          "fr": "La tondeuse a terminé une tâche de tonte",
+          "it": "Il tagliaerba ha completato un lavoro di taglio",
+          "sv": "Klipparen avslutade ett klippjobb",
+          "no": "Klipperen fullførte en klippejobb",
+          "es": "El cortacésped terminó un trabajo de corte",
+          "da": "Plæneklipperen afsluttede et klippejob",
+          "ru": "Газонокосилка завершила задание по кошению",
+          "pl": "Kosiarka zakończyła zadanie koszenia",
+          "ko": "잔디깎이가 작업을 완료함",
+          "ar": "أنهت الجزازة مهمة جز"
+        },
+        "hint": {
+          "en": "Fires when the mower's mowing progress reaches about 100% and it then heads back to dock — distinguishing an actually-finished job from a battery, rain, or manual stop. Combine with \"Start mowing task\" to automatically chain the next task.",
+          "nl": "Wordt geactiveerd wanneer de maaivoortgang van de maaier ongeveer 100% bereikt en hij daarna teruggaat naar het dock — dit onderscheidt een echt voltooide taak van een stop door batterij, regen of handmatig ingrijpen. Combineer met \"Start maaitaak\" om automatisch de volgende taak te starten.",
+          "de": "Wird ausgelöst, wenn der Mähfortschritt des Mähers etwa 100 % erreicht und er danach zur Dockingstation zurückkehrt — dies unterscheidet eine tatsächlich abgeschlossene Aufgabe von einem Stopp wegen Akku, Regen oder manuellem Eingriff. Kombiniere dies mit \"Mähaufgabe starten\", um automatisch die nächste Aufgabe zu starten.",
+          "fr": "Se déclenche lorsque la progression de la tonte atteint environ 100 % puis que la tondeuse retourne à la base — ce qui distingue une tâche réellement terminée d'un arrêt dû à la batterie, à la pluie ou à une intervention manuelle. Combinez avec \"Démarrer la tâche de tonte\" pour enchaîner automatiquement la tâche suivante.",
+          "it": "Si attiva quando l'avanzamento del taglio raggiunge circa il 100% e il tagliaerba torna poi alla base — distinguendo un lavoro effettivamente completato da un arresto per batteria, pioggia o intervento manuale. Combina con \"Avvia l'attività di taglio\" per avviare automaticamente l'attività successiva.",
+          "sv": "Utlöses när klipparens klippframsteg når ca 100 % och den sedan åker tillbaka till dockan — vilket skiljer ett faktiskt avslutat jobb från ett stopp på grund av batteri, regn eller manuellt ingrepp. Kombinera med \"Starta klippuppgift\" för att automatiskt kedja nästa uppgift.",
+          "no": "Utløses når klipperens klippefremdrift når ca. 100 % og den deretter kjører tilbake til dokken — dette skiller en faktisk fullført jobb fra en stopp på grunn av batteri, regn eller manuelt inngrep. Kombiner med \"Start klippeoppgave\" for å automatisk starte neste oppgave.",
+          "es": "Se activa cuando el progreso de corte del cortacésped alcanza aproximadamente el 100% y luego regresa a la base — distinguiendo un trabajo realmente terminado de una parada por batería, lluvia o intervención manual. Combínalo con \"Iniciar tarea de corte\" para encadenar automáticamente la siguiente tarea.",
+          "da": "Udløses, når plæneklipperens klippefremskridt når ca. 100 % og den derefter kører tilbage til docken — hvilket skelner et reelt afsluttet job fra et stop på grund af batteri, regn eller manuel indgriben. Kombiner med \"Start klippeopgave\" for automatisk at starte den næste opgave.",
+          "ru": "Срабатывает, когда прогресс кошения достигает примерно 100% и газонокосилка затем направляется на базу — это отличает действительно завершённое задание от остановки из-за батареи, дождя или ручного вмешательства. Используйте вместе с «Запустить задачу кошения», чтобы автоматически запускать следующую задачу.",
+          "pl": "Uruchamia się, gdy postęp koszenia osiągnie około 100%, a kosiarka wraca do stacji — co odróżnia faktycznie ukończone zadanie od zatrzymania z powodu baterii, deszczu lub ręcznej interwencji. Połącz z \"Uruchom zadanie koszenia\", aby automatycznie uruchomić kolejne zadanie.",
+          "ko": "잔디깎이의 작업 진행률이 약 100%에 도달한 후 충전소로 복귀할 때 실행됩니다 — 배터리, 비, 수동 정지로 인한 복귀와 실제로 완료된 작업을 구분합니다. \"작업 시작\"과 함께 사용하여 다음 작업을 자동으로 이어서 실행하세요.",
+          "ar": "يُفعَّل عندما تصل نسبة تقدم الجز إلى حوالي 100% ثم تعود الجزازة إلى القاعدة — مما يميز المهمة المكتملة فعليًا عن التوقف بسبب البطارية أو المطر أو التدخل اليدوي. اجمعه مع \"بدء مهمة الجز\" لتشغيل المهمة التالية تلقائيًا."
+        },
         "args": [
           {
             "type": "device",
@@ -797,6 +837,80 @@
               "pl": "Strefa",
               "ko": "구역",
               "ar": "المنطقة"
+            }
+          }
+        ]
+      },
+      {
+        "id": "start_mowing_schedule",
+        "title": {
+          "en": "Start mowing task [[task]]",
+          "nl": "Start maaitaak [[task]]",
+          "de": "Mähaufgabe [[task]] starten",
+          "fr": "Démarrer la tâche de tonte [[task]]",
+          "it": "Avvia l'attività di taglio [[task]]",
+          "sv": "Starta klippuppgift [[task]]",
+          "no": "Start klippeoppgave [[task]]",
+          "es": "Iniciar tarea de corte [[task]]",
+          "da": "Start klippeopgave [[task]]",
+          "ru": "Запустить задачу кошения [[task]]",
+          "pl": "Uruchom zadanie koszenia [[task]]",
+          "ko": "작업 [[task]] 시작",
+          "ar": "بدء مهمة الجز [[task]]"
+        },
+        "titleFormatted": {
+          "en": "Start mowing task [[task]]",
+          "nl": "Start maaitaak [[task]]",
+          "de": "Mähaufgabe [[task]] starten",
+          "fr": "Démarrer la tâche de tonte [[task]]",
+          "it": "Avvia l'attività di taglio [[task]]",
+          "sv": "Starta klippuppgift [[task]]",
+          "no": "Start klippeoppgave [[task]]",
+          "es": "Iniciar tarea de corte [[task]]",
+          "da": "Start klippeopgave [[task]]",
+          "ru": "Запустить задачу кошения [[task]]",
+          "pl": "Uruchom zadanie koszenia [[task]]",
+          "ko": "작업 [[task]] 시작",
+          "ar": "بدء مهمة الجز [[task]]"
+        },
+        "hint": {
+          "en": "Runs one of your mower's saved tasks (from the official Mammotion app) exactly as configured there — same zones, blade height, speed, and cutting angle. Unlike \"Start mowing zone\", nothing is re-entered here; the mower applies the task's own settings itself.",
+          "nl": "Voert een van de opgeslagen taken van je maaier uit (uit de officiële Mammotion-app) precies zoals daar ingesteld — dezelfde zones, maaihoogte, snelheid en maairichting. In tegenstelling tot \"Start met maaien van zone\" hoef je hier niets opnieuw in te stellen; de maaier past de eigen instellingen van de taak zelf toe.",
+          "de": "Führt eine der gespeicherten Aufgaben deines Mähers aus (aus der offiziellen Mammotion-App) genau wie dort eingestellt — gleiche Zonen, Schnitthöhe, Geschwindigkeit und Mährichtung. Anders als bei \"Zone mähen starten\" wird hier nichts neu eingegeben; der Mäher wendet die eigenen Einstellungen der Aufgabe selbst an.",
+          "fr": "Exécute l'une des tâches enregistrées de votre tondeuse (depuis l'application officielle Mammotion) exactement comme configurée là-bas — mêmes zones, hauteur de coupe, vitesse et angle de tonte. Contrairement à \"Démarrer la tonte de la zone\", rien n'est ressaisi ici ; la tondeuse applique elle-même les réglages de la tâche.",
+          "it": "Esegue una delle attività salvate del tuo tagliaerba (dall'app ufficiale Mammotion) esattamente come configurata lì — stesse zone, altezza di taglio, velocità e angolo di taglio. A differenza di \"Avvia il taglio della zona\", qui non viene reinserito nulla; il tagliaerba applica da sé le impostazioni dell'attività.",
+          "sv": "Kör en av klipparens sparade uppgifter (från den officiella Mammotion-appen) precis som den är inställd där — samma zoner, klipphöjd, hastighet och klippvinkel. Till skillnad från \"Starta klippning av zon\" behöver du inte ange något igen här; klipparen använder uppgiftens egna inställningar själv.",
+          "no": "Kjører en av klipperens lagrede oppgaver (fra den offisielle Mammotion-appen) akkurat slik den er satt opp der — samme soner, klippehøyde, hastighet og klippevinkel. I motsetning til \"Start klipping av sone\" trenger du ikke angi noe på nytt her; klipperen bruker oppgavens egne innstillinger selv.",
+          "es": "Ejecuta una de las tareas guardadas de tu cortacésped (de la aplicación oficial Mammotion) exactamente como está configurada allí — mismas zonas, altura de corte, velocidad y ángulo de corte. A diferencia de \"Iniciar corte de la zona\", aquí no se vuelve a introducir nada; el cortacésped aplica los ajustes propios de la tarea.",
+          "da": "Kører en af plæneklipperens gemte opgaver (fra den officielle Mammotion-app) nøjagtigt som den er indstillet der — samme zoner, klippehøjde, hastighed og klippevinkel. I modsætning til \"Start klipning af zone\" skal du ikke indtaste noget igen her; plæneklipperen anvender selv opgavens egne indstillinger.",
+          "ru": "Запускает одну из сохранённых задач газонокосилки (из официального приложения Mammotion) точно так, как она там настроена — те же зоны, высота среза, скорость и угол кошения. В отличие от «Начать кошение зоны», здесь ничего не нужно вводить заново — газонокосилка сама применяет настройки задачи.",
+          "pl": "Uruchamia jedno z zapisanych zadań kosiarki (z oficjalnej aplikacji Mammotion) dokładnie tak, jak zostało tam skonfigurowane — te same strefy, wysokość koszenia, prędkość i kąt koszenia. W przeciwieństwie do \"Zacznij koszenie strefy\", nic nie trzeba tu wpisywać ponownie — kosiarka sama stosuje własne ustawienia zadania.",
+          "ko": "공식 Mammotion 앱에 설정된 그대로 잔디깎이의 저장된 작업을 실행합니다 — 동일한 구역, 절단 높이, 속도, 절단 각도. \"구역 작업 시작\"과 달리 여기서 다시 설정할 필요가 없으며, 잔디깎이가 작업 자체의 설정을 그대로 적용합니다.",
+          "ar": "يشغّل إحدى المهام المحفوظة في الجزازة (من تطبيق Mammotion الرسمي) تمامًا كما تم إعدادها هناك — نفس المناطق وارتفاع الشفرة والسرعة وزاوية الجز. على عكس \"بدء جز المنطقة\"، لا حاجة لإعادة إدخال أي شيء هنا؛ تطبّق الجزازة إعدادات المهمة الخاصة بها بنفسها."
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=luba"
+          },
+          {
+            "type": "autocomplete",
+            "name": "task",
+            "title": {
+              "en": "Task",
+              "nl": "Taak",
+              "de": "Aufgabe",
+              "fr": "Tâche",
+              "it": "Attività",
+              "sv": "Uppgift",
+              "no": "Oppgave",
+              "es": "Tarea",
+              "da": "Opgave",
+              "ru": "Задача",
+              "pl": "Zadanie",
+              "ko": "작업",
+              "ar": "مهمة"
             }
           }
         ]
