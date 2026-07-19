@@ -57,6 +57,21 @@ versioned with the code and visible to anyone reading the repo.
 
 ## P1 — High value, unblocked, ready to scope (continued)
 
+- **Start a saved Mammotion-app schedule from Homey.** Scoped 2026-07-19 in
+  `docs/SCHEDULE_START_PLAN.md` following a forum request: user configures mowing "tasks" (zones,
+  blade height, speed, per-zone cutting angle) in the official app and wants to trigger them in
+  sequence from Homey, reusing those exact settings. Found a direct `plan_task_execute` command
+  (pymammotion's `single_schedule(plan_id)`, HA's per-schedule buttons) already expressible in our
+  current protocol descriptor with zero regeneration — no schedule write/create/edit involved, so
+  none of `docs/SCHEDULING_PLAN.md`'s rejection reasons apply. Confirmed gap: our existing
+  `start_mowing_zone` action hardcodes `toward:0`/`towardIncludedAngle:0` and can't reproduce a
+  per-zone cutting angle at all, so Flow-chaining the existing zone action doesn't fully cover
+  this user's need. Recommended scope: a `start_mowing_schedule` autocomplete action (name→plan_id)
+  plus a new `mower_job_finished` trigger (progress≈100 + returning/docked transition — no
+  "job complete" work mode exists to key off directly). **Needs live hardware verification**
+  before shipping (same class of risk as the legacy Aliyun subsystem) — the reporting forum user
+  is a plausible test partner.
+
 - **Confirm remaining Yuka models.** A community member ("Ramstein") confirmed Yuka Mini 800
   works via the app's existing generic aliyun_legacy pairing path — no Yuka-specific code was
   needed (`lib/mammotion/deviceType.ts` already resolves Yuka device types and gates
