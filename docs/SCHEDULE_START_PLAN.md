@@ -279,5 +279,28 @@ in-app scheduler. Option C is inadequate for this request; Option B is a documen
    observed job-finished transition. This is unverifiable without that device — exactly like the
    Aliyun legacy subsystem. If invoke fails live, fall back to Option B (read-and-replay) using the
    `zoneHashs`+route-param decode, and re-verify.
+
+## Live verification result (v2.5.58, forum user "Örjan", Luba 2 Pro)
+
+**Both open questions from the "NOT verifiable without live hardware" section above are now
+resolved, positively.** Diagnostic logs (report IDs `53c8a6a3-7c5a-4150-8991-e440cb0e9036` and
+`f09213f3-7e48-4f65-9bce-c9b39f021e67`) show `plan_task_execute {subCmd:1, id}` correctly invoked
+the stored task "Kortsida mot Ivan stripe" on real firmware — it mowed that task's own zone at its
+own angle — and the mower's progress reached exactly 100 right as status transitioned
+returning→charging, satisfying `mower_job_finished`'s firing threshold in a real run. No fallback to
+Option B was needed.
+
+The same diagnostics surfaced a real, unrelated bug in the *other* verifiable-by-unit-test half of
+this feature: the task-enumeration cache only ever returned a single stored plan (`planIndex=0`)
+even though the device correctly reported 15 stored tasks in every response. Root cause: `sendRaw`'s
+duplicate-command guard keyed on the command label alone (`'read_schedule'`), and
+`runScheduleRefresh()`'s sequential per-`planIndex` reads all shared that one label — so every read
+after the first was silently swallowed as a "duplicate" within the guard's 1.5s window, and
+`waitForScheduleResponse()` for `planIndex=1` then timed out waiting for a request that was never
+actually sent. Fixed in v2.5.58 by suffixing the label with `planIndex` (`read_schedule:${planIndex}`),
+mirroring the fix already used for `get_hash_response`/`synchronize_hash_data` in the boundary-zone
+discovery path (`drivers/luba/device.ts`). This was a bug in the surrounding transport plumbing, not
+in `extractSchedule`/the enumeration-cache logic itself — the existing unit tests didn't (and
+couldn't, without a fake transport) cover `sendRaw`'s dedup guard.
 </content>
 </invoke>

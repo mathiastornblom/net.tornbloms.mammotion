@@ -1,23 +1,13 @@
 # Roadmap & prioritized backlog
 
-Last reviewed: 2026-07-19, app version v2.5.57 (`test`; `main` mirrors the last Homey-approved
+Last reviewed: 2026-07-20, app version v2.5.58 (`test`; `main` mirrors the last Homey-approved
 build, v2.5.56). This is the single source of truth for "what's next" — check here before
 starting new work. Update this file (not just memory) whenever priority shifts, since it's
 versioned with the code and visible to anyone reading the repo.
 
 ## P0 — Active / blocking
 
-- **"Start mowing task" + "Mower finished a mowing job" (v2.5.57) need live hardware
-  verification.** Built per `docs/SCHEDULE_START_PLAN.md`: `start_mowing_schedule` action sends
-  `plan_task_execute` (sub_cmd=1) to run a stored Mammotion-app task by name, applying its own
-  zones/blade height/speed/cutting angle; `mower_job_finished` fires on the progress≈98%+
-  returning→docked transition, a heuristic since no work-mode status means "job complete"
-  outright. Unit-tested at the protocol level only (`scripts/start-schedule.test.mjs`) — whether
-  `plan_task_execute` actually triggers a stored plan on real Luba/Yuka firmware, and whether
-  finished-job telemetry really reaches that progress threshold before docking, is unverified.
-  The reporting forum user has volunteered to test live with their own mower. **Next action:**
-  wait for their confirmation (or a failure report) before considering this done; if invoke
-  fails live, fall back to Option B (read-and-replay via `zoneHashs`) per the plan doc.
+(none — the schedule-start live-verification item below shipped confirmed-working in v2.5.58)
 
 ## P1 — High value, unblocked, ready to scope
 
@@ -74,8 +64,18 @@ versioned with the code and visible to anyone reading the repo.
   interval (90s active / 120s idle) plus a shared per-account `AliyunRequestGovernor` rate
   limiter (`lib/mammotion/aliyun/RequestGovernor.ts`). See PR history and commit messages for
   the diagnostic report log IDs.
-- **"Start mowing task" + auto-chaining (v2.5.57)** — see the P0 entry above; built, not yet
-  live-verified.
+- **"Start mowing task" + auto-chaining (v2.5.57), confirmed live + enumeration bug fixed
+  (v2.5.58)** — a real Luba 2 Pro (forum user "Örjan") ran "Kortsida mot Ivan stripe" via the
+  new Flow card and the mower correctly ran that stored task's own zones/angle and finished the
+  job (progress hit 100 right at the returning→charging transition, exactly `mower_job_finished`'s
+  firing condition), confirming `plan_task_execute` (sub_cmd=1) works against real hardware — no
+  fallback to the Option B read-and-replay path was needed. Diagnostics also surfaced a real bug:
+  the task picker only ever listed one saved task (of 15 stored on that mower) — `sendRaw()`'s
+  duplicate-command guard (`DUPLICATE_COMMAND_WINDOW_MS`) keys on the command label alone, and
+  `runScheduleRefresh()`'s per-`planIndex` `read_schedule` reads all shared that same label, so
+  every read after `planIndex=0` was silently dropped within the guard's 1.5s window. Fixed by
+  suffixing the label with `planIndex` (`drivers/luba/device.ts`), the same fix shape already
+  used for `get_hash_response`/`synchronize_hash_data` in the boundary-zone discovery path.
 - **Legacy Aliyun IoT device support — verified live, no longer P0.** What was an unverified
   P0 item as of v2.4.0 has since been exercised live by multiple real accounts across dozens of
   point releases (v2.4.1 → v2.5.54): persisted expiry-aware credentials + circuit breaker
