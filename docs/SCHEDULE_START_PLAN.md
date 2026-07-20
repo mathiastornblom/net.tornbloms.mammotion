@@ -302,5 +302,23 @@ mirroring the fix already used for `get_hash_response`/`synchronize_hash_data` i
 discovery path (`drivers/luba/device.ts`). This was a bug in the surrounding transport plumbing, not
 in `extractSchedule`/the enumeration-cache logic itself — the existing unit tests didn't (and
 couldn't, without a fake transport) cover `sendRaw`'s dedup guard.
+
+**A second, deeper bug surfaced immediately after v2.5.58 shipped**: the same tester's next
+diagnostic (log `58c5a8db-de81-4fdb-a1f7-b61837607232`) showed the picker now listing 15 entries —
+but all 15 were the *same* task name. Every `read_schedule:N` request was now genuinely being sent
+(the v2.5.58 fix worked), but decoding the raw bytes showed each request's `NavPlanJobSet` submessage
+was byte-identical regardless of `planIndex` — the index was never actually reaching the device.
+Root cause: `buildReadScheduleCommand` (`lib/mammotion/commands/LubaCommands.ts`) built the request
+object as `{ subCmd: 2, planIndex }`, but the proto field is declared `int32 PlanIndex = 24;`
+(capitalized, `mctrl_nav.proto:286`) — protobufjs keeps field names exactly as declared, it does not
+camelCase them, so the lowercase `planIndex` key silently didn't match anything and was dropped
+during encoding. Every request left the field unset, so the device always answered with its first
+stored plan. The exact same capitalized-field gotcha already bit `extractCommDataAck`'s `Hash` field
+in the boundary-zone discovery path (see that test's name in `boundary-zone-discovery.test.mjs`) —
+this codebase's protos mix cases inconsistently and it is not obvious from the wire format alone.
+Fixed in v2.5.59 by encoding `PlanIndex: planIndex` (capital P) instead. Also hardened
+`scripts/schedule-roundtrip.test.mjs` with a test that decodes the built request and asserts
+`PlanIndex` actually round-trips for several index values — the previous test only asserted
+`subCmd === 2` and would not have caught this.
 </content>
 </invoke>

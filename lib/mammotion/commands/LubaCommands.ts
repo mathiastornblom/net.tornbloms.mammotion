@@ -306,8 +306,13 @@ export function buildReadScheduleCommand(
   const receiver = isLubaProDevice(deviceName, productKey) ? MsgDevice.DEV_NAVIGATION : MsgDevice.DEV_MAINCTL;
   return encodeLubaMsgBase64({
     ...envelope(MsgCmdType.NAV, receiver, userAccount, seq),
+    // The proto field is capitalized (`NavPlanJobSet.PlanIndex`, mctrl_nav.proto:286) — protobufjs
+    // keeps that exact case, it does not camelCase it. A lowercase `planIndex` key here is silently
+    // dropped by the encoder, so every request left the field unset and the device always echoed
+    // back plan 0 regardless of which index was asked for (see the real diagnostic report this
+    // fixes: the task picker listed the same task 15 times instead of 15 different tasks).
     nav: {
-      todevPlanjobSet: { subCmd: 2, planIndex },
+      todevPlanjobSet: { subCmd: 2, PlanIndex: planIndex },
     },
   });
 }
