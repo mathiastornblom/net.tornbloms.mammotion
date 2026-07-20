@@ -562,12 +562,18 @@ export default class LubaDevice extends Homey.Device {
   }
 
   /** Diagnostic/read-only: request the mower's stored mowing schedule (logged, not yet
-   *  surfaced as a capability — see docs/SCHEDULING_PLAN.md for why writes aren't supported). */
+   *  surfaced as a capability — see docs/SCHEDULING_PLAN.md for why writes aren't supported).
+   *  Label includes planIndex — runScheduleRefresh() reads every planIndex in quick sequence,
+   *  and without this suffix sendRaw's duplicate-command guard (DUPLICATE_COMMAND_WINDOW_MS)
+   *  would silently drop every read after planIndex=0, since they'd all share the same
+   *  'read_schedule' label within the window (see the real diagnostic report this fixes: the
+   *  task picker only ever showed a single stored task despite the device reporting 15). Same
+   *  fix shape as get_hash_response/synchronize_hash_data below. */
   async requestSchedule(planIndex = 0): Promise<void> {
     const session = await this.getSession();
     const context = this.getContext();
     const cmd = buildReadScheduleCommand(session.userAccount, context.deviceName, planIndex, this.seq, context.productKey);
-    await this.sendRaw(Buffer.from(cmd, 'base64'), 'read_schedule');
+    await this.sendRaw(Buffer.from(cmd, 'base64'), `read_schedule:${planIndex}`);
   }
 
   /** Resolves the next schedule-read echo, or null if none arrives within timeoutMs — see

@@ -334,5 +334,8 @@
   },
   "2.5.57": {
     "en": "Added \"Start mowing task...\" — run one of the tasks you've already set up in the official Mammotion app (zones, blade height, speed, and cutting angle included) directly from a Flow, exactly as configured there. Added a matching \"Mower finished a mowing job\" trigger so you can chain several tasks in a row automatically. Needs live testing on real hardware before it's fully confirmed working"
+  },
+  "2.5.58": {
+    "en": "Confirmed on real hardware: \"Start mowing task\" and \"Mower finished a mowing job\" both work as intended. Also fixed the task picker only ever listing a single saved task instead of all of them — reading each one back from the mower was silently getting skipped by an internal duplicate-command safeguard"
   }
 }
