@@ -22,6 +22,18 @@ test('read-schedule request targets NAV with sub_cmd=2 (read, not write)', () =>
   assert.equal(req.nav.todevPlanjobSet.subCmd, 2, 'sub_cmd=2 is read, never 1/3/4 (create/delete/edit)');
 });
 
+test('read-schedule request actually encodes a distinct PlanIndex per call', () => {
+  // Regression test: the proto field is capitalized (`PlanIndex`, mctrl_nav.proto:286) — a
+  // lowercase `planIndex` key is silently dropped by protobufjs, leaving every request
+  // identical regardless of the requested index. Real-world symptom: the task picker showed
+  // the exact same task N times instead of N different stored tasks.
+  for (const index of [0, 1, 3, 14]) {
+    const b64 = buildReadScheduleCommand('12345', 'Luba-TEST', index, { value: 0 });
+    const req = decodeLubaMsg(Buffer.from(b64, 'base64'));
+    assert.equal(req.nav.todevPlanjobSet.PlanIndex, index, `PlanIndex must round-trip as ${index}`);
+  }
+});
+
 test('extractSchedule parses a device echo response', () => {
   const bytes = encodeLubaMsg({
     msgtype: 240, sender: 1, rcver: 7, msgattr: 2, seqs: 5, version: 1, subtype: 0, timestamp: Date.now(),

@@ -337,5 +337,8 @@
   },
   "2.5.58": {
     "en": "Confirmed on real hardware: \"Start mowing task\" and \"Mower finished a mowing job\" both work as intended. Also fixed the task picker only ever listing a single saved task instead of all of them — reading each one back from the mower was silently getting skipped by an internal duplicate-command safeguard"
+  },
+  "2.5.59": {
+    "en": "Fixed \"Start mowing task\" showing the same task name repeated instead of your actual list of saved tasks. The v2.5.58 fix corrected how many tasks got requested, but each request itself had a typo'd field name that made the mower always answer with its first saved task — now fixed, so every saved task shows up correctly"
   }
 }

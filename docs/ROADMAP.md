@@ -64,18 +64,23 @@ versioned with the code and visible to anyone reading the repo.
   interval (90s active / 120s idle) plus a shared per-account `AliyunRequestGovernor` rate
   limiter (`lib/mammotion/aliyun/RequestGovernor.ts`). See PR history and commit messages for
   the diagnostic report log IDs.
-- **"Start mowing task" + auto-chaining (v2.5.57), confirmed live + enumeration bug fixed
-  (v2.5.58)** — a real Luba 2 Pro (forum user "Örjan") ran "Kortsida mot Ivan stripe" via the
-  new Flow card and the mower correctly ran that stored task's own zones/angle and finished the
+- **"Start mowing task" + auto-chaining (v2.5.57), confirmed live + two enumeration bugs fixed
+  (v2.5.58, v2.5.59)** — a real Luba 2 Pro (forum user "Örjan") ran "Kortsida mot Ivan stripe" via
+  the new Flow card and the mower correctly ran that stored task's own zones/angle and finished the
   job (progress hit 100 right at the returning→charging transition, exactly `mower_job_finished`'s
   firing condition), confirming `plan_task_execute` (sub_cmd=1) works against real hardware — no
-  fallback to the Option B read-and-replay path was needed. Diagnostics also surfaced a real bug:
-  the task picker only ever listed one saved task (of 15 stored on that mower) — `sendRaw()`'s
-  duplicate-command guard (`DUPLICATE_COMMAND_WINDOW_MS`) keys on the command label alone, and
-  `runScheduleRefresh()`'s per-`planIndex` `read_schedule` reads all shared that same label, so
-  every read after `planIndex=0` was silently dropped within the guard's 1.5s window. Fixed by
-  suffixing the label with `planIndex` (`drivers/luba/device.ts`), the same fix shape already
-  used for `get_hash_response`/`synchronize_hash_data` in the boundary-zone discovery path.
+  fallback to the Option B read-and-replay path was needed. Diagnostics then surfaced two separate
+  bugs, found and fixed in sequence: (1) the task picker only ever listed one saved task (of 15) —
+  `sendRaw()`'s duplicate-command guard keyed on the command label alone, so `runScheduleRefresh()`'s
+  per-`planIndex` `read_schedule` reads all shared one label and every read after `planIndex=0` was
+  silently dropped; fixed in v2.5.58 by suffixing the label with `planIndex`. (2) after that fix, the
+  picker listed 15 entries but all with the same task name — `buildReadScheduleCommand` built the
+  request with a lowercase `planIndex` key, but the proto field is `PlanIndex` (capitalized,
+  `mctrl_nav.proto:286`); protobufjs doesn't camelCase field names, so the mismatched key was
+  silently dropped and every request left the index unset, always reading back plan 0. Fixed in
+  v2.5.59 by capitalizing the key, plus a hardened test (`schedule-roundtrip.test.mjs`) that
+  actually decodes and asserts `PlanIndex` round-trips, since the previous test only checked
+  `subCmd`. See `docs/SCHEDULE_START_PLAN.md` for full detail on both.
 - **Legacy Aliyun IoT device support — verified live, no longer P0.** What was an unverified
   P0 item as of v2.4.0 has since been exercised live by multiple real accounts across dozens of
   point releases (v2.4.1 → v2.5.54): persisted expiry-aware credentials + circuit breaker
