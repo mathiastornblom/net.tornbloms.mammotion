@@ -340,5 +340,8 @@
   },
   "2.5.59": {
     "en": "Fixed \"Start mowing task\" showing the same task name repeated instead of your actual list of saved tasks. The v2.5.58 fix corrected how many tasks got requested, but each request itself had a typo'd field name that made the mower always answer with its first saved task — now fixed, so every saved task shows up correctly"
+  },
+  "2.5.60": {
+    "en": "Fixed \"Mower finished a mowing job\" waiting until the mower was fully docked and charging before firing, which meant a Flow chaining straight into another \"start mowing task\" had to wait out the whole drive back to the dock. It now fires as soon as the mower decides the job is done and starts heading back, so chained tasks start right away"
   }
 }

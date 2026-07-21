@@ -7,20 +7,7 @@ versioned with the code and visible to anyone reading the repo.
 
 ## P0 — Active / blocking
 
-- **Task-chaining via `mower_job_finished` → `start_mowing_schedule` needs a follow-up diagnostic.**
-  Örjan (v2.5.59, log `087258b1-d66f-43cd-b16b-146d2f5f0c55`) built exactly the intended chaining
-  Flow (trigger "Mower finished a mowing job" → action "Start mowing task test task2 stripe ivan")
-  and reported task 2 never started — the mower just went to the charging station instead. The
-  submitted log doesn't resolve this: it ends with the mower still in `returning` status (progress
-  hit 100 but the device never reached `charging` within the captured window), and there is no
-  `sending start_schedule` line anywhere in the log — meaning the chained action never even
-  attempted to fire during this capture. `mower_job_finished` is deliberately designed to fire only
-  on the `returning`→`charging` transition (see `docs/SCHEDULE_START_PLAN.md` §5), since there's no
-  dedicated "job complete" status code — so it may simply not have fired yet by the time the log was
-  submitted, or it may genuinely never have fired once the mower did dock. **Next action:** ask the
-  reporter (a) whether task 2 eventually started after some delay once actually docked, and (b) for
-  a longer diagnostic that spans from job completion through actual dock arrival and the following
-  minute, ideally with debug logging still on. Don't guess at a fix without that.
+(none — the task-chaining timing item below shipped fixed in v2.5.60)
 
 ## P1 — High value, unblocked, ready to scope
 
@@ -87,12 +74,11 @@ versioned with the code and visible to anyone reading the repo.
   interval (90s active / 120s idle) plus a shared per-account `AliyunRequestGovernor` rate
   limiter (`lib/mammotion/aliyun/RequestGovernor.ts`). See PR history and commit messages for
   the diagnostic report log IDs.
-- **"Start mowing task" + auto-chaining (v2.5.57), confirmed live + two enumeration bugs fixed
-  (v2.5.58, v2.5.59)** — a real Luba 2 Pro (forum user "Örjan") ran "Kortsida mot Ivan stripe" via
-  the new Flow card and the mower correctly ran that stored task's own zones/angle and finished the
-  job (progress hit 100 right at the returning→charging transition, exactly `mower_job_finished`'s
-  firing condition), confirming `plan_task_execute` (sub_cmd=1) works against real hardware — no
-  fallback to the Option B read-and-replay path was needed. Diagnostics then surfaced two separate
+- **"Start mowing task" + auto-chaining (v2.5.57), confirmed live + three bugs found and fixed
+  (v2.5.58, v2.5.59, v2.5.60)** — a real Luba 2 Pro (forum user "Örjan") ran "Kortsida mot Ivan
+  stripe" via the new Flow card and the mower correctly ran that stored task's own zones/angle and
+  finished the job, confirming `plan_task_execute` (sub_cmd=1) works against real hardware — no
+  fallback to the Option B read-and-replay path was needed. Diagnostics then surfaced three separate
   bugs, found and fixed in sequence: (1) the task picker only ever listed one saved task (of 15) —
   `sendRaw()`'s duplicate-command guard keyed on the command label alone, so `runScheduleRefresh()`'s
   per-`planIndex` `read_schedule` reads all shared one label and every read after `planIndex=0` was
@@ -103,7 +89,17 @@ versioned with the code and visible to anyone reading the repo.
   silently dropped and every request left the index unset, always reading back plan 0. Fixed in
   v2.5.59 by capitalizing the key, plus a hardened test (`schedule-roundtrip.test.mjs`) that
   actually decodes and asserts `PlanIndex` round-trips, since the previous test only checked
-  `subCmd`. See `docs/SCHEDULE_START_PLAN.md` for full detail on both.
+  `subCmd`. (3) chaining `mower_job_finished` → "start mowing task" for the next job didn't work —
+  Örjan built exactly that Flow and the next task never started. Root cause was a design gap, not a
+  code bug: the trigger fired on the `returning`→`charging` transition (once physically docked),
+  but the maintainer clarified the intent is for it to fire the moment the mower *decides* to head
+  back (progress already ~100 at the mowing→returning transition), so a chained Flow doesn't have
+  to wait out the multi-minute drive back to the dock. Fixed in v2.5.60 by moving the firing logic
+  to the `returning` branch, plus fixing a related ordering bug where `handleTelemetry()` checked
+  the progress threshold before folding the current tick's progress value in (harmless in the
+  observed case since progress had already crossed 98 the tick before, but a real risk if progress
+  and the status transition ever land in the same tick). `mower_docked` is unchanged and still
+  fires only once actually charging. See `docs/SCHEDULE_START_PLAN.md` for full detail on all three.
 - **Legacy Aliyun IoT device support — verified live, no longer P0.** What was an unverified
   P0 item as of v2.4.0 has since been exercised live by multiple real accounts across dozens of
   point releases (v2.4.1 → v2.5.54): persisted expiry-aware credentials + circuit breaker

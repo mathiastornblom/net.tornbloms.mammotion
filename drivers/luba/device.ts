@@ -1197,14 +1197,18 @@ export default class LubaDevice extends Homey.Device {
         (this.driver as unknown as LubaDriver).triggerBatteryBelow(this, state.batteryPercent);
       }
     }
+    // Progress must be folded into highestMowProgressThisJob before updateMowerStatus() runs —
+    // a real device transitions mowing->returning in the very same telemetry tick that progress
+    // first reaches 100 (see docs/SCHEDULE_START_PLAN.md §5), and updateMowerStatus() only gets
+    // one chance to check the threshold per transition (it early-returns on repeat statuses).
+    if (state.progress != null) {
+      if (this.setCapIfChanged('measure_mow_progress', state.progress)) changed.push(`progress=${state.progress}`);
+      this.highestMowProgressThisJob = Math.max(this.highestMowProgressThisJob, state.progress);
+    }
     if (state.workMode != null) {
       const status = workModeToStatus(state.workMode, state.chargeState ?? null);
       if (status !== this.currentStatus) changed.push(`status=${status}(${state.workMode},charge=${state.chargeState ?? 'n/a'})`);
       this.updateMowerStatus(status, state.workMode);
-    }
-    if (state.progress != null) {
-      if (this.setCapIfChanged('measure_mow_progress', state.progress)) changed.push(`progress=${state.progress}`);
-      this.highestMowProgressThisJob = Math.max(this.highestMowProgressThisJob, state.progress);
     }
     if (state.area != null && this.setCapIfChanged('measure_mow_area', state.area)) changed.push(`area=${state.area}`);
     if (state.bladeHeight != null && this.setCapIfChanged('mow_blade_height', state.bladeHeight)) changed.push(`blade=${state.bladeHeight}`);
@@ -1316,16 +1320,19 @@ export default class LubaDevice extends Homey.Device {
       }
     } else if (status === 'returning') {
       driver.triggerMowerStartedReturning(this);
-    } else if (status === 'charging') {
-      driver.triggerMowerDocked(this);
-      // No work-mode status means "job complete" — progress reaching ~100% before docking is
-      // the one reliable differentiator from a battery/rain/manual-stop dock (see
-      // docs/SCHEDULE_START_PLAN.md §5). De-duped via jobFinishedFired so a mower that stays
-      // docked at high progress doesn't re-fire on every subsequent telemetry tick.
+      // Fires the moment the mower decides to head back, not once it's actually docked — a
+      // Flow chaining straight into another "start mowing task" shouldn't have to wait out the
+      // multi-minute drive to the dock (see the real diagnostic report this fixes:
+      // docs/SCHEDULE_START_PLAN.md §5). No work-mode status means "job complete" outright, so
+      // progress reaching ~100% right as mowing->returning happens is the one reliable
+      // differentiator from a battery/rain/manual-stop return. De-duped via jobFinishedFired so
+      // a mower that stays in 'returning' for a while doesn't re-fire on every telemetry tick.
       if (!this.jobFinishedFired && this.highestMowProgressThisJob >= JOB_FINISHED_PROGRESS_THRESHOLD) {
         this.jobFinishedFired = true;
         driver.triggerMowerJobFinished(this);
       }
+    } else if (status === 'charging') {
+      driver.triggerMowerDocked(this);
     } else if (status === 'error') {
       driver.triggerMowerError(this);
     }

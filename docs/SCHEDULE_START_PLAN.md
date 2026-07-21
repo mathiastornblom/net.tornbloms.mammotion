@@ -147,10 +147,17 @@ return**, **manual dock**, **rain return**, and **error-then-dock**. It is **not
 **The one reliable differentiator is progress.** Our `measure_mow_progress` capability is derived
 from `work.area`'s high 16 bits (`lib/mammotion/protocol/TelemetryParser.ts:109`,
 `telemetry.progress = (work.area >>> 16) & 0xffff`). A job that genuinely finished reaches
-progress **≈100** before/at the returning→docked transition; a battery-low or manual/rain
-interruption docks with progress **< 100**. Combining "progress reached ~100" with the
-returning/docked transition is the honest "job completed successfully" signal — and it is entirely
+progress **≈100** at the mowing→returning transition (the moment the mower decides to head back,
+which is well before it physically arrives at the dock); a battery-low or manual/rain interruption
+starts returning with progress **< 100**. Combining "progress reached ~100" with the
+mowing→returning transition is the honest "job completed successfully" signal — and it is entirely
 derivable from telemetry we already parse.
+
+**Fires on `returning`, not on `charging`** (changed in v2.5.60 from the original design — see the
+live diagnostic below): a Flow chaining straight into "start mowing task" for the next job
+shouldn't have to wait out the multi-minute physical drive back to the dock before the next task
+can start. `mower_docked` (unchanged) still fires only once actually docked, for anything that
+cares about physical dock arrival specifically.
 
 ## Descriptor coverage — NO regeneration needed (verified)
 
@@ -320,5 +327,28 @@ Fixed in v2.5.59 by encoding `PlanIndex: planIndex` (capital P) instead. Also ha
 `scripts/schedule-roundtrip.test.mjs` with a test that decodes the built request and asserts
 `PlanIndex` actually round-trips for several index values — the previous test only asserted
 `subCmd === 2` and would not have caught this.
+
+**Task-chaining design gap surfaced on v2.5.59** (log `087258b1-d66f-43cd-b16b-146d2f5f0c55`):
+Örjan built exactly the Flow this feature was designed for — `mower_job_finished` → "Start mowing
+task" for the next job — and reported the next task never started; the mower just drove to the
+charging station instead. Clarifying with the maintainer confirmed the actual intent: the trigger
+should fire the moment the mower **decides** to head back (mowing→returning, progress already
+~100), not once it's physically **arrived** and started charging. The original design fired on the
+returning→charging transition specifically because that felt like the safer "job is truly over"
+signal, but in practice this means the next task in the chain can't start until the mower completes
+its entire physical drive back to the dock — several minutes of dead time for no benefit, since
+progress reaching ~100 at the mowing→returning transition is already the reliable "job complete"
+signal (see above); nothing more is learned by waiting for the dock.
+
+Fixed in v2.5.60: moved the `mower_job_finished` firing logic from the `charging` branch to the
+`returning` branch in `updateMowerStatus()`. Also fixed a related ordering bug while doing this:
+`handleTelemetry()` previously called `updateMowerStatus()` *before* folding the current tick's
+`state.progress` into `highestMowProgressThisJob` — harmless when progress crossed the threshold on
+an earlier tick (as it did in Örjan's log, where progress was already 99 the tick before the
+status flip), but a real risk of a missed fire if progress and the mowing→returning transition ever
+land in the exact same telemetry tick, since `updateMowerStatus()` only evaluates the threshold
+once per transition (it early-returns on repeat statuses) and would read the stale pre-tick value.
+Now `state.progress` is applied first. `mower_docked` is unchanged and still fires only once
+actually charging, for anything that specifically cares about physical dock arrival.
 </content>
 </invoke>
