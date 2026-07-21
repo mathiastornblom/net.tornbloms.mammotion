@@ -32,7 +32,7 @@
   },
   "dependencies": {
     "mqtt": "^5.10.1",
-    "protobufjs": "^7.6.4"
+    "protobufjs": "^7.6.5"
   },
   "devDependencies": {
     "@types/homey": "npm:homey-apps-sdk-v3-types@^0.3.12",
