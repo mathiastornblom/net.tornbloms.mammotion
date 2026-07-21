@@ -504,7 +504,29 @@
           "pl": "Uruchamia się, gdy postęp koszenia osiągnie około 100%, a kosiarka wraca do stacji — co odróżnia faktycznie ukończone zadanie od zatrzymania z powodu baterii, deszczu lub ręcznej interwencji. Połącz z \"Uruchom zadanie koszenia\", aby automatycznie uruchomić kolejne zadanie.",
           "ko": "잔디깎이의 작업 진행률이 약 100%에 도달한 후 충전소로 복귀할 때 실행됩니다 — 배터리, 비, 수동 정지로 인한 복귀와 실제로 완료된 작업을 구분합니다. \"작업 시작\"과 함께 사용하여 다음 작업을 자동으로 이어서 실행하세요.",
           "ar": "يُفعَّل عندما تصل نسبة تقدم الجز إلى حوالي 100% ثم تعود الجزازة إلى القاعدة — مما يميز المهمة المكتملة فعليًا عن التوقف بسبب البطارية أو المطر أو التدخل اليدوي. اجمعه مع \"بدء مهمة الجز\" لتشغيل المهمة التالية تلقائيًا."
-        }
+        },
+        "tokens": [
+          {
+            "name": "task_name",
+            "type": "string",
+            "title": {
+              "en": "Task",
+              "nl": "Taak",
+              "de": "Aufgabe",
+              "fr": "Tâche",
+              "it": "Attività",
+              "sv": "Uppgift",
+              "no": "Oppgave",
+              "es": "Tarea",
+              "da": "Opgave",
+              "ru": "Задача",
+              "pl": "Zadanie",
+              "ko": "작업",
+              "ar": "المهمة"
+            },
+            "example": "Front lawn"
+          }
+        ]
       }
     ],
     "conditions": [

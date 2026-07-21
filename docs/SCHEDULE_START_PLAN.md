@@ -350,5 +350,17 @@ land in the exact same telemetry tick, since `updateMowerStatus()` only evaluate
 once per transition (it early-returns on repeat statuses) and would read the stale pre-tick value.
 Now `state.progress` is applied first. `mower_docked` is unchanged and still fires only once
 actually charging, for anything that specifically cares about physical dock arrival.
-</content>
-</invoke>
+
+## `task_name` token added (v2.5.61)
+
+Also requested by Örjan (same diagnostic thread, log `087258b1-d66f-43cd-b16b-146d2f5f0c55`): with
+several tasks queued, a Flow needs to know *which* job just finished to route to the right next
+action. There's no per-job identifier in telemetry to key off — `work.plan` stays `0` throughout a
+real job in every captured diagnostic — so instead of trying to parse job identity out of telemetry,
+`mower_job_finished` now carries a `task_name` token sourced from our own side: `actionStartSchedule()`
+(`drivers/luba/device.ts`) records the task name it was invoked with in `lastStartedTaskName`, which
+gets passed through as the token when the job finishes and is then cleared. It's also cleared by
+`actionPlanAndStartMowing()` (the ad-hoc zone/route start, a different kind of job) so that a job
+started some other way — the official Mammotion app, the mower's own onboard weekly scheduler —
+reports an empty token instead of a stale or wrong name. This is a deliberate best-effort scope: it
+only identifies jobs that were themselves started through our "Start mowing task" action.

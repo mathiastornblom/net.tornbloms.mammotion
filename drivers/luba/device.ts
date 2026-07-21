@@ -186,6 +186,15 @@ export default class LubaDevice extends Homey.Device {
    *  on every telemetry tick while the mower sits docked at high progress. Cleared the next
    *  time the mower starts actively mowing again (see updateMowerStatus()). */
   private jobFinishedFired = false;
+  /** Name of the task most recently started via actionStartSchedule(), passed as
+   *  mower_job_finished's task_name token when the job completes. Best-effort, not a reliable
+   *  "which job just finished" signal in every case: there's no per-job identifier in telemetry
+   *  (work.plan stays 0 throughout a real job — see the diagnostic behind this feature), so this
+   *  only reflects a job we ourselves started via the schedule action. Cleared by
+   *  actionPlanAndStartMowing() (a different, non-schedule start) and after every
+   *  mower_job_finished fire, so a job started some other way (the official app, the mower's own
+   *  onboard scheduler) is reported as unknown rather than mislabeled with a stale name. */
+  private lastStartedTaskName: string | null = null;
 
   // ─── Init / teardown ─────────────────────────────────────────────────────
 
@@ -639,9 +648,12 @@ export default class LubaDevice extends Homey.Device {
   /** Sends the "run this stored task now" command (MctlNav.plan_task_execute, sub_cmd=1) —
    *  see docs/SCHEDULE_START_PLAN.md §1 for why this is a completely different, higher-fidelity
    *  mechanism than actionPlanAndStartMowing's own ad-hoc route building. Throws if planId is
-   *  falsy rather than silently sending an empty id to the device. */
-  async actionStartSchedule(planId: string): Promise<void> {
+   *  falsy rather than silently sending an empty id to the device. Records taskName so a later
+   *  mower_job_finished can report which task just completed — see lastStartedTaskName's doc
+   *  comment. */
+  async actionStartSchedule(planId: string, taskName?: string): Promise<void> {
     if (!planId) throw new MammotionError('No task selected');
+    this.lastStartedTaskName = taskName || null;
     const session = await this.getSession();
     const context = this.getContext();
     const cmd = buildStartScheduleCommand(session.userAccount, context.deviceName, planId, this.seq, context.productKey);
@@ -1329,7 +1341,8 @@ export default class LubaDevice extends Homey.Device {
       // a mower that stays in 'returning' for a while doesn't re-fire on every telemetry tick.
       if (!this.jobFinishedFired && this.highestMowProgressThisJob >= JOB_FINISHED_PROGRESS_THRESHOLD) {
         this.jobFinishedFired = true;
-        driver.triggerMowerJobFinished(this);
+        driver.triggerMowerJobFinished(this, this.lastStartedTaskName ?? '');
+        this.lastStartedTaskName = null;
       }
     } else if (status === 'charging') {
       driver.triggerMowerDocked(this);
@@ -1419,6 +1432,9 @@ export default class LubaDevice extends Homey.Device {
    *  (NoZonesKnownError) rather than falling back to that bare-start behaviour if no zones
    *  can be resolved even after a best-effort enumeration attempt. */
   async actionPlanAndStartMowing(options: StartMowOptions): Promise<void> {
+    // Not a schedule-task start — clear any tracked name so a later mower_job_finished doesn't
+    // mislabel this job with a stale task name from a previous actionStartSchedule() call.
+    this.lastStartedTaskName = null;
     let areas = options.areas?.filter((hash) => hash !== '');
     if (!areas || areas.length === 0) {
       areas = this.zoneCache.map((zone) => zone.hash);

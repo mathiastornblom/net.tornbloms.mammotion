@@ -17,7 +17,7 @@
       "step2": "Ouvrez l'application Mammotion sur votre téléphone, connecté avec votre compte habituel, et partagez votre/vos tondeuse(s) avec le nouveau compte.",
       "step3": "Connectez-vous à l'application Mammotion avec le nouveau compte et acceptez l'invitation.",
       "step4": "Appuyez sur Continuer ci-dessous, puis connectez-vous ici avec l'e-mail et le mot de passe du nouveau compte.",
-      "note": "Vous n'avez besoin de le faire qu'une seule fois. Ensuite, votre compte habituel continue de fonctionner normalement dans l'application Mammotion.",
+      "note": "Vous n'avez besoin de le faire qu'une seule fois. Ensuite, votre compte habituel continue de fonctionner normalement dans l'application Mammotion. Après votre connexion, il peut falloir un moment à Homey pour trouver votre tondeuse — c'est normal, merci de patienter.",
       "continue": "Continuer"
     }
   },

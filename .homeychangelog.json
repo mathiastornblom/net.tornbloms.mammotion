@@ -343,5 +343,8 @@
   },
   "2.5.60": {
     "en": "Fixed \"Mower finished a mowing job\" waiting until the mower was fully docked and charging before firing, which meant a Flow chaining straight into another \"start mowing task\" had to wait out the whole drive back to the dock. It now fires as soon as the mower decides the job is done and starts heading back, so chained tasks start right away"
+  },
+  "2.5.61": {
+    "en": "\"Mower finished a mowing job\" now includes which task just finished, so a Flow can tell jobs apart when several tasks are queued (only works for tasks started via \"Start mowing task\"). Also added a note on the pairing screen that finding your mower can take a moment right after logging in"
   }
 }

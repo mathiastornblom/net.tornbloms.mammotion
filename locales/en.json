@@ -17,7 +17,7 @@
       "step2": "Open the Mammotion app on your phone, signed in with your normal account, and share your mower(s) with the new account.",
       "step3": "Sign in to the Mammotion app with the new account and accept the invitation.",
       "step4": "Tap Continue below, then log in here with the new account's email and password.",
-      "note": "You only need to do this once. After that, your normal account keeps working in the Mammotion app exactly as before.",
+      "note": "You only need to do this once. After that, your normal account keeps working in the Mammotion app exactly as before. After you log in, it can take a moment for Homey to find your mower — this is normal, so please be patient.",
       "continue": "Continue"
     }
   },

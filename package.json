@@ -1,6 +1,6 @@
 {
   "name": "net.tornbloms.mammotion",
-  "version": "2.5.60",
+  "version": "2.5.61",
   "type": "module",
   "engines": {
     "node": ">=22.0.0"

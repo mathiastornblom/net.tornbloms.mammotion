@@ -144,7 +144,7 @@ export default class LubaDriver extends Homey.Driver {
           .map((schedule) => ({ id: schedule.planId, name: schedule.taskName || schedule.planId }));
       })
       .registerRunListener(async (args: { device: Homey.Device; task: { id: string; name: string } }) => {
-        await (args.device as any).actionStartSchedule(args.task.id);
+        await (args.device as any).actionStartSchedule(args.task.id, args.task.name);
       });
 
     this.homey.flow.getActionCard('send_to_dock')
@@ -245,11 +245,12 @@ export default class LubaDriver extends Homey.Driver {
     this.statusChangedTrigger.trigger(device, { status }, {}).catch(this.error.bind(this));
   }
 
-  /** Called by LubaDevice when a mowing job reaches ~100% progress and then docks — see
-   *  docs/SCHEDULE_START_PLAN.md §5 for why this heuristic exists (no work-mode status means
-   *  "job complete" outright). Fired at most once per job. */
-  triggerMowerJobFinished(device: Homey.Device): void {
-    this.jobFinishedTrigger.trigger(device, {}, {}).catch(this.error.bind(this));
+  /** Called by LubaDevice when a mowing job reaches ~100% progress and then heads back to dock —
+   *  see docs/SCHEDULE_START_PLAN.md §5 for why this heuristic exists (no work-mode status means
+   *  "job complete" outright). Fired at most once per job. taskName is best-effort: only known
+   *  when the job was started via the "Start mowing task" action, empty otherwise. */
+  triggerMowerJobFinished(device: Homey.Device, taskName: string): void {
+    this.jobFinishedTrigger.trigger(device, { task_name: taskName }, {}).catch(this.error.bind(this));
   }
 
   // ─── Legacy Aliyun IoT support ────────────────────────────────────────────

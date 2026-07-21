@@ -17,7 +17,7 @@
       "step2": "Åpne Mammotion-appen på telefonen din, logget inn med din vanlige konto, og del klipperen(e) din med den nye kontoen.",
       "step3": "Logg inn i Mammotion-appen med den nye kontoen og godta invitasjonen.",
       "step4": "Trykk Fortsett nedenfor, og logg deretter inn her med e-postadressen og passordet til den nye kontoen.",
-      "note": "Du trenger bare å gjøre dette én gang. Etterpå fortsetter din vanlige konto å fungere i Mammotion-appen akkurat som før.",
+      "note": "Du trenger bare å gjøre dette én gang. Etterpå fortsetter din vanlige konto å fungere i Mammotion-appen akkurat som før. Etter at du har logget inn, kan det ta litt tid før Homey finner klipperen din — dette er normalt, så vær tålmodig.",
       "continue": "Fortsett"
     }
   },

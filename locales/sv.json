@@ -17,7 +17,7 @@
       "step2": "Öppna Mammotion-appen i din telefon, inloggad med ditt vanliga konto, och dela din/dina klippare med det nya kontot.",
       "step3": "Logga in i Mammotion-appen med det nya kontot och acceptera inbjudan.",
       "step4": "Tryck på Fortsätt nedan och logga sedan in här med det nya kontots e-postadress och lösenord.",
-      "note": "Du behöver bara göra detta en gång. Efter det fortsätter ditt vanliga konto att fungera i Mammotion-appen precis som vanligt.",
+      "note": "Du behöver bara göra detta en gång. Efter det fortsätter ditt vanliga konto att fungera i Mammotion-appen precis som vanligt. Efter att du loggat in kan det ta en stund innan Homey hittar din klippare — det är normalt, ha bara tålamod.",
       "continue": "Fortsätt"
     }
   },

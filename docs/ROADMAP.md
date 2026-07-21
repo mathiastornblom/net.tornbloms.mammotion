@@ -29,16 +29,6 @@ versioned with the code and visible to anyone reading the repo.
   but exact request shape not yet confirmed against pymammotion).
 - **EcoSleep / LiveSleep toggles** — `dev_low_power_set_info` in `mctrl_sys.proto` — low
   complexity but also low expected user value; only worth it if requested.
-- **Tag `mower_job_finished` with which task just completed.** Requested by Örjan (log
-  `087258b1-d66f-43cd-b16b-146d2f5f0c55`): with several tasks queued, a Flow needs to know *which*
-  job just finished to route to the right next action. Likely a token on the trigger card (task
-  name/id) sourced from whatever `read_schedule`/telemetry still identifies as the active plan at
-  the moment of the `returning`→`charging` transition — needs checking whether that identity is
-  still available/reliable by the time the trigger fires (the device's own `work.plan`/`pathHash`
-  fields may already be cleared or pointing at the dock's zone by then).
-- **Pairing screen: mention that mower discovery can take a while after entering credentials.**
-  Requested by Örjan (same log) — a small copy/UX addition to the pairing flow, not a code change
-  beyond a locale string. See the `design`/`technical-writer` agents for pairing-screen copy.
 
 ## P3 — Large, deferred, needs its own planning pass when picked up
 
@@ -68,6 +58,17 @@ versioned with the code and visible to anyone reading the repo.
 
 ## Recently shipped (context for what's no longer open)
 
+- **`mower_job_finished` task_name token + pairing screen discovery-delay note (v2.5.61)** — both
+  requested by Örjan (log `087258b1-d66f-43cd-b16b-146d2f5f0c55`). (1) The trigger now carries a
+  `task_name` token, best-effort: `actionStartSchedule()` records the task name it was called with
+  (`drivers/luba/device.ts`'s `lastStartedTaskName`), passed through when the job finishes and
+  cleared afterward (and by `actionPlanAndStartMowing`, a non-schedule start) so a job started some
+  other way — the official Mammotion app, the mower's own onboard scheduler — reports an empty
+  token rather than a stale/wrong name. There's no per-job identifier in telemetry itself
+  (`work.plan` stays 0 throughout a real job), so this only works for jobs started via our own
+  "Start mowing task" action. (2) The account-setup pairing screen's note now mentions that finding
+  the mower can take a moment after logging in — a one-sentence addition to all 13 locale files,
+  no code change.
 - **Aliyun rate-limit root cause fixed (v2.5.55-56)** — `aliyun_legacy` devices polled every 5s,
   ~14x pymammotion's documented 600-requests/12h Aliyun account limit, which is what caused the
   recurring "mower unavailable daily, needs a restart" reports. Fixed with a mowing-aware poll

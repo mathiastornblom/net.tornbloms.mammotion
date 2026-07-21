@@ -17,7 +17,7 @@
       "step2": "Öffne die Mammotion-App auf deinem Telefon, angemeldet mit deinem normalen Konto, und teile deine(n) Mäher mit dem neuen Konto.",
       "step3": "Melde dich in der Mammotion-App mit dem neuen Konto an und akzeptiere die Einladung.",
       "step4": "Tippe unten auf Weiter und melde dich dann hier mit der E-Mail-Adresse und dem Passwort des neuen Kontos an.",
-      "note": "Das musst du nur einmal tun. Danach funktioniert dein normales Konto in der Mammotion-App genau wie zuvor weiter.",
+      "note": "Das musst du nur einmal tun. Danach funktioniert dein normales Konto in der Mammotion-App genau wie zuvor weiter. Nachdem du dich angemeldet hast, kann es einen Moment dauern, bis Homey deinen Mäher findet — das ist normal, bitte habe etwas Geduld.",
       "continue": "Weiter"
     }
   },
