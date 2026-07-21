@@ -7,7 +7,20 @@ versioned with the code and visible to anyone reading the repo.
 
 ## P0 — Active / blocking
 
-(none — the schedule-start live-verification item below shipped confirmed-working in v2.5.58)
+- **Task-chaining via `mower_job_finished` → `start_mowing_schedule` needs a follow-up diagnostic.**
+  Örjan (v2.5.59, log `087258b1-d66f-43cd-b16b-146d2f5f0c55`) built exactly the intended chaining
+  Flow (trigger "Mower finished a mowing job" → action "Start mowing task test task2 stripe ivan")
+  and reported task 2 never started — the mower just went to the charging station instead. The
+  submitted log doesn't resolve this: it ends with the mower still in `returning` status (progress
+  hit 100 but the device never reached `charging` within the captured window), and there is no
+  `sending start_schedule` line anywhere in the log — meaning the chained action never even
+  attempted to fire during this capture. `mower_job_finished` is deliberately designed to fire only
+  on the `returning`→`charging` transition (see `docs/SCHEDULE_START_PLAN.md` §5), since there's no
+  dedicated "job complete" status code — so it may simply not have fired yet by the time the log was
+  submitted, or it may genuinely never have fired once the mower did dock. **Next action:** ask the
+  reporter (a) whether task 2 eventually started after some delay once actually docked, and (b) for
+  a longer diagnostic that spans from job completion through actual dock arrival and the following
+  minute, ideally with debug logging still on. Don't guess at a fix without that.
 
 ## P1 — High value, unblocked, ready to scope
 
@@ -29,6 +42,16 @@ versioned with the code and visible to anyone reading the repo.
   but exact request shape not yet confirmed against pymammotion).
 - **EcoSleep / LiveSleep toggles** — `dev_low_power_set_info` in `mctrl_sys.proto` — low
   complexity but also low expected user value; only worth it if requested.
+- **Tag `mower_job_finished` with which task just completed.** Requested by Örjan (log
+  `087258b1-d66f-43cd-b16b-146d2f5f0c55`): with several tasks queued, a Flow needs to know *which*
+  job just finished to route to the right next action. Likely a token on the trigger card (task
+  name/id) sourced from whatever `read_schedule`/telemetry still identifies as the active plan at
+  the moment of the `returning`→`charging` transition — needs checking whether that identity is
+  still available/reliable by the time the trigger fires (the device's own `work.plan`/`pathHash`
+  fields may already be cleared or pointing at the dock's zone by then).
+- **Pairing screen: mention that mower discovery can take a while after entering credentials.**
+  Requested by Örjan (same log) — a small copy/UX addition to the pairing flow, not a code change
+  beyond a locale string. See the `design`/`technical-writer` agents for pairing-screen copy.
 
 ## P3 — Large, deferred, needs its own planning pass when picked up
 
