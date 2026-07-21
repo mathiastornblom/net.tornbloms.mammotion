@@ -17,7 +17,7 @@
       "step2": "Otwórz aplikację Mammotion na telefonie, zalogowaną na swoje zwykłe konto, i udostępnij kosiarkę (lub kosiarki) nowemu kontu.",
       "step3": "Zaloguj się do aplikacji Mammotion nowym kontem i zaakceptuj zaproszenie.",
       "step4": "Kliknij Dalej poniżej, a następnie zaloguj się tutaj przy użyciu adresu e-mail i hasła nowego konta.",
-      "note": "Musisz to zrobić tylko raz. Później Twoje zwykłe konto będzie nadal działać w aplikacji Mammotion dokładnie tak jak wcześniej.",
+      "note": "Musisz to zrobić tylko raz. Później Twoje zwykłe konto będzie nadal działać w aplikacji Mammotion dokładnie tak jak wcześniej. Po zalogowaniu może upłynąć chwila, zanim Homey znajdzie Twoją kosiarkę — to normalne, prosimy o cierpliwość.",
       "continue": "Dalej"
     }
   },

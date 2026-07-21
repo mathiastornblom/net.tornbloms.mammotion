@@ -17,7 +17,7 @@
       "step2": "Åbn Mammotion-appen på din telefon, logget ind med din normale konto, og del din/dine plæneklipper(e) med den nye konto.",
       "step3": "Log ind i Mammotion-appen med den nye konto, og accepter invitationen.",
       "step4": "Tryk på Fortsæt nedenfor, og log derefter ind her med den nye kontos e-mail og adgangskode.",
-      "note": "Du skal kun gøre dette én gang. Derefter fortsætter din normale konto med at fungere i Mammotion-appen præcis som før.",
+      "note": "Du skal kun gøre dette én gang. Derefter fortsætter din normale konto med at fungere i Mammotion-appen præcis som før. Når du er logget ind, kan det tage et øjeblik, før Homey finder din plæneklipper — det er normalt, så hav tålmodighed.",
       "continue": "Fortsæt"
     }
   },

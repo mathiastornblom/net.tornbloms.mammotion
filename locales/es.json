@@ -17,7 +17,7 @@
       "step2": "Abre la aplicación Mammotion en tu teléfono, con la sesión iniciada con tu cuenta habitual, y comparte tu(s) cortacésped(es) con la nueva cuenta.",
       "step3": "Inicia sesión en la aplicación Mammotion con la nueva cuenta y acepta la invitación.",
       "step4": "Toca Continuar a continuación y luego inicia sesión aquí con el correo electrónico y la contraseña de la nueva cuenta.",
-      "note": "Solo necesitas hacer esto una vez. Después, tu cuenta habitual seguirá funcionando en la aplicación Mammotion exactamente igual que antes.",
+      "note": "Solo necesitas hacer esto una vez. Después, tu cuenta habitual seguirá funcionando en la aplicación Mammotion exactamente igual que antes. Después de iniciar sesión, puede tardar un momento en que Homey encuentre tu cortacésped — es normal, ten paciencia.",
       "continue": "Continuar"
     }
   },

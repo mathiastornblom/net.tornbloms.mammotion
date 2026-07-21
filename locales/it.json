@@ -17,7 +17,7 @@
       "step2": "Apri l'app Mammotion sul telefono, accedendo con il tuo account normale, e condividi il tuo tagliaerba (o i tagliaerba) con il nuovo account.",
       "step3": "Accedi all'app Mammotion con il nuovo account e accetta l'invito.",
       "step4": "Tocca Continua qui sotto, quindi accedi qui con l'email e la password del nuovo account.",
-      "note": "Devi farlo solo una volta. Dopodiché, il tuo account normale continuerà a funzionare nell'app Mammotion esattamente come prima.",
+      "note": "Devi farlo solo una volta. Dopodiché, il tuo account normale continuerà a funzionare nell'app Mammotion esattamente come prima. Dopo aver effettuato l'accesso, potrebbe volerci un momento prima che Homey trovi il tuo tagliaerba — è normale, abbi pazienza.",
       "continue": "Continua"
     }
   },
