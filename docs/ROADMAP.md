@@ -44,7 +44,24 @@ versioned with the code and visible to anyone reading the repo.
 ## Explicitly not planned (Phase 7, skip unless priorities change)
 
 - **Firmware OTA** — skip.
-- **Camera / Agora WebRTC** — skip, high complexity for uncertain value.
+- **Camera / Agora WebRTC** — skip, confirmed technically blocked, not just "uncertain value."
+  Checked against pymammotion's actual implementation (`/tmp/pymammotion` reference clone,
+  `pymammotion/http/http.py`'s `get_stream_subscription`, `pymammotion/http/model/camera_stream.py`,
+  `pymammotion/mammotion/commands/messages/video.py`): fetching the Agora session (appid,
+  channelName, per-camera token, uid) is a plain authenticated `POST
+  https://domestic.mammotion.com/device-server/v1/stream/token`, reachable with the same OAuth2
+  access token our existing login flow already obtains (`lib/mammotion/auth/MammotionAuth.ts`) — no
+  new auth work needed there. The blocker is entirely downstream: turning that token into an actual
+  displayable image or stream requires a real Agora RTC client that decodes live video, which needs
+  either Agora's native SDK (violates the Homey App Store's "no native addons" rule) or a browser/
+  WebRTC context (a Homey app's Node.js backend has neither). There's no Agora REST "just grab one
+  frame as JPEG" shortcut either — even a single snapshot requires briefly joining the live RTC
+  channel and decoding a frame client-side, so "picture first, stream later" doesn't sidestep the
+  hard part; both need the same missing decoder. The only real path would be an always-on external
+  relay service (running Agora's SDK, transcoding to RTSP/HLS/MJPEG) that the Homey app just points
+  to as a URL — genuine hosting/maintenance infrastructure outside the app itself, not a Homey-app
+  feature. Revisit only if Agora ships an official constrained-runtime/HTTP snapshot API, or if
+  running/maintaining an external relay becomes acceptable scope.
 
 ## P1 — High value, unblocked, ready to scope (continued)
 
