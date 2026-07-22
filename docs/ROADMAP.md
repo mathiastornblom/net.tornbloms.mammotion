@@ -44,7 +44,41 @@ versioned with the code and visible to anyone reading the repo.
 ## Explicitly not planned (Phase 7, skip unless priorities change)
 
 - **Firmware OTA** — skip.
-- **Camera / Agora WebRTC** — skip, high complexity for uncertain value.
+- **Camera / Agora WebRTC** — skip, confirmed technically blocked, not just "uncertain value."
+  Checked against pymammotion's actual implementation (`/tmp/pymammotion` reference clone,
+  `pymammotion/http/http.py`'s `get_stream_subscription`, `pymammotion/http/model/camera_stream.py`,
+  `pymammotion/mammotion/commands/messages/video.py`) and against Homey's own developer docs
+  (`apps.developer.homey.app/advanced/videos`). Fetching the Agora session (appid, channelName,
+  per-camera token, uid) is a plain authenticated `POST
+  https://domestic.mammotion.com/device-server/v1/stream/token`, reachable with the same OAuth2
+  access token our existing login flow already obtains (`lib/mammotion/auth/MammotionAuth.ts`) — no
+  new auth work needed there.
+  Correcting an earlier, too-broad version of this note: Homey Pro (2023+) has real camera/video
+  support (`ManagerVideos`, `Device.setCameraVideo`), and critically the **app itself never
+  transcodes or decodes** — Homey's own docs state it plainly ("The app, nor Homey, does any
+  transcoding, but acts as a broker"). For RTSP/RTMP/HLS/DASH cameras the app just hands Homey a
+  URL; for WebRTC cameras the app just relays one SDP offer→answer exchange through the camera
+  vendor's cloud API, and Homey's own frontend/WebRTC proxy does the actual media handling. So "no
+  native addons, no browser context" is not, in general, a blocker for Homey camera support — that
+  was wrong in the previous version of this note.
+  The actual, narrower blocker: Homey's WebRTC broker model specifically expects the vendor's cloud
+  to accept a **generic SDP offer and return a generic SDP answer** (so a normal browser
+  `RTCPeerConnection` can connect directly to the vendor's media servers) — exactly what works for
+  cameras (Ring, Reolink, etc.) whose cloud already speaks standard WebRTC signaling. Agora does
+  not work that way: it's a proprietary SDK-level join protocol, not generic SDP passthrough, and
+  Mammotion's `/stream/token` endpoint returns raw Agora join credentials for Agora's own client
+  SDK — not a URL (so `createVideoRTSP/RTMP/HLS/DASH` don't apply) and not an SDP-answering endpoint
+  (so `createVideoWebRTC`'s offer/answer relay doesn't apply either). Neither of Homey's two
+  integration shapes fits what Mammotion's API actually hands us. There's also no plain snapshot/JPEG
+  endpoint in Mammotion's API, so "picture first, stream later" doesn't sidestep this — a still frame
+  needs the same Agora-channel-join as the full stream.
+  To unblock for real, one of these would need to be true: Mammotion's cloud exposes a plain
+  streamable URL (no evidence today), Mammotion's cloud exposes standard WebRTC signaling instead of
+  raw Agora tokens (no evidence today), or someone runs an always-on bridge that actually joins the
+  Agora channel (via Agora's real SDK) and republishes as RTSP/RTMP/HLS or a genuine SDP-answering
+  endpoint — real hosted infrastructure outside the Homey app, not something that fits inside it.
+  Revisit only if Mammotion's API surface changes, or if running/maintaining an external relay
+  becomes acceptable scope.
 
 ## P1 — High value, unblocked, ready to scope (continued)
 
