@@ -1023,10 +1023,17 @@ export default class LubaDevice extends Homey.Device {
   /** aliyun_legacy devices use a much slower, mowing-state-aware cadence than modern (MQTT)
    *  devices — see ALIYUN_LEGACY_POLL_ACTIVE_MS's doc comment for why. Modern devices are
    *  unaffected: they use a different command channel (MQTT publish, not the REST invoke
-   *  gateway) and have shown none of this rate-limit pattern. */
+   *  gateway) and have shown none of this rate-limit pattern.
+   *  Scaled by the number of aliyun_legacy devices sharing this account's request budget (see
+   *  LubaDriver.getAliyunLegacyDeviceCount's doc comment) — the 90s/120s baseline alone was
+   *  tuned for exactly one such mower, and two devices both polling at that unscaled rate
+   *  structurally exceeds the shared 600-request/12h budget on their own, before counting any
+   *  commands. */
   private currentPollIntervalMs(): number {
     if (this.getContext().transportKind !== 'aliyun_legacy') return TELEMETRY_POLL_INTERVAL_MS;
-    return this.currentStatus === 'mowing' ? ALIYUN_LEGACY_POLL_ACTIVE_MS : ALIYUN_LEGACY_POLL_IDLE_MS;
+    const base = this.currentStatus === 'mowing' ? ALIYUN_LEGACY_POLL_ACTIVE_MS : ALIYUN_LEGACY_POLL_IDLE_MS;
+    const legacyDeviceCount = (this.driver as unknown as LubaDriver).getAliyunLegacyDeviceCount();
+    return base * legacyDeviceCount;
   }
 
   /** Schedules the next poll tick — a plain setTimeout, not setInterval, so the delay can

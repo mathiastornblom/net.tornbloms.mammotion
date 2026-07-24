@@ -63,3 +63,35 @@ test('a single legacy device polling at the new 120s idle cadence stays well und
   assert.ok(governor.remaining(now + ticks * idleIntervalMs) > 0,
     'idle-cadence polling alone should never exhaust the 12h budget for a single device');
 });
+
+// Regression coverage for a real diagnostic report (log 537eaf78-212d-4d80-a284-f93b2c2c5e21):
+// an account with two aliyun_legacy mowers stayed pinned at "90 left" (the 85% safety margin)
+// for over an hour straight, because the governor is shared account-wide but the 90s/120s poll
+// interval was tuned assuming exactly one such device — see LubaDriver.getAliyunLegacyDeviceCount
+// and device.ts's currentPollIntervalMs(), which now scales the interval by device count.
+
+test('two legacy devices both idle-polling at the UNSCALED 120s interval exceed the 12h budget', () => {
+  const governor = new AliyunRequestGovernor();
+  const now = 1_000_000;
+  const idleIntervalMs = 120_000;
+  const ticksPerDevice = Math.floor(ALIYUN_SEND_LIMIT_WINDOW_MS / idleIntervalMs);
+  for (let i = 0; i < ticksPerDevice; i += 1) {
+    governor.recordRequest(now + i * idleIntervalMs);
+    governor.recordRequest(now + i * idleIntervalMs + 1);
+  }
+  assert.equal(governor.remaining(now + ticksPerDevice * idleIntervalMs), 0,
+    'two devices sharing one account budget at the single-device interval should exhaust it');
+});
+
+test('two legacy devices idle-polling at the SCALED 240s interval (120s x 2) stay under budget', () => {
+  const governor = new AliyunRequestGovernor();
+  const now = 1_000_000;
+  const scaledIdleIntervalMs = 120_000 * 2;
+  const ticksPerDevice = Math.floor(ALIYUN_SEND_LIMIT_WINDOW_MS / scaledIdleIntervalMs);
+  for (let i = 0; i < ticksPerDevice; i += 1) {
+    governor.recordRequest(now + i * scaledIdleIntervalMs);
+    governor.recordRequest(now + i * scaledIdleIntervalMs + 1);
+  }
+  assert.ok(governor.remaining(now + ticksPerDevice * scaledIdleIntervalMs) > 0,
+    'scaling the interval by device count should keep two devices comfortably under the 12h budget');
+});

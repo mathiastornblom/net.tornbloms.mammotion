@@ -1,13 +1,13 @@
 # Roadmap & prioritized backlog
 
-Last reviewed: 2026-07-20, app version v2.5.58 (`test`; `main` mirrors the last Homey-approved
+Last reviewed: 2026-07-23, app version v2.5.62 (`test`; `main` mirrors the last Homey-approved
 build, v2.5.56). This is the single source of truth for "what's next" — check here before
 starting new work. Update this file (not just memory) whenever priority shifts, since it's
 versioned with the code and visible to anyone reading the repo.
 
 ## P0 — Active / blocking
 
-(none — the task-chaining timing item below shipped fixed in v2.5.60)
+(none — the multi-mower Aliyun budget item below shipped fixed in v2.5.62)
 
 ## P1 — High value, unblocked, ready to scope
 
@@ -92,6 +92,24 @@ versioned with the code and visible to anyone reading the repo.
 
 ## Recently shipped (context for what's no longer open)
 
+- **Multi-mower accounts structurally exceeded the shared Aliyun request budget (v2.5.62)** — a
+  real diagnostic report (log `537eaf78-212d-4d80-a284-f93b2c2c5e21`, two `aliyun_legacy` mowers
+  on one account) showed `Poll: skipping — account-wide Aliyun request budget nearly exhausted`
+  pinned at "90 left" (the 85% safety margin in `RequestGovernor.ts`) continuously for over an
+  hour, plus devices going unavailable/offline. Root cause: `currentPollIntervalMs()`'s 90s
+  (mowing) / 120s (idle) cadence was tuned assuming exactly **one** `aliyun_legacy` mower per
+  account, but the request budget (600/12h) is shared account-wide — two devices both idle-polling
+  at 120s alone add up to 720 requests/12h, already over budget before counting any commands or
+  zone/schedule lookups. Fixed by scaling each device's poll interval by the number of
+  `aliyun_legacy` devices currently registered under the driver
+  (`LubaDriver.getAliyunLegacyDeviceCount()`, `drivers/luba/device.ts`'s `currentPollIntervalMs()`)
+  — two mowers now poll at 240s idle / 180s mowing, comfortably under budget with real margin left
+  for commands. Regression tests added to `scripts/aliyun-request-governor.test.mjs` simulating
+  both the unscaled (exceeds budget) and scaled (stays under budget) two-device cases. The same
+  log also showed daily `Aliyun credentials refresh failed: getRegion failed: code=500` clusters
+  (2-3 failed attempts, same time each day, 5 days running) that self-recover — looks like a
+  transient upstream Aliyun issue on a daily token-refresh cycle, not something this app is causing;
+  not actioned, but worth knowing about if it recurs with a different pattern.
 - **`mower_job_finished` task_name token + pairing screen discovery-delay note (v2.5.61)** — both
   requested by Örjan (log `087258b1-d66f-43cd-b16b-146d2f5f0c55`). (1) The trigger now carries a
   `task_name` token, best-effort: `actionStartSchedule()` records the task name it was called with

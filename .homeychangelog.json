@@ -346,5 +346,8 @@
   },
   "2.5.61": {
     "en": "\"Mower finished a mowing job\" now includes which task just finished, so a Flow can tell jobs apart when several tasks are queued (only works for tasks started via \"Start mowing task\"). Also added a note on the pairing screen that finding your mower can take a moment right after logging in"
+  },
+  "2.5.62": {
+    "en": "Fixed accounts with more than one cloud-connected mower going unavailable and showing stale status repeatedly. Each mower's polling frequency now scales down automatically with how many you have on the account, so the shared cloud request budget isn't used up early — previously two mowers alone could exceed it every day"
   }
 }
