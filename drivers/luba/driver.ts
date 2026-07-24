@@ -313,6 +313,23 @@ export default class LubaDriver extends Homey.Driver {
     return this.aliyunRequestGovernor;
   }
 
+  /** Number of aliyun_legacy devices currently registered under this driver — used by each
+   *  device's currentPollIntervalMs() to scale its own poll interval, since the request budget
+   *  in RequestGovernor.ts is shared account-wide, not per device. The 90s/120s baseline was
+   *  tuned assuming exactly one aliyun_legacy mower; a real diagnostic report from an account
+   *  with two showed the budget pinned at "90 left" (85% of the 600/12h limit used) for over an
+   *  hour straight, because two devices each idle-polling every 120s already adds up to 720
+   *  requests/12h — over budget before any commands or zone/schedule lookups are even counted.
+   *  Never returns 0 (callers should still fall back to the single-device baseline if this is
+   *  somehow called before any device's store is populated). */
+  getAliyunLegacyDeviceCount(): number {
+    const count = this.getDevices().filter((device) => {
+      const context = device.getStoreValue('context') as DeviceContext | undefined;
+      return context?.transportKind === 'aliyun_legacy';
+    }).length;
+    return Math.max(1, count);
+  }
+
   /** Full manual reset of the legacy Aliyun connection state — drops cached credentials AND
    *  clears the circuit breaker's failure history, so it closes immediately instead of
    *  waiting out whatever window remains. Called from Repair (see LubaDevice.
