@@ -9,6 +9,7 @@ import { extractTelemetry } from '../protocol/TelemetryParser.js';
 import { MQTT_CONNECT_TIMEOUT_MS } from '../constants.js';
 import { DeviceOfflineError, MqttCommandError } from '../errors.js';
 import { errorMessage } from '../../util/errorMessage.js';
+import { hexPreview } from '../../util/hexPreview.js';
 
 /** Mammotion's own invoke-response code for "the mower is offline" — confirmed via a
  *  real user's diagnostic report (2026-07-03): `{"code":50104,"msg":"The device is
@@ -296,7 +297,7 @@ export class MqttClient {
     try {
       msg = decodeLubaMsg(payload);
     } catch (err) {
-      this.logError(`protobuf decode failed: ${errorMessage(err)}`);
+      this.logError(`protobuf decode failed: ${errorMessage(err)} — payload: ${hexPreview(payload)}`);
       return;
     }
     const telemetry = extractTelemetry(msg);

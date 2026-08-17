@@ -482,7 +482,25 @@ export default class LubaDriver extends Homey.Driver {
           JSON.stringify(merged.map((d) => ({ name: d.name, id: d.data.id }))));
         return merged;
       }
-      if (list.length > 0) return list;
+      if (list.length > 0) {
+        // Same observability rationale as the legacy branch above, for the branch a real
+        // diagnostic report actually landed in: a shared Luba 3 logged `owned=0 records=1`
+        // (so buildDeviceList had exactly one record to map) and `bound=0` (so the legacy
+        // branch was skipped), yet the pairing wizard showed an empty list — and this was
+        // the one return path with nothing logged after it, leaving no way to tell whether
+        // we returned zero devices or Homey dropped the one we returned. Logging the
+        // resolved deviceType and capability count alongside makes the second case
+        // diagnosable too, since a device whose capability list came back empty or
+        // unrecognised is the leading hypothesis for a silently-dropped entry.
+        this.log(`list_devices: returning ${list.length} device(s) to pairing UI (normal path)`,
+          JSON.stringify(list.map((d) => ({
+            name: d.name,
+            id: d.data.id,
+            deviceType: resolveDeviceType(d.store.context.deviceName ?? '', d.store.context.productKey ?? ''),
+            capabilityCount: d.capabilities.length,
+          }))));
+        return list;
+      }
       if (legacyResult && legacyResult.shareNotifications > 0) {
         // Evidence of legacy sharing activity but nothing actually bound/listable yet —
         // still an informative message rather than the generic one.

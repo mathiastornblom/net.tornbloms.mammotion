@@ -62,3 +62,35 @@ test('extractSchedule returns null for non-schedule messages (e.g. telemetry)', 
   });
   assert.equal(extractSchedule(decodeLubaMsg(bytes)), null);
 });
+
+test('extractSchedule reads route_spacing so the generic start path can reuse it', () => {
+  // The user's spacing preference lives on the device, set in the official app. Starting a
+  // *task* runs entirely from that stored config, but the generic start path plans its own
+  // route and used to do so at a fixed 25 — so the same lawn was cut differently depending
+  // on which Flow card was used (report R9). Reading the field is what makes echoing the
+  // device's own figure back possible.
+  //
+  // Guards the field NAME too: NavPlanJobSet calls this `route_spacing` (id 21) while the
+  // route-planning message calls the same concept `channel_width`. protobufjs silently
+  // drops an unknown key on encode, so reading the wrong name yields 0 forever rather than
+  // an error — the identical trap the PlanIndex test above documents.
+  const bytes = encodeLubaMsg({
+    msgtype: 240, sender: 1, rcver: 7, msgattr: 2, seqs: 5, version: 1, subtype: 0, timestamp: Date.now(),
+    nav: { todevPlanjobSet: {
+      planId: 'p1', PlanIndex: 0, totalPlanNum: 1, taskName: 'Front lawn',
+      knifeHeight: 30, speed: 0.4, routeSpacing: 8,
+    } },
+  });
+  assert.equal(extractSchedule(decodeLubaMsg(bytes)).routeSpacing, 8);
+});
+
+test('extractSchedule reports routeSpacing 0 when the device omits it', () => {
+  // 0 is the "nothing reported" sentinel storedChannelWidth() filters on — a device that
+  // never sends the field must not be read as "the user chose a spacing of zero", which
+  // would otherwise plan a route at spacing 0.
+  const bytes = encodeLubaMsg({
+    msgtype: 240, sender: 1, rcver: 7, msgattr: 2, seqs: 5, version: 1, subtype: 0, timestamp: Date.now(),
+    nav: { todevPlanjobSet: { planId: 'p1', taskName: 'No width', knifeHeight: 30, speed: 0.4 } },
+  });
+  assert.equal(extractSchedule(decodeLubaMsg(bytes)).routeSpacing, 0);
+});

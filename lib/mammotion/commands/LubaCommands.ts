@@ -19,6 +19,12 @@ export type DeviceCommand = 'start' | 'pause' | 'resume' | 'stop' | 'dock' | 'ca
 export interface StartMowOptions {
   bladeHeight?: number;
   speed?: number;
+  /** Route spacing, in the device's own wire units. Omitted means "use the built-in
+   *  default" — callers should prefer passing the value read back from the device's own
+   *  stored task (ScheduleInfo.channelWidth) so a Homey-initiated run matches what the
+   *  official app would do, rather than silently re-planning the lawn at a different
+   *  spacing (real report R9). */
+  channelWidth?: number;
   isEdge?: boolean;
   /** Zone hashes (fixed64, as strings — see AreaNameParser.ts) to mow. Omitted/empty means
    *  "mow every known zone", matching the reference app's own `async_plan_route` default. */
@@ -498,6 +504,10 @@ function createPathOrder(): string {
   return String.fromCharCode(0, 1, 0, 0, 0, 8, 10, 0);
 }
 
+/** Route spacing used when the device hasn't told us what the user actually configured —
+ *  pymammotion's OperationSettings default, kept as the fallback rather than a guess. */
+const DEFAULT_CHANNEL_WIDTH = 25;
+
 /**
  * Build a "generate route" / plan-route command (MctlNav.bidire_reqconver_path,
  * NavReqCoverPath, sub_cmd=0 — "generate"). This is the step the reference app always runs
@@ -509,14 +519,18 @@ function createPathOrder(): string {
  * job (LubaDevice.actionPlanAndStartMowing), not this builder's; this function just encodes
  * whatever hash list it's given.
  *
- * Route parameters this app doesn't yet expose as options (channel width/mode, ultrasonic
+ * Route parameters this app doesn't yet expose as options (channel mode, ultrasonic
  * sensitivity, heading) use the same fixed defaults pymammotion's OperationSettings does —
  * matching the "not exposed yet" set already deferred for the same reason in
- * StartMowOptions/CLAUDE.md's Phase 3+ backlog.
+ * StartMowOptions/CLAUDE.md's Phase 3+ backlog. `channelWidth` used to be one of them; it
+ * is now taken from `options` when the caller could read the device's own stored value,
+ * because planning a route at a spacing the user never chose visibly changes how the lawn
+ * gets cut (report R9) — unlike the remaining fixed fields, which are not user-facing
+ * settings in the official app.
  */
 export function buildGenerateRouteCommand(
   areas: string[],
-  options: Pick<StartMowOptions, 'bladeHeight' | 'speed'>,
+  options: Pick<StartMowOptions, 'bladeHeight' | 'speed' | 'channelWidth'>,
   userAccount: string,
   deviceName: string,
   seq: { value: number },
@@ -533,7 +547,7 @@ export function buildGenerateRouteCommand(
         jobMode: 4,
         edgeMode: 1,
         knifeHeight: Math.trunc(options.bladeHeight ?? 25),
-        channelWidth: 25,
+        channelWidth: Math.trunc(options.channelWidth ?? DEFAULT_CHANNEL_WIDTH),
         UltraWave: 2,
         channelMode: 0,
         toward: 0,

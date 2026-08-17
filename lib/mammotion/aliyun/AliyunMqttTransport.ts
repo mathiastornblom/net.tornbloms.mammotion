@@ -6,6 +6,7 @@ import mqtt from 'mqtt';
 import { decodeLubaMsg } from '../protocol/Codec.js';
 import { ALIYUN_MQTT_CA_BUNDLE } from './caBundle.js';
 import { errorMessage } from '../../util/errorMessage.js';
+import { hexPreview } from '../../util/hexPreview.js';
 
 /**
  * Config for the ONE shared Aliyun IoT MQTT connection for an account — NOT per-device.
@@ -341,11 +342,12 @@ export class AliyunMqttTransport {
     const content = parsed.params?.value?.content ?? parsed.params?.content;
     if (!content) return;
 
+    const protobufPayload = Buffer.from(content, 'base64');
     let decoded: Record<string, unknown>;
     try {
-      decoded = decodeLubaMsg(Buffer.from(content, 'base64'));
+      decoded = decodeLubaMsg(protobufPayload);
     } catch (err) {
-      this.logError(`Aliyun MQTT protobuf decode failed: ${errorMessage(err)}`);
+      this.logError(`Aliyun MQTT protobuf decode failed: ${errorMessage(err)} — payload: ${hexPreview(protobufPayload)}`);
       return;
     }
     device.onMessage(decoded);

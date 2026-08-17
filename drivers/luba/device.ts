@@ -1431,6 +1431,25 @@ export default class LubaDevice extends Homey.Device {
    *  an already-fully-mowed cached job and returned to dock within seconds. Fails closed
    *  (NoZonesKnownError) rather than falling back to that bare-start behaviour if no zones
    *  can be resolved even after a best-effort enumeration attempt. */
+  /** The route spacing the user configured on the device itself, taken from its stored
+   *  tasks, or undefined when no task reports one.
+   *
+   *  Starting a *task* (actionStartSchedule → plan_task_execute) runs it entirely from the
+   *  device's own saved settings — we send no route parameters at all. The generic start
+   *  path has to plan a route itself, and used to do so at a fixed spacing, so the same
+   *  lawn could be cut differently depending on which Flow card was used (report R9).
+   *  Echoing the device's own figure back keeps the two paths consistent without asking the
+   *  user to configure anything, and without this app having to know what the value means
+   *  in centimetres.
+   *
+   *  Tasks agreeing is the normal case (one spacing preference per lawn); if they disagree
+   *  the lowest is used, since cutting tighter than asked leaves a worse-looking lawn than
+   *  cutting looser. */
+  private storedChannelWidth(): number | undefined {
+    const widths = this.scheduleCache.map((s) => s.routeSpacing).filter((w) => w > 0);
+    return widths.length > 0 ? Math.min(...widths) : undefined;
+  }
+
   async actionPlanAndStartMowing(options: StartMowOptions): Promise<void> {
     // Not a schedule-task start — clear any tracked name so a later mower_job_finished doesn't
     // mislabel this job with a stale task name from a previous actionStartSchedule() call.
@@ -1463,7 +1482,11 @@ export default class LubaDevice extends Homey.Device {
 
     const session = await this.getSession();
     const context = this.getContext();
-    const routeCmd = buildGenerateRouteCommand(areas, options, session.userAccount, context.deviceName, this.seq, context.productKey);
+    const routeCmd = buildGenerateRouteCommand(
+      areas,
+      { ...options, channelWidth: options.channelWidth ?? this.storedChannelWidth() },
+      session.userAccount, context.deviceName, this.seq, context.productKey,
+    );
     await this.sendRaw(Buffer.from(routeCmd, 'base64'), 'generate_route');
     await this.waitForRouteConfirmation(3_000);
 

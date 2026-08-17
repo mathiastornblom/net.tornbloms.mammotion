@@ -21,7 +21,7 @@ går inte att para. Resten är förbättringar och önskemål.
 | **P0** | [A. Ingen statusuppdatering](#a--p0--ingen-statusuppdatering) | R5, R7, R8, R12.3, R12.5 | Tre separata orsaker som alla ger samma symptom |
 | **P0** | [B. Delade enheter syns inte vid parning](#b--p0--delade-enheter-syns-inte-vid-parning) | R11, R12.7 (+minst en till) | `records=1` men tom lista i UI:t |
 | **P1** | [C. Task-kedjning fungerar inte](#c--p1--task-kedjning-fungerar-inte) | R1, R3, R4 | Vår egen hint lovar något appen inte gör |
-| **P1** | [D. Klippparametrar](#d--p1--klippparametrar-går-inte-att-styra) | R9 | Fyra olika `channelWidth`-värden i omlopp |
+| **P1** | [D. Klippparametrar](#d--p1--klippparametrar-går-inte-att-styra) | R9 | `channelWidth` hårdkodad till 25 på den generiska startvägen |
 | **P1** | [E. Bara "Task 1" listas](#e--p1--bara-task-1-listas) | R12.2 | Ej reproducerad — behöver bekräftas |
 | **P2** | [F. Saknade Flow-kort](#f--p2--saknade-flow-kort) | R12.2 | `resume` finns i protokollet men saknar kort |
 | **P2** | [G. Robusthet och loggkvalitet](#g--p2--robusthet-och-loggkvalitet) | R1, R7, R8, R10 | Protobuf-fel, BLE-backoff utan tak, loggspam |
@@ -253,25 +253,97 @@ avbryter returen. **Detta är en hypotes, inte verifierad.**
 **Rapport:** R9
 
 Användaren kör 8 cm banavstånd i Mammotions app men får 12 cm när klippning startas via
-Homey. Fyra olika värden är i omlopp:
+Homey.
+
+### Vad koden faktiskt gör
+
+Det finns **två helt skilda startvägar**, och bara den ena skickar ruttparametrar.
+
+**Väg 1 — generisk start.** `start_mowing`, `start_mowing_zone` och `onoff` går via
+`LubaDevice.actionPlanAndStartMowing()` → `buildGenerateRouteCommand()`
+(`lib/mammotion/commands/LubaCommands.ts:519`). Där ligger parametrarna dels genomkopplade,
+dels som literaler:
+
+```ts
+knifeHeight:  Math.trunc(options.bladeHeight ?? 25),   // genomkopplad via StartMowOptions
+speed:        options.speed ?? 0.3,                     // genomkopplad via StartMowOptions
+channelWidth: 25,                                       // HÅRDKODAD
+UltraWave:    2,                                        // hårdkodad (ultraljudskänslighet)
+channelMode:  0,                                        // hårdkodad
+toward: 0,  towardMode: 0,  towardIncludedAngle: 0,     // hårdkodade
+```
+
+Funktionens egen doc-kommentar säger rakt ut att de icke-exponerade parametrarna använder
+"the same fixed defaults pymammotion's OperationSettings does" — det är alltså ett medvetet
+uppskjutet val, inte ett förbiseende.
+
+**Väg 2 — starta en sparad task.** `start_mowing_schedule` går via
+`LubaDevice.actionStartSchedule()` → `buildStartScheduleCommand()`, som skickar **enbart**:
+
+```ts
+nav: { planTaskExecute: { subCmd: 1, id: planId } }
+```
+
+Inga ruttparametrar alls. Enheten kör tasken med sina **egna sparade inställningar**.
+
+**Konsekvens:** R9-användaren får sina 8 cm automatiskt om hen startar via task-kortet.
+Problemet finns bara på den generiska vägen. Vilket kort användaren faktiskt använde är
+inte känt och **bör frågas innan något ändras**.
+
+### Den olösta siffran
+
+Vi skickar `25`. Användaren rapporterar `12`. Fyra värden är i omlopp:
 
 | Värde | Källa |
 |---|---|
 | 8 cm | Användarens inställning i Mammotion-appen |
-| 12 cm | Vad Homey-appen faktiskt använder (R9) |
-| 25 cm | `CLAUDE.md`:s dokumenterade default för `channel_width` |
-| 22 | `channelWidth: 22` i R1:s `bidireReqconverPath` |
+| 12 cm | Vad användaren observerar när start sker via Homey (R9) |
+| 25 | Vad `buildGenerateRouteCommand` hårdkodar |
+| 22 | `channelWidth: 22` i R1:s `bidireReqconverPath` (mottaget från enheten) |
 
-**Åtgärd:**
-1. Spåra var 12 kommer ifrån. Kontrollera särskilt enhetsförväxling (mm vs cm) och om ett
-   hårdkodat default används i stället för enhetens sparade värde.
-2. Principbeslut: **ska appen över huvud taget sätta klippparametrar?** Det mest
-   förutsägbara för användaren vore att `start_mowing_schedule` kör tasken med de
-   inställningar som redan är sparade på enheten, och att parametrar bara skickas när
-   användaren uttryckligen anger dem.
-3. Om de ska exponeras — gör det samlat för hela `StartMowOptions` (`blade_height`, `speed`,
-   `channel_width`, `channel_mode`, `rain_tactics`), inte styckvis. Beslut behövs om det ska
-   vara Flow-argument, enhetsinställningar eller båda.
+Vår siffra är alltså inte den som landar. **Innan ett reglage byggs måste fältets semantik
+fastställas** — enhet (cm/mm) och om det är banavstånd eller överlapp. Det kräver ett test
+mot riktig hårdvara; det går inte att läsa sig till.
+
+### Billig väg som löser R9 utan nya kontroller
+
+`NavPlanJobSet` bär spacing som **`route_spacing` (fält 21)** — *inte* som `channelWidth`;
+fält 7 på det meddelandet är `userId`. De två meddelandena döper alltså samma begrepp olika:
+den sparade tasken säger `route_spacing`, ruttplaneringen säger `channel_width`.
+
+Fällan är att protobufjs **tyst slänger** en okänd nyckel vid encode, så fel fältnamn ger
+`0` för alltid i stället för ett fel — exakt samma sak som `PlanIndex`-buggen som redan har
+ett regressionstest. Det här kostade en felaktig första implementation innan descriptorn
+lästes ordentligt.
+
+`ScheduleParser.ts` läser redan `knifeHeight` och `speed` ur samma meddelande, så vi kan
+**läsa användarens eget värde** ur hens task och använda det som default på den generiska
+vägen i stället för hårdkodade 25.
+
+Då beter sig båda vägarna likadant, ingen behöver ställa något, och vi behöver inte veta
+fältets exakta enhet — vi ekar tillbaka enhetens egen siffra.
+
+**Kostnad:** ett fält i `ScheduleParser`, ett i `StartMowOptions`, en rad i
+`buildGenerateRouteCommand`, plus fallback när ingen task finns. Ingen manifest- eller
+locale-ändring.
+
+Övriga hårdkodade ruttfält har motsvarigheter i samma meddelande om vi vill gå längre:
+`routeAngle` (19) ↔ `toward`, `routeModel` (20) ↔ `channelMode`, `ultrasonicBarrier` (22)
+↔ `UltraWave`. De är inte användarsynliga inställningar i officiella appen på samma sätt,
+så de lämnas orörda tills någon rapporterar dem.
+
+### Åtgärd, i ordning
+
+1. ✅ **Läs och återanvänd** — implementerad. `ScheduleParser` läser `routeSpacing`,
+   `LubaDevice.storedChannelWidth()` väljer det lägsta rapporterade värdet över enhetens
+   tasks (0 = "inget rapporterat" filtreras bort), och `buildGenerateRouteCommand` faller
+   tillbaka på 25 när ingen task finns.
+2. Fråga R9-användaren vilket Flow-kort som användes. Om det var task-kortet är det inte
+   den här buggen utan något annat.
+3. Fastställ `channelWidth`-semantiken mot hårdvara innan något reglage byggs.
+4. Först därefter: principbeslutet om `StartMowOptions` ska exponeras samlat
+   (`blade_height`, `speed`, `channel_width`, `channel_mode`, `rain_tactics`) som
+   Flow-argument, enhetsinställningar eller båda. Gör det samlat, inte styckvis.
 
 ---
 
@@ -419,8 +491,10 @@ Flera rapporter är inte buggar utan att användare inte hittar det som finns.
 
 ## 5. Frågor som behöver Mathias beslut
 
-1. **Klippparametrar (D):** ska appen sätta dem alls, eller alltid köra enhetens egna
-   sparade inställningar? Det avgör om D är en bugg eller en designändring.
+1. **Klippparametrar (D):** läs-och-återanvänd är påbörjad som första steg. Kvarstår:
+   ska `StartMowOptions` exponeras som användarstyrda kontroller alls, eller ska appen
+   alltid eka enhetens egna sparade inställningar? Kräver att `channelWidth`-semantiken
+   först fastställs mot hårdvara.
 2. **Task-kedjning (C):** ska appen dölja pause/vänta-dansen internt, eller ska vi
    dokumentera workarounden och låta användaren bygga den själv?
 3. **Geopunkt (R6/I):** vill vi bygga en funktion vars beskrivna användningsfall är att köra

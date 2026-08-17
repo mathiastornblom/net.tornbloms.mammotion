@@ -21,6 +21,18 @@ export interface ScheduleInfo {
   endDate: string;
   bladeHeightMm: number;
   speedMs: number;
+  /** NavPlanJobSet.route_spacing (field 21) — the path spacing the user configured for this
+   *  task in the official app. This is the stored-task counterpart of the field
+   *  buildGenerateRouteCommand sends as NavReqCoverPath.channelWidth; the two messages name
+   *  the same concept differently, so don't go looking for a `channelWidth` on this message
+   *  (field 7 is `userId`).
+   *
+   *  Units are the device's own and deliberately not converted: a real report (R9) has a
+   *  user running "8 cm" in the official app while a different number takes effect via
+   *  Homey, so the wire value's relationship to the displayed centimetres is not yet
+   *  established. Read so the generic start path can echo the device's own figure back
+   *  instead of a hardcoded default. 0 means the device didn't report one. */
+  routeSpacing: number;
 }
 
 /** Returns null if the message isn't a schedule read response. */
@@ -42,5 +54,6 @@ export function extractSchedule(msg: Record<string, unknown>): ScheduleInfo | nu
     endDate: typeof plan.endDate === 'string' ? plan.endDate : '',
     bladeHeightMm: typeof plan.knifeHeight === 'number' ? plan.knifeHeight : 0,
     speedMs: typeof plan.speed === 'number' ? plan.speed : 0,
+    routeSpacing: typeof plan.routeSpacing === 'number' ? plan.routeSpacing : 0,
   };
 }
