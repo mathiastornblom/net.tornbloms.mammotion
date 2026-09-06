@@ -7,10 +7,12 @@
     "command_failed": "Kommandot misslyckades",
     "no_devices_found": "Inga robotgräsklippare hittades på det här kontot. Öppna Mammotion-appen och kontrollera att delningsinbjudan har accepterats, och försök sedan igen — det kan ta några minuter efter godkännandet innan gräsklipparen visas.",
     "legacy_devices_found": "Din/dina gräsklippare hittades registrerade i Mammotions äldre molnsystem, vilket den här appen ännu inte stöder — utvecklaren har informerats och arbetar på att lägga till stöd. Försök igen i en framtida uppdatering.",
-    "no_zones_known": "Inga klippzoner kända ännu. Öppna klipparen i Mammotion-appen, eller vänta en stund och försök igen. Tips: namnge dina zoner i Mammotion-appen för ett snabbt och pålitligt zonval."
+    "no_zones_known": "Inga klippzoner kända ännu. Öppna klipparen i Mammotion-appen, eller vänta en stund och försök igen. Tips: namnge dina zoner i Mammotion-appen för ett snabbt och pålitligt zonval.",
+    "device_unbound": "Den här klipparen är inte längre bunden till kontot Homey använder. Använd Reparera på enheten och logga in igen för att binda om den."
   },
   "warning": {
-    "aliyun_budget_throttled": "Molnets anropsgräns nästan nådd — statusuppdateringar har saktats ner så att start/stopp-kommandon fortsätter fungera. Återhämtar sig automatiskt."
+    "aliyun_budget_throttled": "Molnets anropsgräns nästan nådd — statusuppdateringar har saktats ner så att start/stopp-kommandon fortsätter fungera. Återhämtar sig automatiskt.",
+    "aliyun_rate_limited": "Mammotions moln begränsar det här kontot — statuskontroller glesas ut (upp till var 30:e minut) tills det släpper. Återhämtar sig automatiskt."
   },
   "pair": {
     "account_setup": {

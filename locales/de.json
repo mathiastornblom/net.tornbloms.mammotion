@@ -7,10 +7,12 @@
     "command_failed": "Befehl fehlgeschlagen",
     "no_devices_found": "Keine Mäher auf diesem Konto gefunden. Öffne die Mammotion-App und prüfe, ob die Freigabe-Einladung angenommen wurde, und versuche es dann erneut — nach dem Annehmen kann es einige Minuten dauern, bis der Mäher erscheint.",
     "legacy_devices_found": "Dein(e) Mäher wurde(n) im älteren Cloud-System von Mammotion gefunden, das diese App noch nicht unterstützt — der Entwickler wurde informiert und arbeitet an der Unterstützung. Bitte versuche es in einem zukünftigen Update erneut.",
-    "no_zones_known": "Noch keine Mähzonen bekannt. Öffne den Mäher in der Mammotion-App oder warte einen Moment und versuche es erneut. Tipp: Benenne deine Zonen in der Mammotion-App für eine sofortige, zuverlässige Zonenauswahl."
+    "no_zones_known": "Noch keine Mähzonen bekannt. Öffne den Mäher in der Mammotion-App oder warte einen Moment und versuche es erneut. Tipp: Benenne deine Zonen in der Mammotion-App für eine sofortige, zuverlässige Zonenauswahl.",
+    "device_unbound": "Dieser Mäher ist nicht mehr mit dem Konto verbunden, das Homey verwendet. Verwende „Reparieren“ am Gerät und melde dich erneut an, um ihn neu zu verbinden."
   },
   "warning": {
-    "aliyun_budget_throttled": "Cloud-Anfragelimit fast erreicht — Statusaktualisierungen sind verlangsamt, damit Start/Stopp-Befehle weiter funktionieren. Erholt sich automatisch."
+    "aliyun_budget_throttled": "Cloud-Anfragelimit fast erreicht — Statusaktualisierungen sind verlangsamt, damit Start/Stopp-Befehle weiter funktionieren. Erholt sich automatisch.",
+    "aliyun_rate_limited": "Die Mammotion-Cloud drosselt dieses Konto — Statusabfragen werden zurückgefahren (bis zu alle 30 Minuten), bis es vorbei ist. Erholt sich automatisch."
   },
   "pair": {
     "account_setup": {

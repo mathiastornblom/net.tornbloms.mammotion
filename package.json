@@ -15,7 +15,7 @@
     "test:schedule": "tsc && node --test scripts/schedule-roundtrip.test.mjs",
     "test:routing": "tsc && node --test scripts/device-routing.test.mjs",
     "test:device-type": "tsc && node --test scripts/device-type.test.mjs",
-    "test": "npm run test:proto && npm run test:ble && npm run test:schedule && npm run test:routing && npm run test:device-type && npm run test:crash && npm run test:aliyun-signing && npm run test:aliyun-mqtt-credentials && npm run test:aliyun-commands && npm run test:mqtt-invoke-response && npm run test:aliyun-credentials-manager && npm run test:work-mode-status && npm run test:error-code && npm run test:sensor-status && npm run test:ble-backoff && npm run test:zone-selection && npm run test:boundary-fallback && npm run test:aliyun-request-governor && npm run test:start-schedule && npm run test:hex-preview && npm run test:flow-cards && npm run test:shared-pairing",
+    "test": "npm run test:proto && npm run test:ble && npm run test:schedule && npm run test:routing && npm run test:device-type && npm run test:crash && npm run test:aliyun-signing && npm run test:aliyun-mqtt-credentials && npm run test:aliyun-commands && npm run test:mqtt-invoke-response && npm run test:aliyun-credentials-manager && npm run test:work-mode-status && npm run test:error-code && npm run test:sensor-status && npm run test:ble-backoff && npm run test:zone-selection && npm run test:boundary-fallback && npm run test:aliyun-request-governor && npm run test:start-schedule && npm run test:hex-preview && npm run test:flow-cards && npm run test:shared-pairing && npm run test:poll-backoff",
     "test:crash": "tsc && node --test scripts/crash-reporter.test.mjs",
     "test:aliyun-signing": "tsc && node --test scripts/aliyun-signing.test.mjs",
     "test:aliyun-mqtt-credentials": "tsc && node --test scripts/aliyun-mqtt-credentials.test.mjs",
@@ -32,7 +32,8 @@
     "test:start-schedule": "tsc && node --test scripts/start-schedule.test.mjs",
     "test:hex-preview": "tsc && node --test scripts/hex-preview.test.mjs",
     "test:flow-cards": "tsc && node --test scripts/flow-cards.test.mjs",
-    "test:shared-pairing": "tsc && node --test scripts/shared-device-pairing.test.mjs"
+    "test:shared-pairing": "tsc && node --test scripts/shared-device-pairing.test.mjs",
+    "test:poll-backoff": "tsc && node --test scripts/poll-backoff.test.mjs"
   },
   "dependencies": {
     "mqtt": "^5.10.1",

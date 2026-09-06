@@ -18,7 +18,7 @@ går inte att para. Resten är förbättringar och önskemål.
 
 | Prio | Kluster | Rapporter | Kärnproblem |
 |---|---|---|---|
-| **P0** | [A. Ingen statusuppdatering](#a--p0--ingen-statusuppdatering) | R5, R7, R8, R12.3, R12.5 | Tre orsaker; ✅ A1 budgetsvält löst med stegvis pacing — A2/A3 kvar |
+| **P0** | [A. Ingen statusuppdatering](#a--p0--ingen-statusuppdatering) | R5, R7, R8, R12.3, R12.5 | Tre orsaker; ✅ A1 pacing, ✅ A2 backoff per orsak + 29004 = obunden — A3 kvar |
 | **P0** | [B. Delade enheter syns inte vid parning](#b--p0--delade-enheter-syns-inte-vid-parning) | R11, R12.7 (+minst en till) | Vår pipeline bevisat felfri (test); kvar är Homey-sidan/timing — handlern tar 13–16 s |
 | ✅ **P1** | [C. Task-kedjning fungerar inte](#c--p1--task-kedjning-fungerar-inte) | R1, R3, R4 | Return-avbrott före start implementerat — väntar hårdvaruverifiering |
 | ✅ **P1** | [D. Klippparametrar](#d--p1--klippparametrar-går-inte-att-styra) | R9, R13 | Spacing och klipphöjd hämtas nu från klipparens egna sparade tasks |
@@ -157,14 +157,53 @@ Failure-räknaren nollställs vid appomstart medan meddelandet
 Efter användarens "repair" (nya credentials, 08:25:50) återkom felen omedelbart — problemet
 är alltså knutet till kontot, inte till sessionen.
 
-**Åtgärd:**
-1. Riktig exponentiell backoff på pollfel, med tak (t.ex. 60 s → 2 → 5 → 15 → 30 min).
-   Nuvarande fasta 60 s är för aggressiv för ett dygnslångt felläge.
-2. Räkna in misslyckade försök i budgeten och gör backoffen budgetmedveten.
-3. Synka failure-räknare och cooldown så båda överlever omstart, eller ingen.
-4. Efter N misslyckanden: markera enheten `unavailable` med orsaken synlig.
-5. **Ta reda på vad felkod 29004 betyder** — den styr valet av strategi (är det throttling,
-   auth, eller enhet offline?).
+**Vad koden visade, utöver loggen.** Backoffen *var* exponentiell (10 s × 2ⁿ) men
+**kapad vid 60 s** av `OFFLINE_POLL_MAX_MS` — ett tak avsett för "klipparen är avstängd,
+kolla varje minut" som tillämpades på *alla* fel. 60 s är 720 anrop per fönster. Loopen
+försörjde sin egen spärr.
+
+**Felkod 29004 = `DEVICE_UNBOUND`** — redan dokumenterat i `commands.ts:28`, planens fråga
+var besvarad i kodbasen. Det är inte throttling: klipparen är *inte längre bunden till
+kontot* på Aliyun-sidan. R7:s "Geten" fick det direkt efter firmware 1.30.29.8, som rimligen
+registrerade om enheten. Att polla en obunden enhet var 60:e sekund är meningslöst — det
+kan aldrig lyckas förrän användaren reparerar — och det var *den* loopen som drog på sig
+429:orna. R7 innehöll alltså två fel, där det ena orsakade det andra.
+
+**Misslyckade anrop räknades redan** i budgeten: `recordRequest()` ligger före
+`sendAliyunCloudCommand` i `try`. Punkt 2 nedan var sann från start.
+
+**Åtgärd — ✅ implementerad** (`lib/mammotion/aliyun/pollBackoff.ts`, ren och testad):
+1. ✅ **Tre backoff-stegar efter orsak**, inte en:
+   - `device_offline` — oförändrad (20 s, 40 s, 60 s platt). En avstängd klippare som
+     slås på ska märkas inom en minut.
+   - `account_penalty` (429, gateway-fel, credentials/circuit) — **60 s → 2 → 4 → 8 →
+     16 → 30 min**, sedan 30 min platt. **28 anrop per 12 h mot 720.**
+   - `device_unbound` (29004) — **platt 30 min från första träffen**; det finns ingen stege
+     att klättra. 24 anrop per 12 h mot 1 440.
+2. ✅ **Komponerad med A1:s pacing — långsammast vinner** (`composeWithPacing`). En
+   backoff får aldrig låta en enhet försöka *snabbare* än kontots tier tillåter; annars hade
+   en offline-klippare på ett budgetsvultet konto kört var 60:e sekund rakt förbi pacingen.
+3. ✅ **Räknaren persisteras** (`rateLimitFailureCount`) bredvid cooldownen, och
+   `startPollTimer` kapar nu den sparade cooldownen vid **30 min i stället för 60 s** —
+   den gamla kapningen trunkerade tyst varje längre cooldown vid omstart, vilket är exakt
+   inkonsekvensen R7 visade (`resuming a rate-limit cooldown` följt av `failure #1`).
+4. ✅ **Synligt efter N.** Kontostraff efter 3 i rad → `setWarning`
+   (`warning.aliyun_rate_limited`, 13 språk). Obunden efter 2 i rad → **`setUnavailable`**
+   med `error.device_unbound` som säger *reparera enheten* — unavailable med flit här: inget
+   kommando kan lyckas heller, och Homeys reparationsflöde nås från en otillgänglig enhet,
+   samma behandling som ogiltiga credentials redan får. Varningsplatsen delas med A1 via
+   `syncDeviceWarning()`: straff vinner över budget, och ingen av dem raderar den andras.
+5. ✅ **29004 besvarad** — se ovan. Klassificeras nu som egen kategori i `runPollTick`.
+
+**Verifiering:** 9 tester i `poll-backoff.test.mjs`, inklusive R7-regressionen uttryckt i
+siffror — 60 s-taket gav 720/fönster; kontostegen ger 28, obunden 24 — och att
+`ALIYUN_INVOKE_CODE.DEVICE_UNBOUND === 29004` så klassificeringen inte kan glida från
+konstanten. Offline-stegen mäter fortfarande 721/12 h isolerat, vilket är avsiktligt: den
+ska vara snabb, och det är kompositionen med pacingen som håller den inom budget.
+
+**Kvarstår:** bekräfta mot R7-användaren (Westberg) att Geten faktiskt är obunden efter
+firmwareuppdateringen och att reparation binder om den. Om ja är det värt ett forumsvar:
+"efter firmwareuppdatering, kör Reparera" — det är sannolikt fler som drabbas.
 
 ### A3. Inaktuell data presenteras som färsk
 
@@ -553,7 +592,7 @@ Flera rapporter är inte buggar utan att användare inte hittar det som finns.
 
 **Steg 2 — P0, statusproblemet**
 - ✅ A1 budgetsvält — stegvis pacing, jitter, `setWarning`, persistent fönster
-- A2 backoff på pollfel
+- ✅ A2 backoff per orsak, 29004 klassificerad som obunden, räknare persisterad
 - A3 `unavailable` vid inaktuell data
 - Parallellt: utred firmwarekopplingen (A4) och `getRegion 500`-fönstret
 

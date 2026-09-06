@@ -7,10 +7,12 @@
     "command_failed": "Command failed",
     "no_devices_found": "No mowers found on this account. Open the Mammotion app and check that the sharing invitation has been accepted, then try again — it can take a few minutes after accepting before the mower appears.",
     "legacy_devices_found": "Found your mower(s) registered under Mammotion's older cloud system, which this app doesn't support yet — I've informed the developer, who is working on adding support. Please try again in a future update.",
-    "no_zones_known": "No mowing zones known yet. Open the mower in the Mammotion app, or wait a moment and try again. Tip: name your zones in the Mammotion app for instant, reliable zone selection."
+    "no_zones_known": "No mowing zones known yet. Open the mower in the Mammotion app, or wait a moment and try again. Tip: name your zones in the Mammotion app for instant, reliable zone selection.",
+    "device_unbound": "This mower is no longer bound to the account Homey uses. Use Repair on the device and sign in again to re-bind it."
   },
   "warning": {
-    "aliyun_budget_throttled": "Cloud request limit nearly reached — status updates are slowed down so start/stop commands keep working. Recovers automatically."
+    "aliyun_budget_throttled": "Cloud request limit nearly reached — status updates are slowed down so start/stop commands keep working. Recovers automatically.",
+    "aliyun_rate_limited": "Mammotion's cloud is rate-limiting this account — status checks are backing off (up to every 30 minutes) until it clears. Recovers automatically."
   },
   "pair": {
     "account_setup": {

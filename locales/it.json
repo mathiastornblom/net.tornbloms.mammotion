@@ -7,10 +7,12 @@
     "command_failed": "Comando non riuscito",
     "no_devices_found": "Nessun robot tagliaerba trovato su questo account. Apri l'app Mammotion e verifica che l'invito di condivisione sia stato accettato, poi riprova — dopo l'accettazione possono servire alcuni minuti prima che il tagliaerba appaia.",
     "legacy_devices_found": "Il tuo/i tuoi tagliaerba risultano registrati nel vecchio sistema cloud di Mammotion, non ancora supportato da questa app — lo sviluppatore è stato informato e sta lavorando per aggiungere il supporto. Riprova in un futuro aggiornamento.",
-    "no_zones_known": "Nessuna zona di taglio nota al momento. Apri il tagliaerba nell'app Mammotion, oppure attendi un momento e riprova. Suggerimento: assegna un nome alle tue zone nell'app Mammotion per una selezione delle zone istantanea e affidabile."
+    "no_zones_known": "Nessuna zona di taglio nota al momento. Apri il tagliaerba nell'app Mammotion, oppure attendi un momento e riprova. Suggerimento: assegna un nome alle tue zone nell'app Mammotion per una selezione delle zone istantanea e affidabile.",
+    "device_unbound": "Questo tagliaerba non è più associato all'account usato da Homey. Usa Ripara sul dispositivo e accedi di nuovo per riassociarlo."
   },
   "warning": {
-    "aliyun_budget_throttled": "Limite di richieste cloud quasi raggiunto — gli aggiornamenti di stato sono rallentati per mantenere funzionanti i comandi avvia/arresta. Si ripristina automaticamente."
+    "aliyun_budget_throttled": "Limite di richieste cloud quasi raggiunto — gli aggiornamenti di stato sono rallentati per mantenere funzionanti i comandi avvia/arresta. Si ripristina automaticamente.",
+    "aliyun_rate_limited": "Il cloud Mammotion sta limitando questo account — i controlli di stato vengono diradati (fino a ogni 30 minuti) finché non si risolve. Si ripristina automaticamente."
   },
   "pair": {
     "account_setup": {
