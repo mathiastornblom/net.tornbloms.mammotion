@@ -9,6 +9,9 @@
     "legacy_devices_found": "Il tuo/i tuoi tagliaerba risultano registrati nel vecchio sistema cloud di Mammotion, non ancora supportato da questa app — lo sviluppatore è stato informato e sta lavorando per aggiungere il supporto. Riprova in un futuro aggiornamento.",
     "no_zones_known": "Nessuna zona di taglio nota al momento. Apri il tagliaerba nell'app Mammotion, oppure attendi un momento e riprova. Suggerimento: assegna un nome alle tue zone nell'app Mammotion per una selezione delle zone istantanea e affidabile."
   },
+  "warning": {
+    "aliyun_budget_throttled": "Limite di richieste cloud quasi raggiunto — gli aggiornamenti di stato sono rallentati per mantenere funzionanti i comandi avvia/arresta. Si ripristina automaticamente."
+  },
   "pair": {
     "account_setup": {
       "title": "Configura un account Mammotion per Homey",

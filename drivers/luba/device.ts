@@ -41,7 +41,7 @@ import {
 } from '../../lib/mammotion/errors.js';
 import { errorMessage } from '../../lib/util/errorMessage.js';
 import { sendAliyunCloudCommand } from '../../lib/mammotion/aliyun/commands.js';
-import type { AliyunRequestGovernor } from '../../lib/mammotion/aliyun/RequestGovernor.js';
+import { ALIYUN_SEND_LIMIT, type AliyunRequestGovernor } from '../../lib/mammotion/aliyun/RequestGovernor.js';
 import {
   DeviceType, resolveDeviceType, capabilitiesForModel, MODEL_STRING,
 } from '../../lib/mammotion/deviceType.js';
@@ -134,6 +134,9 @@ export default class LubaDevice extends Homey.Device {
   private activeTransport: TransportName = 'none';
 
   private pollTimer: NodeJS.Timeout | null = null;
+  /** Last Aliyun budget tier reported (see reportBudgetTier) — -1 so the first tick always
+   *  logs and syncs the device warning, including after a restart that restored a hot window. */
+  private lastBudgetTier = -1;
   private mqttReconnectTimer: NodeJS.Timeout | null = null;
   private mqttFailureCount = 0;
   /** Consecutive confirmed-offline poll results — drives OFFLINE_POLL_* backoff. Reset to 0
@@ -1070,7 +1073,13 @@ export default class LubaDevice extends Homey.Device {
   private startPollTimer(): void {
     const cooldownUntil = this.getStoreValue(RATE_LIMIT_COOLDOWN_STORE_KEY) as number | null;
     const remaining = typeof cooldownUntil === 'number' ? cooldownUntil - Date.now() : 0;
-    const delay = remaining > 0 ? Math.min(remaining, OFFLINE_POLL_MAX_MS) : this.currentPollIntervalMs();
+    // Legacy devices on the same account start with a random offset so they don't poll in
+    // lockstep: a real report (R8) showed two mowers hitting the gateway on the very same
+    // millisecond every tick, because both timers were armed together at app start. Capped
+    // at 60 s so the first status after a restart is still prompt.
+    const desync = this.getContext().transportKind === 'aliyun_legacy'
+      ? Math.floor(Math.random() * Math.min(this.currentPollIntervalMs(), 60_000)) : 0;
+    const delay = remaining > 0 ? Math.min(remaining, OFFLINE_POLL_MAX_MS) : this.currentPollIntervalMs() + desync;
     if (remaining > 0) this.log(`Poll: resuming a rate-limit cooldown from before restart — first check in ${Math.round(delay / 1000)}s`);
     this.schedulePoll(delay);
   }
@@ -1087,9 +1096,13 @@ export default class LubaDevice extends Homey.Device {
   /** Schedules the next poll tick — a plain setTimeout, not setInterval, so the delay can
    *  vary per tick (normal cadence while reachable, backed off once confirmed offline). */
   private schedulePoll(delayMs: number): void {
+    // Small per-tick jitter for legacy devices keeps two mowers that happened to align from
+    // staying aligned — see startPollTimer's desync comment. Backoff delays pass through
+    // this too, which is fine: ±10% on a cooldown changes nothing about its intent.
+    const jitter = this.getContext().transportKind === 'aliyun_legacy' ? 0.9 + Math.random() * 0.2 : 1;
     this.pollTimer = setTimeout(() => {
       void this.runPollTick();
-    }, delayMs);
+    }, Math.round(delayMs * jitter));
   }
 
   /** Runs one requestSync() attempt and reschedules the next one. A confirmed
@@ -1116,10 +1129,17 @@ export default class LubaDevice extends Homey.Device {
    *  much slower baseline and why 5s turned out to be the actual root cause, not just a
    *  symptom amplifier. */
   private async runPollTick(): Promise<void> {
+    // The paced interval for this device right now. For modern (MQTT) devices this is just
+    // the base cadence; for aliyun_legacy it is the base scaled by the shared governor's
+    // current tier, or null when only the command reserve is left. See RequestGovernor.ts.
+    let pacedDelayMs: number | null = this.currentPollIntervalMs();
     if (this.getContext().transportKind === 'aliyun_legacy') {
       const governor = (this.driver as unknown as LubaDriver).getAliyunRequestGovernor();
-      if (governor.shouldSkipPoll()) {
-        this.log(`Poll: skipping — account-wide Aliyun request budget nearly exhausted (${governor.remaining()} left in the current 12h window)`);
+      pacedDelayMs = governor.pollDelayMs(this.currentPollIntervalMs());
+      this.reportBudgetTier(governor, pacedDelayMs);
+      if (pacedDelayMs === null) {
+        // Re-check at the base cadence without sending anything; the tier log above already
+        // said why, once, so this is deliberately silent per tick.
         this.schedulePoll(this.currentPollIntervalMs());
         return;
       }
@@ -1130,7 +1150,7 @@ export default class LubaDevice extends Homey.Device {
       if (this.getStoreValue(RATE_LIMIT_COOLDOWN_STORE_KEY)) {
         this.setStoreValue(RATE_LIMIT_COOLDOWN_STORE_KEY, null).catch(this.error.bind(this));
       }
-      this.schedulePoll(this.currentPollIntervalMs());
+      this.schedulePoll(pacedDelayMs);
     } catch (err) {
       const isRateLimited = err instanceof AliyunCommandError && err.code === 429;
       // Any *other* non-200 code from the invoke gateway (e.g. 20056 "gateway.hsf.invoke.timeout",
@@ -1160,8 +1180,27 @@ export default class LubaDevice extends Homey.Device {
         this.schedulePoll(delay);
       } else {
         this.error(`Poll sync failed: ${errorMessage(err)}`);
-        this.schedulePoll(this.currentPollIntervalMs());
+        this.schedulePoll(pacedDelayMs);
       }
+    }
+  }
+
+  /** Logs the shared Aliyun budget tier when it changes and mirrors it onto the device as a
+   *  warning at the slow tiers. A warning, not unavailable: unavailable would block the
+   *  user's own start/stop commands — which are exactly what the command reserve exists to
+   *  protect — and those bypass the poll pacing entirely. Logged on transitions only: the
+   *  previous per-tick "skipping" line filled a real report (R8) with 27 identical lines in
+   *  55 minutes and told the user nothing new after the first. */
+  private reportBudgetTier(governor: AliyunRequestGovernor, pacedDelayMs: number | null): void {
+    const tier = governor.usageTier();
+    if (tier === this.lastBudgetTier) return;
+    this.lastBudgetTier = tier;
+    const interval = pacedDelayMs === null ? 'paused (only the command reserve is left)' : `${Math.round(pacedDelayMs / 1000)}s`;
+    this.log(`Poll: Aliyun budget tier ${tier} — ${governor.used()}/${governor.pollCap()} of the poll cap used, ${governor.remaining()}/${ALIYUN_SEND_LIMIT} left in the 12h window; interval now ${interval}`);
+    if (tier >= 2) {
+      this.setWarning(this.homey.__('warning.aliyun_budget_throttled')).catch(this.error.bind(this));
+    } else {
+      this.unsetWarning().catch(this.error.bind(this));
     }
   }
 

@@ -17,6 +17,12 @@ import { errorMessage } from '../../lib/util/errorMessage.js';
 const SESSION_SETTINGS_KEY = 'mammotion_session';
 const CREDENTIALS_SETTINGS_KEY = 'mammotion_credentials';
 const ALIYUN_CREDENTIALS_SETTINGS_KEY = 'mammotion_aliyun_credentials';
+/** Persisted AliyunRequestGovernor window — see RequestGovernor.ts's snapshot/restore. */
+const ALIYUN_REQUEST_WINDOW_SETTINGS_KEY = 'aliyunRequestWindow';
+/** Debounce for saving that window: a save per recordRequest would be one settings write
+ *  per poll on top of the poll itself; 30 s loses at most a handful of timestamps on a
+ *  crash, which the pacing tiers absorb without noticing. */
+const ALIYUN_REQUEST_WINDOW_SAVE_DEBOUNCE_MS = 30_000;
 
 interface StoredCredentials { email: string; password: string; }
 
@@ -59,6 +65,7 @@ export default class LubaDriver extends Homey.Driver {
   private aliyunCredentialsManager!: AliyunCredentialsManager;
   /** Shared across every aliyun_legacy device on the account — see RequestGovernor.ts. */
   private readonly aliyunRequestGovernor = new AliyunRequestGovernor();
+  private requestWindowSaveTimer: NodeJS.Timeout | null = null;
   /** Consecutive real (non-fast-fail) Aliyun handshake failures — drives the auto-relogin
    *  in getAliyunCredentials(). Reset to 0 on any success. */
   private aliyunHandshakeFailureStreak = 0;
@@ -66,6 +73,15 @@ export default class LubaDriver extends Homey.Driver {
   /** Registers all Flow trigger/condition/action cards for this driver. */
   async onInit(): Promise<void> {
     this.log('LubaDriver initialized');
+    // Reload the account-wide request window so a restart doesn't begin with an empty
+    // window and a burst of full-cadence polling into an account that may already be at
+    // its limit — see RequestGovernor.ts's snapshot/restore for the report this addresses.
+    const savedWindow = this.homey.settings.get(ALIYUN_REQUEST_WINDOW_SETTINGS_KEY) as unknown;
+    this.aliyunRequestGovernor.restore(savedWindow);
+    if (this.aliyunRequestGovernor.used() > 0) {
+      this.log(`[Aliyun budget] restored ${this.aliyunRequestGovernor.used()} request(s) from before restart into the 12h window`);
+    }
+    this.aliyunRequestGovernor.setChangeListener(() => this.saveRequestWindowSoon());
     this.registerFlowCards();
     this.aliyunCredentialsManager = new AliyunCredentialsManager({
       load: () => this.homey.settings.get(ALIYUN_CREDENTIALS_SETTINGS_KEY) ?? null,
@@ -77,6 +93,13 @@ export default class LubaDriver extends Homey.Driver {
 
   /** Tears down the shared Aliyun legacy transport, if one was ever created. */
   async onUninit(): Promise<void> {
+    // Flush the Aliyun request window before the debounce would have — a restart within
+    // 30 s of the last poll must not lose it (see RequestGovernor.ts's snapshot/restore).
+    if (this.requestWindowSaveTimer) {
+      this.homey.clearTimeout(this.requestWindowSaveTimer);
+      this.requestWindowSaveTimer = null;
+    }
+    this.saveRequestWindowNow();
     this.aliyunTransport?.disconnect();
   }
 
@@ -310,6 +333,24 @@ export default class LubaDriver extends Homey.Driver {
    *  AliyunCommandError) before retrying, rather than retrying with the same stale token. */
   invalidateAliyunCredentials(): void {
     this.aliyunCredentialsManager.invalidate();
+  }
+
+  /** Persists the governor window after a short debounce — see
+   *  ALIYUN_REQUEST_WINDOW_SAVE_DEBOUNCE_MS. */
+  private saveRequestWindowSoon(): void {
+    if (this.requestWindowSaveTimer) return;
+    this.requestWindowSaveTimer = this.homey.setTimeout(() => {
+      this.requestWindowSaveTimer = null;
+      this.saveRequestWindowNow();
+    }, ALIYUN_REQUEST_WINDOW_SAVE_DEBOUNCE_MS);
+  }
+
+  private saveRequestWindowNow(): void {
+    try {
+      this.homey.settings.set(ALIYUN_REQUEST_WINDOW_SETTINGS_KEY, this.aliyunRequestGovernor.snapshot());
+    } catch (err) {
+      this.error('Failed to persist the Aliyun request window:', err);
+    }
   }
 
   /** The shared account-wide request governor every aliyun_legacy device polls/commands

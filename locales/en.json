@@ -9,6 +9,9 @@
     "legacy_devices_found": "Found your mower(s) registered under Mammotion's older cloud system, which this app doesn't support yet — I've informed the developer, who is working on adding support. Please try again in a future update.",
     "no_zones_known": "No mowing zones known yet. Open the mower in the Mammotion app, or wait a moment and try again. Tip: name your zones in the Mammotion app for instant, reliable zone selection."
   },
+  "warning": {
+    "aliyun_budget_throttled": "Cloud request limit nearly reached — status updates are slowed down so start/stop commands keep working. Recovers automatically."
+  },
   "pair": {
     "account_setup": {
       "title": "Set up a Mammotion account for Homey",

@@ -18,7 +18,7 @@ går inte att para. Resten är förbättringar och önskemål.
 
 | Prio | Kluster | Rapporter | Kärnproblem |
 |---|---|---|---|
-| **P0** | [A. Ingen statusuppdatering](#a--p0--ingen-statusuppdatering) | R5, R7, R8, R12.3, R12.5 | Tre separata orsaker som alla ger samma symptom |
+| **P0** | [A. Ingen statusuppdatering](#a--p0--ingen-statusuppdatering) | R5, R7, R8, R12.3, R12.5 | Tre orsaker; ✅ A1 budgetsvält löst med stegvis pacing — A2/A3 kvar |
 | **P0** | [B. Delade enheter syns inte vid parning](#b--p0--delade-enheter-syns-inte-vid-parning) | R11, R12.7 (+minst en till) | Vår pipeline bevisat felfri (test); kvar är Homey-sidan/timing — handlern tar 13–16 s |
 | ✅ **P1** | [C. Task-kedjning fungerar inte](#c--p1--task-kedjning-fungerar-inte) | R1, R3, R4 | Return-avbrott före start implementerat — väntar hårdvaruverifiering |
 | ✅ **P1** | [D. Klippparametrar](#d--p1--klippparametrar-går-inte-att-styra) | R9, R13 | Spacing och klipphöjd hämtas nu från klipparens egna sparade tasks |
@@ -97,21 +97,50 @@ telemetriuppdateringar på 55 minuter medan båda klipparna jobbade.
 Att båda enheterna i R8 pollar i **exakt samma millisekund** (i R5 var de förskjutna ~80 s)
 förvärrar dessutom bursten.
 
-**Åtgärd:**
-1. Exponera budgettillståndet för användaren — sätt enheten `unavailable` med en begriplig
-   text när polling är strypt, istället för att visa gammal data som om den vore färsk.
-2. Gradvis strypning istället för binär: när budgeten börjar ta slut, öka pollintervallet
-   successivt (t.ex. 2 min → 10 min → 30 min) så att *något* fortsätter komma in, i stället
-   för att gå från full takt till noll.
-3. Sprid pollningen mellan enheter på samma konto (jitter/offset) så att multi-mower-konton
-   inte skickar samtidiga burstar.
-4. Överväg att persista fönstret över omstart. I dag nollställs `timestamps` vid omstart
-   medan loggen samtidigt säger `resuming a rate-limit cooldown from before restart` — de
-   två tillstånden är inte synkade (se även A2).
+**Varför det är deterministiskt, inte otur.** Basintervallen är 90 s (aktiv) / 120 s
+(vila) — 360–480 anrop per enhet och fönster. **Två mowers i vila är 720 mot ett polltak på
+510.** Varje tvåmower-konto nådde alltså väggen varje fönster, per konstruktion, efter
+~8,5 timmar. Det är R5/R8:s konto exakt.
 
-**Verifiering:** enhetstest av `AliyunRequestGovernor` som simulerar 510 requests och
-kontrollerar att intervallet trappas upp i stället för att nollställas; manuellt test med
-två mowers på ett konto.
+**Åtgärd — ✅ implementerad:**
+1. ✅ **Stegvis pacing i stället för binär spärr.** `AliyunRequestGovernor.pollDelayMs(base)`
+   skalar basintervallet med användningen av *polltaket*: 1× under 60 %, 2× vid 60 %,
+   5× vid 80 %, 15× vid 95 % — alltså 120 s → 240 s → 600 s → 1800 s. Pollning **stannar
+   bara** när enbart kommandoreserven (40 anrop av 600) återstår; det är det enda som
+   någonsin ger `null`. Att nå polltaket saktar ner, det stoppar inte längre.
+2. ✅ **Synligt för användaren.** Vid tier ≥ 2 sätts `setWarning` med en förklarande text på
+   13 språk (`warning.aliyun_budget_throttled`), och tas bort när tiern sjunker. Medvetet
+   `setWarning` och **inte** `setUnavailable`: unavailable skulle blockera användarens egna
+   start/stopp-kommandon — precis det reserven finns för att skydda, och de går förbi
+   pacingen helt.
+3. ✅ **Ingen lockstep.** Legacy-enheter får en slumpad startförskjutning (0–60 s) och ±10 %
+   jitter per tick, så två mowers som armats samtidigt vid appstart inte träffar gatewayn på
+   samma millisekund (R8).
+4. ✅ **Fönstret överlever omstart.** Drivern återställer `snapshot()` från `homey.settings`
+   i `onInit`, sparar med 30 s debounce på varje `recordRequest`, och flushar i `onUninit`.
+   Utan det började varje omstart med tomt fönster och full takt rakt in i ett konto som
+   redan kunde ligga vid gränsen — det gamla "fungerar efter omstart, dör igen"-mönstret.
+5. ✅ **Loggen säger något.** Den gamla raden `skipping — … 90 left` loggades varje tick
+   (27 identiska rader på 55 min i R8). Nu loggas **bara tier-övergångar**:
+   `Poll: Aliyun budget tier N — X/510 of the poll cap used, Y/600 left; interval now Zs`.
+
+**Verifiering — simulerat 12 h, enheter i lockstep (värsta fallet), 120 s bas:**
+
+| Enheter | Pacing | Skickade | Lägsta kvar | Högsta tier | Snittintervall/enhet |
+|---|---|---|---|---|---|
+| 1 | ja | 333 | 267 | 1 | 2,2 min — oförändrat mot i dag |
+| 2 | **nej** (gammalt) | 720 | **0** | 3 | 2,0 min — kör rakt genom 600 |
+| 2 | ja | 450 | 150 | 2 | **3,2 min — når aldrig tier 3** |
+| 3 | ja | 498 | 102 | 3 (14 polls) | 4,3 min |
+| 4 | ja | 524 | 76 | 3 (40 polls) | 5,5 min — aldrig stoppad |
+
+R5/R8:s konto får alltså en poll var ~3:e minut per mower **hela dygnet**, i stället för
+att dö efter 8,5 timmar. 15 tester i `aliyun-request-governor.test.mjs`, inklusive ett som
+uttryckligen inverterar den gamla assertionen: "vid exakt polltaket SAKTAR pollning ner, den
+stannar inte" — med `remaining === 90`, den frusna siffran ur båda rapporterna.
+
+**Kvarstår:** manuellt test med två mowers på ett riktigt konto (R5/R8-användaren är den
+naturliga). Simuleringen antar att alla anrop lyckas; A2:s serverbackoff ligger orörd ovanpå.
 
 ### A2. Retry-loop som äter sin egen budget
 
@@ -523,7 +552,7 @@ Flera rapporter är inte buggar utan att användare inte hittar det som finns.
   det saknade foruminlägget som R12.7 refererar till
 
 **Steg 2 — P0, statusproblemet**
-- A1 budgetsvält (gradvis strypning + jitter + synligt tillstånd)
+- ✅ A1 budgetsvält — stegvis pacing, jitter, `setWarning`, persistent fönster
 - A2 backoff på pollfel
 - A3 `unavailable` vid inaktuell data
 - Parallellt: utred firmwarekopplingen (A4) och `getRegion 500`-fönstret

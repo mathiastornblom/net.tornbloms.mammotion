@@ -9,6 +9,9 @@
     "legacy_devices_found": "Je maaier(s) zijn gevonden, geregistreerd onder Mammotions oudere cloudsysteem, dat deze app nog niet ondersteunt — de ontwikkelaar is op de hoogte gebracht en werkt aan ondersteuning. Probeer het later opnieuw in een toekomstige update.",
     "no_zones_known": "Nog geen maaizones bekend. Open de maaier in de Mammotion-app, of wacht even en probeer het opnieuw. Tip: geef je zones een naam in de Mammotion-app voor directe, betrouwbare zoneselectie."
   },
+  "warning": {
+    "aliyun_budget_throttled": "Cloudverzoeklimiet bijna bereikt — statusupdates zijn vertraagd zodat start/stop-opdrachten blijven werken. Herstelt automatisch."
+  },
   "pair": {
     "account_setup": {
       "title": "Stel een Mammotion-account in voor Homey",

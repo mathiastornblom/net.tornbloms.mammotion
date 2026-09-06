@@ -9,6 +9,9 @@
     "legacy_devices_found": "Din/dine plæneklipper(e) blev fundet registreret under Mammotions ældre cloud-system, som denne app endnu ikke understøtter — udvikleren er blevet informeret og arbejder på at tilføje understøttelse. Prøv igen i en fremtidig opdatering.",
     "no_zones_known": "Ingen klippezoner kendt endnu. Åbn plæneklipperen i Mammotion-appen, eller vent et øjeblik og prøv igen. Tip: navngiv dine zoner i Mammotion-appen for et øjeblikkeligt og pålideligt zonevalg."
   },
+  "warning": {
+    "aliyun_budget_throttled": "Cloud-forespørgselsgrænsen er næsten nået — statusopdateringer er sat ned i tempo, så start/stop-kommandoer fortsat virker. Genoprettes automatisk."
+  },
   "pair": {
     "account_setup": {
       "title": "Opret en Mammotion-konto til Homey",

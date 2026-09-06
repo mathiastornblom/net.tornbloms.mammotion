@@ -9,6 +9,9 @@
     "legacy_devices_found": "Se encontró tu(s) cortacésped(es) registrado(s) en el sistema en la nube antiguo de Mammotion, que esta aplicación aún no admite — se ha informado al desarrollador, que está trabajando para añadir compatibilidad. Vuelve a intentarlo en una futura actualización.",
     "no_zones_known": "Aún no se conocen zonas de corte. Abre el cortacésped en la aplicación Mammotion, o espera un momento e inténtalo de nuevo. Consejo: asigna un nombre a tus zonas en la aplicación Mammotion para una selección de zona instantánea y fiable."
   },
+  "warning": {
+    "aliyun_budget_throttled": "Límite de solicitudes en la nube casi alcanzado — las actualizaciones de estado se han ralentizado para que los comandos de inicio/parada sigan funcionando. Se recupera automáticamente."
+  },
   "pair": {
     "account_setup": {
       "title": "Configura una cuenta de Mammotion para Homey",

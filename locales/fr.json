@@ -9,6 +9,9 @@
     "legacy_devices_found": "Votre/vos tondeuse(s) a/ont été trouvée(s) enregistrée(s) dans l'ancien système cloud de Mammotion, que cette application ne prend pas encore en charge — le développeur a été informé et travaille à l'ajout de cette prise en charge. Réessayez lors d'une future mise à jour.",
     "no_zones_known": "Aucune zone de tonte connue pour le moment. Ouvrez la tondeuse dans l'application Mammotion, ou attendez un instant et réessayez. Astuce : nommez vos zones dans l'application Mammotion pour une sélection de zone instantanée et fiable."
   },
+  "warning": {
+    "aliyun_budget_throttled": "Limite de requêtes cloud presque atteinte — les mises à jour d'état sont ralenties pour que les commandes démarrer/arrêter continuent de fonctionner. Se rétablit automatiquement."
+  },
   "pair": {
     "account_setup": {
       "title": "Configurer un compte Mammotion pour Homey",
