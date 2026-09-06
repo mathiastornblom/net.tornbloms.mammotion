@@ -380,6 +380,13 @@ export default class LubaDriver extends Homey.Driver {
     });
 
     session.setHandler('list_devices', async (): Promise<PairedDeviceResult[]> => {
+      // Wall time from handler entry to each return is logged alongside the device list.
+      // A real report (R11) showed this handler taking 13–16 s end to end — the legacy
+      // Aliyun probe runs *after* the normal fetch, times out at 6 s, then retries — and the
+      // wizard showed an empty list despite `records=1`. Whether Homey's list_devices view
+      // gives up on a slow handler could not be confirmed (SDK docs unreachable, the type
+      // package is silent on it), so the next report has to carry the number.
+      const startedAt = Date.now();
       const session = pendingSession ?? await this.getValidSession();
       // Mirrors pymammotion's login_and_initiate_cloud: the mobile app's "Accept" UI is
       // supposed to finalize a device-share invitation server-side, but a headless login
@@ -483,7 +490,7 @@ export default class LubaDriver extends Homey.Driver {
         // before handing it to Homey's pairing UI — closes the observability gap between "we
         // found bound devices" and "the wizard actually showed them" for the next diagnostic
         // report, since nothing downstream of this point is currently logged.
-        this.log(`list_devices: returning ${merged.length} device(s) to pairing UI (${list.length} normal + ${legacyList.length} legacy)`,
+        this.log(`list_devices: returning ${merged.length} device(s) to pairing UI (${list.length} normal + ${legacyList.length} legacy) after ${Date.now() - startedAt}ms`,
           JSON.stringify(merged.map((d) => ({ name: d.name, id: d.data.id }))));
         return merged;
       }
@@ -497,7 +504,7 @@ export default class LubaDriver extends Homey.Driver {
         // resolved deviceType and capability count alongside makes the second case
         // diagnosable too, since a device whose capability list came back empty or
         // unrecognised is the leading hypothesis for a silently-dropped entry.
-        this.log(`list_devices: returning ${list.length} device(s) to pairing UI (normal path)`,
+        this.log(`list_devices: returning ${list.length} device(s) to pairing UI (normal path) after ${Date.now() - startedAt}ms`,
           JSON.stringify(list.map((d) => ({
             name: d.name,
             id: d.data.id,

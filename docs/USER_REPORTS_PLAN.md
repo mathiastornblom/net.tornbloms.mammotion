@@ -19,7 +19,7 @@ går inte att para. Resten är förbättringar och önskemål.
 | Prio | Kluster | Rapporter | Kärnproblem |
 |---|---|---|---|
 | **P0** | [A. Ingen statusuppdatering](#a--p0--ingen-statusuppdatering) | R5, R7, R8, R12.3, R12.5 | Tre separata orsaker som alla ger samma symptom |
-| **P0** | [B. Delade enheter syns inte vid parning](#b--p0--delade-enheter-syns-inte-vid-parning) | R11, R12.7 (+minst en till) | `records=1` men tom lista i UI:t |
+| **P0** | [B. Delade enheter syns inte vid parning](#b--p0--delade-enheter-syns-inte-vid-parning) | R11, R12.7 (+minst en till) | Vår pipeline bevisat felfri (test); kvar är Homey-sidan/timing — handlern tar 13–16 s |
 | ✅ **P1** | [C. Task-kedjning fungerar inte](#c--p1--task-kedjning-fungerar-inte) | R1, R3, R4 | Return-avbrott före start implementerat — väntar hårdvaruverifiering |
 | ✅ **P1** | [D. Klippparametrar](#d--p1--klippparametrar-går-inte-att-styra) | R9, R13 | Spacing och klipphöjd hämtas nu från klipparens egna sparade tasks |
 | **P1** | [E. Bara "Task 1" listas](#e--p1--bara-task-1-listas) | R12.2 | Ej reproducerad — behöver bekräftas |
@@ -198,15 +198,29 @@ Normalvägens `return list` loggar ingenting. Det är den enda grenen som inte �
 instrumenterad, och det är precis den grenen den här buggen ligger i.
 
 **Åtgärd, i ordning:**
-1. **Först:** lägg samma `returning N device(s) to pairing UI`-loggrad på normalvägen.
-   Billigt, och delar problemet i två: antingen returnerar vi noll enheter (bugg före
-   returen) eller så tappar Homey dem (bugg i capabilities/data-formatet).
-2. Logga också den byggda enhetens `capabilities`-array och upplösta `deviceType`.
-   Hypotes värd att testa: `resolveDeviceType('Luba-VA5W38CC', 'uY54W5rM8YH')` ger
-   `LUBA_VA` via namnprefixet — men om `capabilitiesForModel()` returnerar en tom eller
-   ogiltig lista kan Homey tyst förkasta enheten.
-3. Reproducera med `scripts/test-accounts.ts` mot ett delat Luba 3-konto.
-4. Kontrollera om `productKey=uY54W5rM8YH` är känd i `deviceType.ts`.
+1. ✅ Loggrad `returning N device(s) to pairing UI` på normalvägen, med upplöst
+   `deviceType` och antal capabilities — och nu även **tidsåtgång i ms** från handlerns
+   start. Delar problemet i två: returnerar vi noll, eller tappar Homey det vi returnerar.
+2. ✅ **Den rena pipelinen är bevisat felfri för R11:s exakta indata.**
+   `scripts/shared-device-pairing.test.mjs` kör `mergeDeviceContext({}, record)` →
+   `resolveDeviceType` → `capabilitiesForModel` med precis den record R11 loggade:
+   `Luba-VA5W38CC` → `LUBA_VA` (namnprefix, oberoende av att `deviceType` är `null` för
+   delade enheter), 25 av 27 capabilities, `data.id` = iotId. Fyra assertioner, alla
+   gröna. Hypotesen "tom/ogiltig capability-lista" är därmed **avförd**. Buggen ligger
+   nedströms om vår kod.
+3. ✅ `productKey=uY54W5rM8YH` är känd — det är samma nyckel som Mathias egen
+   `Luba-VAZSPPU6` (se `device-routing.test.mjs`), som parar utan problem när den är
+   *ägd*. Skillnaden mot R11 är alltså inte modellen utan att enheten är delad.
+4. **Kvarstår — den starkaste återstående kandidaten är tid.** R11:s tidsstämplar visar
+   att handlern tog **13–16 s** innan den returnerade, vid alla fyra försöken: legacy-
+   proben körs *efter* normalhämtningen, timear ut efter 6 s, och görs sedan om. Om
+   Homeys `list_devices`-vy ger upp på en långsam handler kunde inte bekräftas — docs-
+   sajten är blockerad från utvecklingsmiljön och `@types/homey` säger inget. Nästa
+   rapport bär nu siffran. **Om den bekräftar:** kör legacy-proben *parallellt* med
+   normalhämtningen (`Promise.all`) i stället för seriellt efter — det halverar
+   väntetiden utan att ändra vad som returneras. Görs inte på spekulation i en P0-väg.
+5. Reproducera med `scripts/test-accounts.ts` mot ett delat Luba 3-konto — kräver
+   R12.7-användarens medverkan eller ett eget delat testkonto.
 
 **Varför P0:** `CLAUDE.md` föreskriver dedikerat andrakonto med delad mower som det normala
 sättet att köra appen. Om delade enheter inte går att para är det den **rekommenderade
