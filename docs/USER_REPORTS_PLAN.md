@@ -21,7 +21,7 @@ går inte att para. Resten är förbättringar och önskemål.
 | **P0** | [A. Ingen statusuppdatering](#a--p0--ingen-statusuppdatering) | R5, R7, R8, R12.3, R12.5 | Tre separata orsaker som alla ger samma symptom |
 | **P0** | [B. Delade enheter syns inte vid parning](#b--p0--delade-enheter-syns-inte-vid-parning) | R11, R12.7 (+minst en till) | `records=1` men tom lista i UI:t |
 | **P1** | [C. Task-kedjning fungerar inte](#c--p1--task-kedjning-fungerar-inte) | R1, R3, R4 | Vår egen hint lovar något appen inte gör |
-| **P1** | [D. Klippparametrar](#d--p1--klippparametrar-går-inte-att-styra) | R9 | `channelWidth` hårdkodad till 25 på den generiska startvägen |
+| ✅ **P1** | [D. Klippparametrar](#d--p1--klippparametrar-går-inte-att-styra) | R9, R13 | Spacing och klipphöjd hämtas nu från klipparens egna sparade tasks |
 | **P1** | [E. Bara "Task 1" listas](#e--p1--bara-task-1-listas) | R12.2 | Ej reproducerad — behöver bekräftas |
 | ✅ **P2** | [F. Saknade Flow-kort](#f--p2--saknade-flow-kort) | R12.2 | `resume_mowing`-kortet tillagt |
 | **P2** | [G. Robusthet och loggkvalitet](#g--p2--robusthet-och-loggkvalitet) | R1, R7, R8, R10 | Protobuf-fel, BLE-backoff utan tak, loggspam |
@@ -334,10 +334,27 @@ så de lämnas orörda tills någon rapporterar dem.
 
 ### Åtgärd, i ordning
 
-1. ✅ **Läs och återanvänd** — implementerad. `ScheduleParser` läser `routeSpacing`,
-   `LubaDevice.storedChannelWidth()` väljer det lägsta rapporterade värdet över enhetens
-   tasks (0 = "inget rapporterat" filtreras bort), och `buildGenerateRouteCommand` faller
-   tillbaka på 25 när ingen task finns.
+1. ✅ **Läs och återanvänd** — implementerad för **både spacing och klipphöjd**.
+   Rena funktioner i `ScheduleParser.ts`: `resolveStoredRouteSpacing()` tar **minsta**
+   värdet över enhetens tasks, `resolveStoredBladeHeight()` tar **största**. Riktningarna
+   är olika med avsikt: att klippa för långt kostar en extra vända, att klippa för kort
+   skalperar gräsmattan och går inte att ångra. Vid oenighet mellan tasks lämnas gräset
+   längre. 0 = "inget rapporterat" filtreras bort i båda, och `buildGenerateRouteCommand`
+   faller tillbaka på 25 när ingen task finns.
+
+   **Ny datapunkt (R13, App Store-rapport 2026-09-06):** en andra användare rapporterade
+   att klipparen "always does the same pattern and at the lowest setting" — och lyfte
+   själv risken att klippa gräset för kort. Koden bekräftade det exakt: `start_mowing`
+   har `blade_height` som *valfritt* argument i intervallet 25–70 mm, och tomt fält gav
+   `?? 25` — kortets egen miniminivå. Av/på-reglaget (`onoff`) anropar
+   `actionPlanAndStartMowing({})` helt utan parametrar och fick samma 25 mm varje gång.
+   "Lowest setting" var alltså bokstavligt sant. Det är den rapporten som gjorde
+   klipphöjden till nästa steg direkt efter spacing.
+
+   **Medveten begränsning:** `sendBladeHeight` (den separata skriv-inställning-kommandot)
+   skickas fortfarande bara när användaren *uttryckligen* angett höjd. Det återekade
+   värdet används enbart i ruttplaneringen för just den körningen — ett återekat värde ska
+   inte skrivas tillbaka som stående inställning på klipparen.
 2. Fråga R9-användaren vilket Flow-kort som användes. Om det var task-kortet är det inte
    den här buggen utan något annat.
 3. Fastställ `channelWidth`-semantiken mot hårdvara innan något reglage byggs.

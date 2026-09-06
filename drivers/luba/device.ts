@@ -7,7 +7,7 @@ import { MammotionAuth } from '../../lib/mammotion/auth/MammotionAuth.js';
 import { extractTelemetry } from '../../lib/mammotion/protocol/TelemetryParser.js';
 import { workModeToStatus, isErrorMode, type MowerStatus } from '../../lib/mammotion/protocol/WorkModeStatus.js';
 import { MOWING_ACTIVE_WORK_MODES } from '../../lib/mammotion/constants.js';
-import { extractSchedule, type ScheduleInfo } from '../../lib/mammotion/protocol/ScheduleParser.js';
+import { resolveStoredBladeHeight, resolveStoredRouteSpacing, extractSchedule, type ScheduleInfo } from '../../lib/mammotion/protocol/ScheduleParser.js';
 import { extractErrorCode, extractUpdateBuf, extractRainProtection } from '../../lib/mammotion/protocol/ErrorCodeParser.js';
 import { extractAreaHashNames, type AreaHashName } from '../../lib/mammotion/protocol/AreaNameParser.js';
 import {
@@ -1431,23 +1431,22 @@ export default class LubaDevice extends Homey.Device {
    *  an already-fully-mowed cached job and returned to dock within seconds. Fails closed
    *  (NoZonesKnownError) rather than falling back to that bare-start behaviour if no zones
    *  can be resolved even after a best-effort enumeration attempt. */
-  /** The route spacing the user configured on the device itself, taken from its stored
-   *  tasks, or undefined when no task reports one.
-   *
-   *  Starting a *task* (actionStartSchedule → plan_task_execute) runs it entirely from the
-   *  device's own saved settings — we send no route parameters at all. The generic start
-   *  path has to plan a route itself, and used to do so at a fixed spacing, so the same
-   *  lawn could be cut differently depending on which Flow card was used (report R9).
-   *  Echoing the device's own figure back keeps the two paths consistent without asking the
-   *  user to configure anything, and without this app having to know what the value means
-   *  in centimetres.
-   *
-   *  Tasks agreeing is the normal case (one spacing preference per lawn); if they disagree
-   *  the lowest is used, since cutting tighter than asked leaves a worse-looking lawn than
-   *  cutting looser. */
+  /** See resolveStoredRouteSpacing — the route spacing the user configured on the device
+   *  itself. Starting a *task* (actionStartSchedule → plan_task_execute) runs entirely from
+   *  the device's own saved settings; the generic start path has to plan a route itself and
+   *  used to do so at a fixed spacing, so the same lawn could be cut differently depending
+   *  on which Flow card was used (report R9). */
   private storedChannelWidth(): number | undefined {
-    const widths = this.scheduleCache.map((s) => s.routeSpacing).filter((w) => w > 0);
-    return widths.length > 0 ? Math.min(...widths) : undefined;
+    return resolveStoredRouteSpacing(this.scheduleCache);
+  }
+
+  /** See resolveStoredBladeHeight — the cutting height the user configured on the device
+   *  itself. The generic start path used to fall back to a fixed 25 mm, which is the
+   *  *minimum* the start_mowing card allows and what the plain on/off toggle got every time
+   *  since it passes no options (R9, and a later App Store report of the mower cutting far
+   *  shorter than set). */
+  private storedBladeHeight(): number | undefined {
+    return resolveStoredBladeHeight(this.scheduleCache);
   }
 
   async actionPlanAndStartMowing(options: StartMowOptions): Promise<void> {
@@ -1484,12 +1483,21 @@ export default class LubaDevice extends Homey.Device {
     const context = this.getContext();
     const routeCmd = buildGenerateRouteCommand(
       areas,
-      { ...options, channelWidth: options.channelWidth ?? this.storedChannelWidth() },
+      {
+        ...options,
+        channelWidth: options.channelWidth ?? this.storedChannelWidth(),
+        bladeHeight: options.bladeHeight ?? this.storedBladeHeight(),
+      },
       session.userAccount, context.deviceName, this.seq, context.productKey,
     );
     await this.sendRaw(Buffer.from(routeCmd, 'base64'), 'generate_route');
     await this.waitForRouteConfirmation(3_000);
 
+    // Deliberately gated on the *explicit* option, not the resolved one above: a height the
+    // caller actually asked for is worth writing to the device, whereas the stored fallback
+    // is the device's own value being echoed back into this one job's route. Sending that
+    // would be a write the user never requested, and set_blade_height changes the mower's
+    // standing setting rather than just this run.
     if (typeof options.bladeHeight === 'number') await this.sendBladeHeight(options.bladeHeight);
     await this.sendTaskControlRaw('start');
   }

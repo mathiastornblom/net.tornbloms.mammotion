@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 
 import { buildReadScheduleCommand } from '../.homeybuild/lib/mammotion/commands/LubaCommands.js';
 import { decodeLubaMsg, encodeLubaMsg } from '../.homeybuild/lib/mammotion/protocol/Codec.js';
-import { extractSchedule } from '../.homeybuild/lib/mammotion/protocol/ScheduleParser.js';
+import { extractSchedule, resolveStoredBladeHeight, resolveStoredRouteSpacing } from '../.homeybuild/lib/mammotion/protocol/ScheduleParser.js';
 
 test('read-schedule request targets NAV with sub_cmd=2 (read, not write)', () => {
   const b64 = buildReadScheduleCommand('12345', 'Luba-TEST', 0, { value: 0 });
@@ -93,4 +93,35 @@ test('extractSchedule reports routeSpacing 0 when the device omits it', () => {
     nav: { todevPlanjobSet: { planId: 'p1', taskName: 'No width', knifeHeight: 30, speed: 0.4 } },
   });
   assert.equal(extractSchedule(decodeLubaMsg(bytes)).routeSpacing, 0);
+});
+
+// ─── Stored-setting resolution for the generic start path ─────────────────────
+// These pin the one decision in read-and-reuse that has real safety weight: which way to
+// resolve disagreement between a mower's stored tasks. Spacing and height resolve in
+// opposite directions on purpose, and a "tidy-up" that unified them would silently pick
+// the wrong one for height.
+
+test('resolveStoredBladeHeight takes the MAXIMUM across tasks — never cut shorter than any task asked', () => {
+  const tasks = [{ bladeHeightMm: 40 }, { bladeHeightMm: 65 }, { bladeHeightMm: 50 }];
+  assert.equal(resolveStoredBladeHeight(tasks), 65);
+});
+
+test('resolveStoredRouteSpacing takes the MINIMUM across tasks', () => {
+  const tasks = [{ routeSpacing: 12 }, { routeSpacing: 8 }, { routeSpacing: 10 }];
+  assert.equal(resolveStoredRouteSpacing(tasks), 8);
+});
+
+test('both resolvers ignore 0 as "not reported" rather than treating it as a real value', () => {
+  // For spacing, 0 would otherwise win as the minimum and plan a route at spacing 0. For
+  // height, 0 would not win the max, but it must still be excluded so a device that reports
+  // nothing yields undefined (→ builder default) rather than a bogus 0 mm.
+  assert.equal(resolveStoredRouteSpacing([{ routeSpacing: 0 }, { routeSpacing: 9 }]), 9);
+  assert.equal(resolveStoredBladeHeight([{ bladeHeightMm: 0 }, { bladeHeightMm: 45 }]), 45);
+});
+
+test('both resolvers return undefined when no task reports a value, so the builder default applies', () => {
+  assert.equal(resolveStoredRouteSpacing([]), undefined);
+  assert.equal(resolveStoredBladeHeight([]), undefined);
+  assert.equal(resolveStoredRouteSpacing([{ routeSpacing: 0 }]), undefined);
+  assert.equal(resolveStoredBladeHeight([{ bladeHeightMm: 0 }]), undefined);
 });

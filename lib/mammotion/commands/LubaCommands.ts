@@ -17,11 +17,16 @@ export type DeviceCommand = 'start' | 'pause' | 'resume' | 'stop' | 'dock' | 'ca
 
 /** Options accepted by the start-mowing flow card. */
 export interface StartMowOptions {
+  /** Cutting height in mm. Omitted means "use the built-in default", which is also the
+   *  minimum the start_mowing Flow card allows — so callers should prefer the value read
+   *  back from the device's own stored task (ScheduleInfo.bladeHeightMm) rather than
+   *  letting a blank field mean "cut as short as possible" (see
+   *  LubaDevice.storedBladeHeight). */
   bladeHeight?: number;
   speed?: number;
   /** Route spacing, in the device's own wire units. Omitted means "use the built-in
    *  default" — callers should prefer passing the value read back from the device's own
-   *  stored task (ScheduleInfo.channelWidth) so a Homey-initiated run matches what the
+   *  stored task (ScheduleInfo.routeSpacing) so a Homey-initiated run matches what the
    *  official app would do, rather than silently re-planning the lawn at a different
    *  spacing (real report R9). */
   channelWidth?: number;
@@ -508,6 +513,12 @@ function createPathOrder(): string {
  *  pymammotion's OperationSettings default, kept as the fallback rather than a guess. */
 const DEFAULT_CHANNEL_WIDTH = 25;
 
+/** Cutting height, in mm, used when the device hasn't reported what the user configured.
+ *  Note this is also the *minimum* the start_mowing Flow card accepts (25–70 mm), so it is a
+ *  floor, not a middle — every caller that can resolve the device's own stored height should
+ *  pass it rather than landing here (see LubaDevice.storedBladeHeight). */
+const DEFAULT_BLADE_HEIGHT_MM = 25;
+
 /**
  * Build a "generate route" / plan-route command (MctlNav.bidire_reqconver_path,
  * NavReqCoverPath, sub_cmd=0 — "generate"). This is the step the reference app always runs
@@ -546,7 +557,7 @@ export function buildGenerateRouteCommand(
         zoneHashs: areas,
         jobMode: 4,
         edgeMode: 1,
-        knifeHeight: Math.trunc(options.bladeHeight ?? 25),
+        knifeHeight: Math.trunc(options.bladeHeight ?? DEFAULT_BLADE_HEIGHT_MM),
         channelWidth: Math.trunc(options.channelWidth ?? DEFAULT_CHANNEL_WIDTH),
         UltraWave: 2,
         channelMode: 0,

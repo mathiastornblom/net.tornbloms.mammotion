@@ -7,7 +7,7 @@ det här är bara råmaterialet.
 **Status:** ✅ Insamling avslutad 2026-08-17. Åtgärdsplanen finns i
 [`docs/USER_REPORTS_PLAN.md`](./USER_REPORTS_PLAN.md).
 
-**Insamling startad:** 2026-08-17 · **Antal rapporter:** 12 (R1–R12)
+**Insamling startad:** 2026-08-17 · **Antal rapporter:** 13 (R1–R12, plus R13 tillagd 2026-09-06)
 
 ---
 
@@ -27,6 +27,7 @@ det här är bara råmaterialet.
 | [R10](#r10--diagnostik--fel-1417-i-mammotions-egen-app-klippare-startar-inte) | Diagnostik (manuellt inskickad) | 2026-08-11 | Fel 1417 i Mammotions **egen** app vid varje startförsök. Homey skickar `generate_route`+`start` om och om igen, mowern går mowing→paused→idle | v2.5.56 |
 | [R11](#r11--diagnostik--luba-3-delad-till-andrakonto-syns-inte-vid-homey-parning) | Diagnostik (manuellt inskickad) | 2026-08-15 | Luba 3 delad till sekundärkonto syns och styrs i Mammotion-appen, men inga enheter visas vid Homey-parning. `owned=0 records=1` | v2.5.56 |
 | [R12](#r12--forumtråd--homey-community-2026-07-26--2026-08-15) | Homey Community-forum | 2026-07-26 → 2026-08-15 | Sju inlägg: task/schema-krock, saknade tasks, resume-kort, utebliven status efter firmwareuppdatering, zonval för Yuka, Luba mini utan status, Luba 1-stöd, Luba 3-parning | v2.5.56 |
+| [R13](#r13--app-store-rapport--klipparen-kör-samma-mönster-på-lägsta-höjd) | App Store-förslag via Homey | 2026-09-06 | Vill köra sina sparade tasks. Generisk start ger alltid samma mönster på lägsta klipphöjd — användaren lyfter själv risken att klippa för kort | — |
 
 > **Notis om personuppgifter:** det här dokumentet ligger i ett publikt repo. Namn har
 > förkortats och e-postadresser maskerats. Fullständiga uppgifter finns i originalkällan
@@ -1020,6 +1021,47 @@ Den posten är inte inkluderad i det inklistrade materialet och **behöver letas
   Luba 2 (flera), Luba 2 3000 (2024), Luba 3, Luba mini, Yuka mini 2 1000 — plus önskemål
   om Luba 1. Det är bredare än `CLAUDE.md`:s "Luba 2 + Luba 3".
 - Ska "pausa tasken i mobilappen"-tricket in i README/App Store-beskrivningen?
+
+---
+
+## R13 — App Store-rapport — klipparen kör samma mönster på lägsta höjd
+
+**Källa:** App Store-förslag, vidarebefordrat via Homeys notismejl
+**Inkom:** 2026-09-06 (efter att insamlingen stängts — tillagd i efterhand eftersom den
+bekräftar D-klustret exakt)
+**Från:** anonymt i det inklistrade materialet
+
+### Användarens egna ord (ordagrant)
+
+```
+Thank you very much for this app. I've been waiting en hoping for this for a long time.
+Installation went well.
+
+I mis one feature that would be really nice. I use customized Mowing angle pattern and
+cutting height etc. Would it be possible to run on of these tasks as programmed in the
+mammotion app?
+
+Everytime it starts now it does the same pattern and at the lowest setting. That is also a
+big risk if that does not get adjusted of cutting the gras far to short. Hope to hear from
+you and thanks again!!
+```
+
+### Vad som rapporteras
+
+1. Vill köra sina sparade tasks (eget klippmönster, egen klipphöjd) från Homey.
+2. Generisk start ger alltid **samma mönster** och **lägsta klipphöjd**.
+3. Användaren lyfter själv **säkerhetsrisken**: att klippa gräset alldeles för kort.
+
+### Varför den är viktig
+
+Andra oberoende rapporten om samma sak som R9, men nu med **klipphöjd** utöver spacing —
+och med en uttalad skadeaspekt. Koden bekräftade beskrivningen ordagrant, se
+[D i planen](./USER_REPORTS_PLAN.md#d--p1--klippparametrar-går-inte-att-styra): tomt
+`blade_height`-fält gav 25 mm, kortets egen miniminivå, och av/på-reglaget skickade inga
+parametrar alls. "Lowest setting" var bokstavligt sant.
+
+Det användaren efterfrågar i punkt 1 **finns redan**: `start_mowing_schedule`
+("Start mowing task") kör den sparade tasken med dess egna inställningar.
 
 ---
 
