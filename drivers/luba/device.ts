@@ -96,6 +96,11 @@ const OFFLINE_POLL_MAX_MS = 60_000; // 1 min
 const RATE_LIMIT_COOLDOWN_STORE_KEY = 'rateLimitCooldownUntil';
 
 // requestBoundaryZoneDiscovery() budgets — see docs/ZONE_BOUNDARY_FALLBACK_PLAN.md §5.
+/** How long interruptReturnIfNeeded waits for the mower to acknowledge a pause before
+ *  sending the start regardless. 10 s is the gap the hand-built pause→start workaround used
+ *  successfully on a real mower (report R3); a shorter window has no evidence behind it. */
+const RETURN_INTERRUPT_TIMEOUT_MS = 10_000;
+
 // Deliberately much more generous than waitForZoneCache's 3s: this is a many-round-trip
 // sequence, gated to run at most once ever per device (see actionPlanAndStartMowing).
 const BOUNDARY_FRAME_TIMEOUT_MS = 5_000; // matches the reference's step_timeout
@@ -156,6 +161,8 @@ export default class LubaDevice extends Homey.Device {
   private zoneCacheWaiters: Array<() => void> = [];
   /** Pending resolvers for a generate-route confirmation echo — see actionPlanAndStartMowing(). */
   private routeConfirmWaiters: Array<() => void> = [];
+  /** Pending resolvers for the next mower_status *change* — see waitForStatusChange(). */
+  private statusWaiters: Array<(status: MowerStatus) => void> = [];
   /** Pending resolvers for the next root boundary-hash-list frame — see
    *  requestBoundaryZoneDiscovery()/waitForRootHashFrame(). */
   private rootHashWaiters: Array<(frame: RootHashListFrame) => void> = [];
@@ -532,6 +539,52 @@ export default class LubaDevice extends Homey.Device {
     });
   }
 
+  /** Resolves with the new status the next time mower_status changes, or with null after
+   *  timeoutMs — same shape as waitForRouteConfirmation. Only *changes* wake it: a mower that
+   *  keeps reporting the same status never resolves this early, which is the point. */
+  private waitForStatusChange(timeoutMs: number): Promise<MowerStatus | null> {
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        this.statusWaiters = this.statusWaiters.filter((w) => w !== onChange);
+        resolve(null);
+      }, timeoutMs);
+      const onChange = (status: MowerStatus) => { clearTimeout(timer); resolve(status); };
+      this.statusWaiters.push(onChange);
+    });
+  }
+
+  /** If the mower is currently driving back to the dock, pauses it and waits for it to
+   *  acknowledge before the caller sends a start — otherwise a no-op.
+   *
+   *  Why this exists: mower_job_finished deliberately fires the moment the mower turns for
+   *  home (see updateMowerStatus and docs/SCHEDULE_START_PLAN.md §5), so that a Flow can chain
+   *  straight into the next task without waiting out the drive. But a start command that
+   *  arrives while the mower is in MODE_RETURNING is silently dropped by the device — the
+   *  cloud acks it (`code:0`), the mower carries on to the dock, and nothing in our logs says
+   *  why. That is exactly the flow the trigger's own hint tells users to build, and a real
+   *  user built it and watched it fail (reports R1/R4). The same user then found by hand what
+   *  works: pause first, then start (R3). This does that for them.
+   *
+   *  `pause` rather than `cancelDock`: pause is the sequence a real user confirmed against a
+   *  real mower; cancelDock (action 12) is the semantically tidier command but has no such
+   *  confirmation yet. Swap it in only after seeing it work on hardware.
+   *
+   *  The wait is best-effort. On MQTT the device reports the change within a few seconds; on
+   *  the slow-polled aliyun_legacy transport we may not *observe* it inside the window at
+   *  all, so on timeout we proceed anyway — the device has still had the same ~10 s the
+   *  hand-built workaround relied on, and that was enough there. */
+  private async interruptReturnIfNeeded(): Promise<void> {
+    if (this.currentStatus !== 'returning') return;
+    this.log('Mower is returning to dock — pausing it so the start is not dropped');
+    await this.sendTaskControlRaw('pause');
+    const next = await this.waitForStatusChange(RETURN_INTERRUPT_TIMEOUT_MS);
+    if (next === null) {
+      this.log(`No status change observed within ${RETURN_INTERRUPT_TIMEOUT_MS}ms after pause — proceeding with start anyway`);
+    } else {
+      this.log(`Mower left 'returning' (now '${next}') — proceeding with start`);
+    }
+  }
+
   /** Diagnostic-only: logs a device-pushed fault code (MctlSys.toapp_err_code — see
    *  ErrorCodeParser.ts), a distinct one-shot message from the periodic telemetry report.
    *  Not yet wired to alarm_generic/mower_error — the numeric code_no → fault meaning
@@ -650,9 +703,11 @@ export default class LubaDevice extends Homey.Device {
    *  mechanism than actionPlanAndStartMowing's own ad-hoc route building. Throws if planId is
    *  falsy rather than silently sending an empty id to the device. Records taskName so a later
    *  mower_job_finished can report which task just completed — see lastStartedTaskName's doc
-   *  comment. */
+   *  comment. Interrupts an in-progress return-to-dock first (interruptReturnIfNeeded) so a
+   *  task chained off mower_job_finished actually starts instead of being dropped. */
   async actionStartSchedule(planId: string, taskName?: string): Promise<void> {
     if (!planId) throw new MammotionError('No task selected');
+    await this.interruptReturnIfNeeded();
     this.lastStartedTaskName = taskName || null;
     const session = await this.getSession();
     const context = this.getContext();
@@ -1320,6 +1375,9 @@ export default class LubaDevice extends Homey.Device {
     this.setCapIfChanged('alarm_generic', isErrorMode(rawMode));
 
     if (status === wasStatus) return;
+    const statusWaiters = this.statusWaiters;
+    this.statusWaiters = [];
+    statusWaiters.forEach((resolve) => resolve(status));
     const driver = this.driver as unknown as LubaDriver;
     driver.triggerMowerStatusChanged(this, status);
     if (status === 'mowing') {
@@ -1450,6 +1508,7 @@ export default class LubaDevice extends Homey.Device {
   }
 
   async actionPlanAndStartMowing(options: StartMowOptions): Promise<void> {
+    await this.interruptReturnIfNeeded();
     // Not a schedule-task start — clear any tracked name so a later mower_job_finished doesn't
     // mislabel this job with a stale task name from a previous actionStartSchedule() call.
     this.lastStartedTaskName = null;

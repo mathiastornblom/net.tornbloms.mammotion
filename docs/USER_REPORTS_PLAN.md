@@ -20,7 +20,7 @@ går inte att para. Resten är förbättringar och önskemål.
 |---|---|---|---|
 | **P0** | [A. Ingen statusuppdatering](#a--p0--ingen-statusuppdatering) | R5, R7, R8, R12.3, R12.5 | Tre separata orsaker som alla ger samma symptom |
 | **P0** | [B. Delade enheter syns inte vid parning](#b--p0--delade-enheter-syns-inte-vid-parning) | R11, R12.7 (+minst en till) | `records=1` men tom lista i UI:t |
-| **P1** | [C. Task-kedjning fungerar inte](#c--p1--task-kedjning-fungerar-inte) | R1, R3, R4 | Vår egen hint lovar något appen inte gör |
+| ✅ **P1** | [C. Task-kedjning fungerar inte](#c--p1--task-kedjning-fungerar-inte) | R1, R3, R4 | Return-avbrott före start implementerat — väntar hårdvaruverifiering |
 | ✅ **P1** | [D. Klippparametrar](#d--p1--klippparametrar-går-inte-att-styra) | R9, R13 | Spacing och klipphöjd hämtas nu från klipparens egna sparade tasks |
 | **P1** | [E. Bara "Task 1" listas](#e--p1--bara-task-1-listas) | R12.2 | Ej reproducerad — behöver bekräftas |
 | ✅ **P2** | [F. Saknade Flow-kort](#f--p2--saknade-flow-kort) | R12.2 | `resume_mowing`-kortet tillagt |
@@ -233,14 +233,26 @@ R1:s logg visar att `sysStatus` går 13 (mowing) → 14 (returning) och att inge
 som anländer medan mowern är i return-to-dock ignoreras av enheten, medan en `pause` först
 avbryter returen. **Detta är en hypotes, inte verifierad.**
 
+**Bekräftat i koden, inte bara hypotes:** `updateMowerStatus` fyrar `mower_job_finished`
+**i samma ögonblick** status blir `returning` — kommentaren säger uttryckligen att en kedjad
+task inte ska behöva vänta ut hemresan. Designen förutsatte alltså start från returläget men
+hanterade aldrig att enheten släpper en start som anländer där. Varje kedjning via den här
+triggern träffar det läget, per konstruktion. Det är därför det aldrig fungerade.
+
 **Åtgärd:**
-1. Bekräfta mekanismen — be R3-användaren om den logg hen redan erbjudit sig att skicka
-   från en fungerande körning, och jämför mot R1.
-2. Om hypotesen håller: låt `start_mowing_schedule` internt skicka `pause` (eller
-   `cancelDock`, som redan finns som `DeviceCommand`) och invänta att `sysStatus` lämnar 14
-   innan `start` skickas. Då fungerar användarens ursprungliga flöde utan manuella
-   fördröjningar.
-3. Tills dess: rätta hinten så den beskriver det som faktiskt fungerar.
+1. ✅ **Implementerad.** `interruptReturnIfNeeded()` i `device.ts`: om `mower_status` är
+   `returning` skickas `pause`, sedan inväntas (max 10 s) att statusen lämnar `returning`,
+   därefter skickas starten oavsett. Anropas först i **båda** startvägarna
+   (`actionStartSchedule` och `actionPlanAndStartMowing`), så även generisk start och
+   on/off-reglaget täcks. Ny statusväntare (`waitForStatusChange`) enligt samma mönster som
+   `waitForRouteConfirmation`. 10 s är den paus R3-användarens handbyggda flöde använde;
+   `pause` i stället för `cancelDock` för att pause är det som är bekräftat mot hårdvara.
+2. **Kvarstår — verifiering på riktig klippare.** Mekanismen är härledd ur kod + R3:s
+   fungerande workaround, inte testad end-to-end. Be R3-användaren ta bort sina manuella
+   pause/vänta-kort och köra det ursprungliga flödet igen på nästa version. Loggraderna
+   `Mower is returning to dock — pausing…` / `Mower left 'returning'…` visar exakt vad
+   som hände.
+3. Hinten på `mower_job_finished` blir sann i och med detta och lämnas som den är.
 4. Verifiera kommandoutfall generellt — se [G3](#g3-kommandon-kvitteras-men-utförs-inte).
 
 **Ta med:** frågan om tidsmarginalerna (10 s/20 s) är fältberoende. Om appen sköter
@@ -504,7 +516,7 @@ Flera rapporter är inte buggar utan att användare inte hittar det som finns.
 
 **Steg 3 — P0/P1**
 - B: parningsbuggen, utifrån vad steg 1 visade
-- C: task-kedjning
+- ✅ C: task-kedjning — implementerad, hårdvaruverifiering kvar
 - D: klippparametrar
 
 **Steg 4 — snabba vinster, kan tas när som helst**
