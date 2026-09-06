@@ -7,7 +7,12 @@
     "command_failed": "Error al ejecutar el comando",
     "no_devices_found": "No se encontraron cortacéspedes en esta cuenta. Abre la aplicación Mammotion y comprueba que la invitación de uso compartido ha sido aceptada, luego inténtalo de nuevo — tras aceptarla pueden pasar unos minutos antes de que aparezca el cortacésped.",
     "legacy_devices_found": "Se encontró tu(s) cortacésped(es) registrado(s) en el sistema en la nube antiguo de Mammotion, que esta aplicación aún no admite — se ha informado al desarrollador, que está trabajando para añadir compatibilidad. Vuelve a intentarlo en una futura actualización.",
-    "no_zones_known": "Aún no se conocen zonas de corte. Abre el cortacésped en la aplicación Mammotion, o espera un momento e inténtalo de nuevo. Consejo: asigna un nombre a tus zonas en la aplicación Mammotion para una selección de zona instantánea y fiable."
+    "no_zones_known": "Aún no se conocen zonas de corte. Abre el cortacésped en la aplicación Mammotion, o espera un momento e inténtalo de nuevo. Consejo: asigna un nombre a tus zonas en la aplicación Mammotion para una selección de zona instantánea y fiable.",
+    "device_unbound": "Este cortacésped ya no está vinculado a la cuenta que usa Homey. Usa Reparar en el dispositivo e inicia sesión de nuevo para volver a vincularlo."
+  },
+  "warning": {
+    "aliyun_budget_throttled": "Límite de solicitudes en la nube casi alcanzado — las actualizaciones de estado se han ralentizado para que los comandos de inicio/parada sigan funcionando. Se recupera automáticamente.",
+    "aliyun_rate_limited": "La nube de Mammotion está limitando esta cuenta — las comprobaciones de estado se espacian (hasta cada 30 minutos) hasta que se resuelva. Se recupera automáticamente."
   },
   "pair": {
     "account_setup": {

@@ -7,7 +7,7 @@ import { MammotionAuth } from '../../lib/mammotion/auth/MammotionAuth.js';
 import { extractTelemetry } from '../../lib/mammotion/protocol/TelemetryParser.js';
 import { workModeToStatus, isErrorMode, type MowerStatus } from '../../lib/mammotion/protocol/WorkModeStatus.js';
 import { MOWING_ACTIVE_WORK_MODES } from '../../lib/mammotion/constants.js';
-import { extractSchedule, type ScheduleInfo } from '../../lib/mammotion/protocol/ScheduleParser.js';
+import { resolveStoredBladeHeight, resolveStoredRouteSpacing, extractSchedule, type ScheduleInfo } from '../../lib/mammotion/protocol/ScheduleParser.js';
 import { extractErrorCode, extractUpdateBuf, extractRainProtection } from '../../lib/mammotion/protocol/ErrorCodeParser.js';
 import { extractAreaHashNames, type AreaHashName } from '../../lib/mammotion/protocol/AreaNameParser.js';
 import {
@@ -40,8 +40,12 @@ import {
   NoZonesKnownError,
 } from '../../lib/mammotion/errors.js';
 import { errorMessage } from '../../lib/util/errorMessage.js';
-import { sendAliyunCloudCommand } from '../../lib/mammotion/aliyun/commands.js';
-import type { AliyunRequestGovernor } from '../../lib/mammotion/aliyun/RequestGovernor.js';
+import { sendAliyunCloudCommand, ALIYUN_INVOKE_CODE } from '../../lib/mammotion/aliyun/commands.js';
+import { ALIYUN_SEND_LIMIT, type AliyunRequestGovernor } from '../../lib/mammotion/aliyun/RequestGovernor.js';
+import {
+  pollBackoffMs, composeWithPacing, ACCOUNT_BACKOFF_MAX_MS, ACCOUNT_PENALTY_WARN_AFTER,
+  UNBOUND_UNAVAILABLE_AFTER, type PollFailureKind,
+} from '../../lib/mammotion/aliyun/pollBackoff.js';
 import {
   DeviceType, resolveDeviceType, capabilitiesForModel, MODEL_STRING,
 } from '../../lib/mammotion/deviceType.js';
@@ -85,17 +89,28 @@ const SYNC_ON_CONNECT_DELAY_MS = 2_000;
 // scheduleMqttReconnect's own cap below) rather than minutes: a user coming home and
 // switching the mower back on expects Homey to notice within well under a minute, not
 // however long a looser cap would allow.
-const OFFLINE_POLL_BASE_MS = 10_000;
-const OFFLINE_POLL_MAX_MS = 60_000; // 1 min
+// The ladders themselves now live in lib/mammotion/aliyun/pollBackoff.ts, split by what
+// failed — see that file for why one 60 s-capped ladder for everything was the R7 bug.
 // Persisted across app restarts (see startPollTimer/runPollTick) so restarting the app during
 // an active Aliyun rate-limit window doesn't reset straight back to full-speed polling — a real
 // diagnostic report (2026-07-15) showed a user stuck repeatedly restarting because of "device
 // unavailable", each restart firing an immediate requestSync that got 429'd again 5s later,
-// never actually letting the rate-limit window clear. Capped at OFFLINE_POLL_MAX_MS so a stale
-// or clock-skewed value can never delay startup by more than the normal backoff ceiling.
+// never actually letting the rate-limit window clear. Capped at ACCOUNT_BACKOFF_MAX_MS so a
+// stale or clock-skewed value can never delay startup by more than the backoff ceiling —
+// previously capped at 60 s, which silently truncated any longer cooldown on every restart.
 const RATE_LIMIT_COOLDOWN_STORE_KEY = 'rateLimitCooldownUntil';
+// The consecutive-failure count behind that cooldown, persisted alongside it so a restart
+// resumes the backoff ladder where it was instead of starting over at the shortest step —
+// the state mismatch R7's log showed: a cooldown "resumed from before restart" followed
+// immediately by "failure #1".
+const RATE_LIMIT_FAILURE_COUNT_STORE_KEY = 'rateLimitFailureCount';
 
 // requestBoundaryZoneDiscovery() budgets — see docs/ZONE_BOUNDARY_FALLBACK_PLAN.md §5.
+/** How long interruptReturnIfNeeded waits for the mower to acknowledge a pause before
+ *  sending the start regardless. 10 s is the gap the hand-built pause→start workaround used
+ *  successfully on a real mower (report R3); a shorter window has no evidence behind it. */
+const RETURN_INTERRUPT_TIMEOUT_MS = 10_000;
+
 // Deliberately much more generous than waitForZoneCache's 3s: this is a many-round-trip
 // sequence, gated to run at most once ever per device (see actionPlanAndStartMowing).
 const BOUNDARY_FRAME_TIMEOUT_MS = 5_000; // matches the reference's step_timeout
@@ -129,9 +144,17 @@ export default class LubaDevice extends Homey.Device {
   private activeTransport: TransportName = 'none';
 
   private pollTimer: NodeJS.Timeout | null = null;
+  /** Last Aliyun budget tier reported (see reportBudgetTier) — -1 so the first tick always
+   *  logs and syncs the device warning, including after a restart that restored a hot window. */
+  private lastBudgetTier = -1;
+  /** Inputs to syncDeviceWarning(): the two independent reasons a device may carry a warning. */
+  private budgetWarningActive = false;
+  private penaltyWarningActive = false;
+  /** Which warning is currently shown, so setWarning/unsetWarning are only called on change. */
+  private shownWarningKey: string | null = null;
   private mqttReconnectTimer: NodeJS.Timeout | null = null;
   private mqttFailureCount = 0;
-  /** Consecutive confirmed-offline poll results — drives OFFLINE_POLL_* backoff. Reset to 0
+  /** Consecutive failed poll results — drives the per-cause ladders in pollBackoff.ts. Reset to 0
    *  the moment a poll succeeds or any online-transition callback fires (markOnline). */
   private offlinePollFailureCount = 0;
 
@@ -156,6 +179,8 @@ export default class LubaDevice extends Homey.Device {
   private zoneCacheWaiters: Array<() => void> = [];
   /** Pending resolvers for a generate-route confirmation echo — see actionPlanAndStartMowing(). */
   private routeConfirmWaiters: Array<() => void> = [];
+  /** Pending resolvers for the next mower_status *change* — see waitForStatusChange(). */
+  private statusWaiters: Array<(status: MowerStatus) => void> = [];
   /** Pending resolvers for the next root boundary-hash-list frame — see
    *  requestBoundaryZoneDiscovery()/waitForRootHashFrame(). */
   private rootHashWaiters: Array<(frame: RootHashListFrame) => void> = [];
@@ -532,6 +557,52 @@ export default class LubaDevice extends Homey.Device {
     });
   }
 
+  /** Resolves with the new status the next time mower_status changes, or with null after
+   *  timeoutMs — same shape as waitForRouteConfirmation. Only *changes* wake it: a mower that
+   *  keeps reporting the same status never resolves this early, which is the point. */
+  private waitForStatusChange(timeoutMs: number): Promise<MowerStatus | null> {
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        this.statusWaiters = this.statusWaiters.filter((w) => w !== onChange);
+        resolve(null);
+      }, timeoutMs);
+      const onChange = (status: MowerStatus) => { clearTimeout(timer); resolve(status); };
+      this.statusWaiters.push(onChange);
+    });
+  }
+
+  /** If the mower is currently driving back to the dock, pauses it and waits for it to
+   *  acknowledge before the caller sends a start — otherwise a no-op.
+   *
+   *  Why this exists: mower_job_finished deliberately fires the moment the mower turns for
+   *  home (see updateMowerStatus and docs/SCHEDULE_START_PLAN.md §5), so that a Flow can chain
+   *  straight into the next task without waiting out the drive. But a start command that
+   *  arrives while the mower is in MODE_RETURNING is silently dropped by the device — the
+   *  cloud acks it (`code:0`), the mower carries on to the dock, and nothing in our logs says
+   *  why. That is exactly the flow the trigger's own hint tells users to build, and a real
+   *  user built it and watched it fail (reports R1/R4). The same user then found by hand what
+   *  works: pause first, then start (R3). This does that for them.
+   *
+   *  `pause` rather than `cancelDock`: pause is the sequence a real user confirmed against a
+   *  real mower; cancelDock (action 12) is the semantically tidier command but has no such
+   *  confirmation yet. Swap it in only after seeing it work on hardware.
+   *
+   *  The wait is best-effort. On MQTT the device reports the change within a few seconds; on
+   *  the slow-polled aliyun_legacy transport we may not *observe* it inside the window at
+   *  all, so on timeout we proceed anyway — the device has still had the same ~10 s the
+   *  hand-built workaround relied on, and that was enough there. */
+  private async interruptReturnIfNeeded(): Promise<void> {
+    if (this.currentStatus !== 'returning') return;
+    this.log('Mower is returning to dock — pausing it so the start is not dropped');
+    await this.sendTaskControlRaw('pause');
+    const next = await this.waitForStatusChange(RETURN_INTERRUPT_TIMEOUT_MS);
+    if (next === null) {
+      this.log(`No status change observed within ${RETURN_INTERRUPT_TIMEOUT_MS}ms after pause — proceeding with start anyway`);
+    } else {
+      this.log(`Mower left 'returning' (now '${next}') — proceeding with start`);
+    }
+  }
+
   /** Diagnostic-only: logs a device-pushed fault code (MctlSys.toapp_err_code — see
    *  ErrorCodeParser.ts), a distinct one-shot message from the periodic telemetry report.
    *  Not yet wired to alarm_generic/mower_error — the numeric code_no → fault meaning
@@ -650,9 +721,11 @@ export default class LubaDevice extends Homey.Device {
    *  mechanism than actionPlanAndStartMowing's own ad-hoc route building. Throws if planId is
    *  falsy rather than silently sending an empty id to the device. Records taskName so a later
    *  mower_job_finished can report which task just completed — see lastStartedTaskName's doc
-   *  comment. */
+   *  comment. Interrupts an in-progress return-to-dock first (interruptReturnIfNeeded) so a
+   *  task chained off mower_job_finished actually starts instead of being dropped. */
   async actionStartSchedule(planId: string, taskName?: string): Promise<void> {
     if (!planId) throw new MammotionError('No task selected');
+    await this.interruptReturnIfNeeded();
     this.lastStartedTaskName = taskName || null;
     const session = await this.getSession();
     const context = this.getContext();
@@ -1015,8 +1088,18 @@ export default class LubaDevice extends Homey.Device {
   private startPollTimer(): void {
     const cooldownUntil = this.getStoreValue(RATE_LIMIT_COOLDOWN_STORE_KEY) as number | null;
     const remaining = typeof cooldownUntil === 'number' ? cooldownUntil - Date.now() : 0;
-    const delay = remaining > 0 ? Math.min(remaining, OFFLINE_POLL_MAX_MS) : this.currentPollIntervalMs();
-    if (remaining > 0) this.log(`Poll: resuming a rate-limit cooldown from before restart — first check in ${Math.round(delay / 1000)}s`);
+    const savedFailures = this.getStoreValue(RATE_LIMIT_FAILURE_COUNT_STORE_KEY) as number | null;
+    if (remaining > 0 && typeof savedFailures === 'number' && savedFailures > 0) {
+      this.offlinePollFailureCount = savedFailures;
+    }
+    // Legacy devices on the same account start with a random offset so they don't poll in
+    // lockstep: a real report (R8) showed two mowers hitting the gateway on the very same
+    // millisecond every tick, because both timers were armed together at app start. Capped
+    // at 60 s so the first status after a restart is still prompt.
+    const desync = this.getContext().transportKind === 'aliyun_legacy'
+      ? Math.floor(Math.random() * Math.min(this.currentPollIntervalMs(), 60_000)) : 0;
+    const delay = remaining > 0 ? Math.min(remaining, ACCOUNT_BACKOFF_MAX_MS) : this.currentPollIntervalMs() + desync;
+    if (remaining > 0) this.log(`Poll: resuming a rate-limit cooldown from before restart — first check in ${Math.round(delay / 1000)}s (failure #${this.offlinePollFailureCount})`);
     this.schedulePoll(delay);
   }
 
@@ -1032,9 +1115,13 @@ export default class LubaDevice extends Homey.Device {
   /** Schedules the next poll tick — a plain setTimeout, not setInterval, so the delay can
    *  vary per tick (normal cadence while reachable, backed off once confirmed offline). */
   private schedulePoll(delayMs: number): void {
+    // Small per-tick jitter for legacy devices keeps two mowers that happened to align from
+    // staying aligned — see startPollTimer's desync comment. Backoff delays pass through
+    // this too, which is fine: ±10% on a cooldown changes nothing about its intent.
+    const jitter = this.getContext().transportKind === 'aliyun_legacy' ? 0.9 + Math.random() * 0.2 : 1;
     this.pollTimer = setTimeout(() => {
       void this.runPollTick();
-    }, delayMs);
+    }, Math.round(delayMs * jitter));
   }
 
   /** Runs one requestSync() attempt and reschedules the next one. A confirmed
@@ -1045,7 +1132,7 @@ export default class LubaDevice extends Homey.Device {
    *  AliyunCredentialsRefreshError (a *real* handshake attempt that failed, e.g. getRegion
    *  returning HTTP 500 — the 1-2 attempts every outage/re-open cycle makes *before* the
    *  circuit breaker's failure count reaches its limit and starts fast-failing) all back off
-   *  exponentially (OFFLINE_POLL_BASE_MS → _MAX_MS, same backoff shape as BleTransport) instead
+   *  exponentially (per-cause ladders in pollBackoff.ts; the offline one keeps BleTransport's shape) instead
    *  of hammering at full 5s cadence for a mower that could be powered off for hours, or worse,
    *  retrying a doomed operation at full speed forever (a real diagnostic report showed exactly
    *  this for a 429: requestSync every 5s for 15+ minutes straight, 2026-07-05).
@@ -1061,10 +1148,17 @@ export default class LubaDevice extends Homey.Device {
    *  much slower baseline and why 5s turned out to be the actual root cause, not just a
    *  symptom amplifier. */
   private async runPollTick(): Promise<void> {
+    // The paced interval for this device right now. For modern (MQTT) devices this is just
+    // the base cadence; for aliyun_legacy it is the base scaled by the shared governor's
+    // current tier, or null when only the command reserve is left. See RequestGovernor.ts.
+    let pacedDelayMs: number | null = this.currentPollIntervalMs();
     if (this.getContext().transportKind === 'aliyun_legacy') {
       const governor = (this.driver as unknown as LubaDriver).getAliyunRequestGovernor();
-      if (governor.shouldSkipPoll()) {
-        this.log(`Poll: skipping — account-wide Aliyun request budget nearly exhausted (${governor.remaining()} left in the current 12h window)`);
+      pacedDelayMs = governor.pollDelayMs(this.currentPollIntervalMs());
+      this.reportBudgetTier(governor, pacedDelayMs);
+      if (pacedDelayMs === null) {
+        // Re-check at the base cadence without sending anything; the tier log above already
+        // said why, once, so this is deliberately silent per tick.
         this.schedulePoll(this.currentPollIntervalMs());
         return;
       }
@@ -1074,40 +1168,92 @@ export default class LubaDevice extends Homey.Device {
       this.offlinePollFailureCount = 0;
       if (this.getStoreValue(RATE_LIMIT_COOLDOWN_STORE_KEY)) {
         this.setStoreValue(RATE_LIMIT_COOLDOWN_STORE_KEY, null).catch(this.error.bind(this));
+        this.setStoreValue(RATE_LIMIT_FAILURE_COUNT_STORE_KEY, null).catch(this.error.bind(this));
       }
-      this.schedulePoll(this.currentPollIntervalMs());
+      if (this.penaltyWarningActive) {
+        this.penaltyWarningActive = false;
+        this.syncDeviceWarning();
+      }
+      this.schedulePoll(pacedDelayMs);
     } catch (err) {
       const isRateLimited = err instanceof AliyunCommandError && err.code === 429;
+      const isUnbound = err instanceof AliyunCommandError && err.code === ALIYUN_INVOKE_CODE.DEVICE_UNBOUND;
       // Any *other* non-200 code from the invoke gateway (e.g. 20056 "gateway.hsf.invoke.timeout",
-      // an Aliyun-side backend overload signal, not anything device-specific) used to fall through
-      // to the "any other outcome" branch below and retry at full 5s cadence — hammering an
-      // already-struggling gateway every 5s instead of backing off, which two real diagnostic
-      // reports from the same account (2026-07-16, log IDs 6018d080 and 938a4a56) showed
-      // escalating into a sustained account-wide 429 that lasted for hours and recurred daily.
-      // No AliyunCommandError code is ever worth fast-retrying — same reasoning as 429 below.
-      const isAliyunGatewayError = err instanceof AliyunCommandError && !isRateLimited;
+      // an Aliyun-side backend overload signal, not anything device-specific) is treated as an
+      // account-wide penalty too: two real diagnostic reports from the same account (2026-07-16,
+      // log IDs 6018d080 and 938a4a56) showed fast-retrying one escalate into a sustained
+      // account-wide 429 that lasted for hours and recurred daily.
+      const isAliyunGatewayError = err instanceof AliyunCommandError && !isRateLimited && !isUnbound;
       const isAliyunUnreachable = err instanceof AliyunCircuitOpenError || err instanceof AliyunCredentialsRefreshError;
-      if (err instanceof DeviceOfflineError || isRateLimited || isAliyunGatewayError || isAliyunUnreachable) {
+      const kind: PollFailureKind | null = isUnbound ? 'device_unbound'
+        : (isRateLimited || isAliyunGatewayError || isAliyunUnreachable) ? 'account_penalty'
+          : err instanceof DeviceOfflineError ? 'device_offline' : null;
+      if (kind !== null) {
         this.offlinePollFailureCount += 1;
-        const delay = Math.min(OFFLINE_POLL_BASE_MS * (2 ** this.offlinePollFailureCount), OFFLINE_POLL_MAX_MS);
-        const reason = isRateLimited
-          ? 'rate-limited by Aliyun'
-          : isAliyunGatewayError ? `Aliyun gateway error (${(err as AliyunCommandError).code})`
-            : isAliyunUnreachable ? 'Aliyun cloud unreachable' : 'mower still offline';
+        // Three ladders by cause, composed with the budget pacing so a retry can never run
+        // faster than the account's current tier allows — see pollBackoff.ts for the R7
+        // report that a single 60 s-capped ladder produced (failure #1374, a day of it).
+        const delay = composeWithPacing(pollBackoffMs(kind, this.offlinePollFailureCount), pacedDelayMs);
+        const reason = isUnbound
+          ? 'mower is no longer bound to this account (29004) — repair the device to re-bind it'
+          : isRateLimited ? 'rate-limited by Aliyun'
+            : isAliyunGatewayError ? `Aliyun gateway error (${(err as AliyunCommandError).code})`
+              : isAliyunUnreachable ? 'Aliyun cloud unreachable' : 'mower still offline';
         this.log(`Poll: ${reason} — next check in ${Math.round(delay / 1000)}s (failure #${this.offlinePollFailureCount})`);
-        // Only persist the cooldown for account-wide Aliyun-side penalties (rate-limit/gateway
-        // error/circuit breaker) — a DeviceOfflineError is mower-specific (e.g. powered off) and
-        // says nothing about whether a fresh poll after restart would still be penalized, so it
-        // shouldn't delay the next app startup's first check.
-        if (isRateLimited || isAliyunGatewayError || isAliyunUnreachable) {
+        // Only persist the cooldown for account-wide penalties and unbound — a DeviceOfflineError
+        // is mower-specific (e.g. powered off) and says nothing about whether a fresh poll after
+        // restart would still be penalized, so it shouldn't delay the next app startup's first
+        // check. The count goes with it so the ladder resumes rather than restarts.
+        if (kind !== 'device_offline') {
           this.setStoreValue(RATE_LIMIT_COOLDOWN_STORE_KEY, Date.now() + delay).catch(this.error.bind(this));
+          this.setStoreValue(RATE_LIMIT_FAILURE_COUNT_STORE_KEY, this.offlinePollFailureCount).catch(this.error.bind(this));
+        }
+        if (kind === 'device_unbound' && this.offlinePollFailureCount >= UNBOUND_UNAVAILABLE_AFTER) {
+          // Unavailable, not a warning, on purpose: no command can succeed either until the
+          // user repairs, and Homey's repair flow is reachable from an unavailable device —
+          // the same treatment invalid credentials already get. Cleared by the repair path's
+          // retry (markOnline on the next successful poll).
+          this.setUnavailable(this.homey.__('error.device_unbound')).catch(this.error.bind(this));
+        } else if (kind === 'account_penalty' && this.offlinePollFailureCount >= ACCOUNT_PENALTY_WARN_AFTER && !this.penaltyWarningActive) {
+          this.penaltyWarningActive = true;
+          this.syncDeviceWarning();
         }
         this.schedulePoll(delay);
       } else {
         this.error(`Poll sync failed: ${errorMessage(err)}`);
-        this.schedulePoll(this.currentPollIntervalMs());
+        this.schedulePoll(pacedDelayMs);
       }
     }
+  }
+
+  /** Logs the shared Aliyun budget tier when it changes and mirrors it onto the device as a
+   *  warning at the slow tiers. A warning, not unavailable: unavailable would block the
+   *  user's own start/stop commands — which are exactly what the command reserve exists to
+   *  protect — and those bypass the poll pacing entirely. Logged on transitions only: the
+   *  previous per-tick "skipping" line filled a real report (R8) with 27 identical lines in
+   *  55 minutes and told the user nothing new after the first. */
+  private reportBudgetTier(governor: AliyunRequestGovernor, pacedDelayMs: number | null): void {
+    const tier = governor.usageTier();
+    if (tier === this.lastBudgetTier) return;
+    this.lastBudgetTier = tier;
+    const interval = pacedDelayMs === null ? 'paused (only the command reserve is left)' : `${Math.round(pacedDelayMs / 1000)}s`;
+    this.log(`Poll: Aliyun budget tier ${tier} — ${governor.used()}/${governor.pollCap()} of the poll cap used, ${governor.remaining()}/${ALIYUN_SEND_LIMIT} left in the 12h window; interval now ${interval}`);
+    this.budgetWarningActive = tier >= 2;
+    this.syncDeviceWarning();
+  }
+
+  /** Shows the single most important active warning, or none. Two independent conditions
+   *  can want the warning slot — an account-wide Aliyun penalty (A2) and our own budget
+   *  pacing (A1) — and each clearing its own would otherwise wipe the other's message. The
+   *  penalty wins: it is the cloud refusing us, which is the more urgent thing to know.
+   *  Only calls setWarning/unsetWarning when the shown message actually changes. */
+  private syncDeviceWarning(): void {
+    const key = this.penaltyWarningActive ? 'warning.aliyun_rate_limited'
+      : this.budgetWarningActive ? 'warning.aliyun_budget_throttled' : null;
+    if (key === this.shownWarningKey) return;
+    this.shownWarningKey = key;
+    if (key === null) this.unsetWarning().catch(this.error.bind(this));
+    else this.setWarning(this.homey.__(key)).catch(this.error.bind(this));
   }
 
   /** Re-arms the one-shot telemetry report subscription. No-op while BLE is primary — BLE
@@ -1320,6 +1466,9 @@ export default class LubaDevice extends Homey.Device {
     this.setCapIfChanged('alarm_generic', isErrorMode(rawMode));
 
     if (status === wasStatus) return;
+    const statusWaiters = this.statusWaiters;
+    this.statusWaiters = [];
+    statusWaiters.forEach((resolve) => resolve(status));
     const driver = this.driver as unknown as LubaDriver;
     driver.triggerMowerStatusChanged(this, status);
     if (status === 'mowing') {
@@ -1431,7 +1580,26 @@ export default class LubaDevice extends Homey.Device {
    *  an already-fully-mowed cached job and returned to dock within seconds. Fails closed
    *  (NoZonesKnownError) rather than falling back to that bare-start behaviour if no zones
    *  can be resolved even after a best-effort enumeration attempt. */
+  /** See resolveStoredRouteSpacing — the route spacing the user configured on the device
+   *  itself. Starting a *task* (actionStartSchedule → plan_task_execute) runs entirely from
+   *  the device's own saved settings; the generic start path has to plan a route itself and
+   *  used to do so at a fixed spacing, so the same lawn could be cut differently depending
+   *  on which Flow card was used (report R9). */
+  private storedChannelWidth(): number | undefined {
+    return resolveStoredRouteSpacing(this.scheduleCache);
+  }
+
+  /** See resolveStoredBladeHeight — the cutting height the user configured on the device
+   *  itself. The generic start path used to fall back to a fixed 25 mm, which is the
+   *  *minimum* the start_mowing card allows and what the plain on/off toggle got every time
+   *  since it passes no options (R9, and a later App Store report of the mower cutting far
+   *  shorter than set). */
+  private storedBladeHeight(): number | undefined {
+    return resolveStoredBladeHeight(this.scheduleCache);
+  }
+
   async actionPlanAndStartMowing(options: StartMowOptions): Promise<void> {
+    await this.interruptReturnIfNeeded();
     // Not a schedule-task start — clear any tracked name so a later mower_job_finished doesn't
     // mislabel this job with a stale task name from a previous actionStartSchedule() call.
     this.lastStartedTaskName = null;
@@ -1463,10 +1631,23 @@ export default class LubaDevice extends Homey.Device {
 
     const session = await this.getSession();
     const context = this.getContext();
-    const routeCmd = buildGenerateRouteCommand(areas, options, session.userAccount, context.deviceName, this.seq, context.productKey);
+    const routeCmd = buildGenerateRouteCommand(
+      areas,
+      {
+        ...options,
+        channelWidth: options.channelWidth ?? this.storedChannelWidth(),
+        bladeHeight: options.bladeHeight ?? this.storedBladeHeight(),
+      },
+      session.userAccount, context.deviceName, this.seq, context.productKey,
+    );
     await this.sendRaw(Buffer.from(routeCmd, 'base64'), 'generate_route');
     await this.waitForRouteConfirmation(3_000);
 
+    // Deliberately gated on the *explicit* option, not the resolved one above: a height the
+    // caller actually asked for is worth writing to the device, whereas the stored fallback
+    // is the device's own value being echoed back into this one job's route. Sending that
+    // would be a write the user never requested, and set_blade_height changes the mower's
+    // standing setting rather than just this run.
     if (typeof options.bladeHeight === 'number') await this.sendBladeHeight(options.bladeHeight);
     await this.sendTaskControlRaw('start');
   }
@@ -1547,6 +1728,10 @@ export default class LubaDevice extends Homey.Device {
   async actionPause(): Promise<void> { await this.sendTaskControlRaw('pause'); }
   /** Cancels/ends the current mowing job. */
   async actionStop(): Promise<void> { await this.sendTaskControlRaw('stop'); }
+  /** Resumes a paused mowing job, continuing where it left off rather than replanning.
+   *  Distinct from actionPlanAndStartMowing, which generates a fresh route and restarts
+   *  the job from the beginning — a user who paused mid-lawn wants neither. */
+  async actionResume(): Promise<void> { await this.sendTaskControlRaw('resume'); }
 
   /** Builds and sends a NavTaskCtrl command for the given task-control action. */
   private async sendTaskControlRaw(command: 'start' | 'pause' | 'resume' | 'stop' | 'dock' | 'cancelJob' | 'cancelDock'): Promise<void> {

@@ -94,3 +94,43 @@ test('generate-route command defaults bladeHeight/speed when omitted, matching r
   assert.equal(route.knifeHeight, 25, 'default blade height (CLAUDE.md/StartMowOptions default) when unset');
   assert.ok(Math.abs(route.speed - 0.3) < 1e-6, 'default speed (reference OperationSettings default) when unset');
 });
+
+test('generate-route uses the caller-supplied channel width, not the fixed default', () => {
+  // Report R9: a user running 8 cm spacing in the official app saw a different spacing take
+  // effect when starting from Homey, because this builder hardcoded 25. The device's own
+  // stored value (NavPlanJobSet.route_spacing) is now threaded through so a Homey-initiated
+  // run plans the same route the official app would.
+  const b64 = buildGenerateRouteCommand(['42'], { channelWidth: 8 }, '12345', 'Luba-TEST', { value: 0 });
+  const req = decodeLubaMsg(Buffer.from(b64, 'base64'));
+  assert.equal(req.nav.bidireReqconverPath.channelWidth, 8);
+});
+
+test('generate-route falls back to 25 when no channel width is known', () => {
+  // A device that has never reported a stored task gives us nothing to echo back, so the
+  // pymammotion OperationSettings default must still apply rather than a spacing of 0.
+  const b64 = buildGenerateRouteCommand(['42'], {}, '12345', 'Luba-TEST', { value: 0 });
+  const req = decodeLubaMsg(Buffer.from(b64, 'base64'));
+  assert.equal(req.nav.bidireReqconverPath.channelWidth, 25);
+});
+
+test('generate-route truncates a fractional channel width to an integer field', () => {
+  // channel_width is int32 on the wire; protobufjs would throw or silently mangle a float.
+  const b64 = buildGenerateRouteCommand(['42'], { channelWidth: 12.7 }, '12345', 'Luba-TEST', { value: 0 });
+  const req = decodeLubaMsg(Buffer.from(b64, 'base64'));
+  assert.equal(req.nav.bidireReqconverPath.channelWidth, 12);
+});
+
+test('generate-route uses the caller-supplied blade height, not the 25 mm floor', () => {
+  // The start_mowing card's height range is 25–70 mm and 25 was also the fallback, so a
+  // blank field meant "cut at the minimum". Two users reported the mower cutting far
+  // shorter than they had set. The device's own stored height is now threaded through.
+  const b64 = buildGenerateRouteCommand(['42'], { bladeHeight: 60 }, '12345', 'Luba-TEST', { value: 0 });
+  const req = decodeLubaMsg(Buffer.from(b64, 'base64'));
+  assert.equal(req.nav.bidireReqconverPath.knifeHeight, 60);
+});
+
+test('generate-route falls back to 25 mm blade height only when nothing else is known', () => {
+  const b64 = buildGenerateRouteCommand(['42'], {}, '12345', 'Luba-TEST', { value: 0 });
+  const req = decodeLubaMsg(Buffer.from(b64, 'base64'));
+  assert.equal(req.nav.bidireReqconverPath.knifeHeight, 25);
+});

@@ -988,6 +988,46 @@
         ]
       },
       {
+        "id": "resume_mowing",
+        "title": {
+          "en": "Resume mowing",
+          "nl": "Maaien hervatten",
+          "de": "Mähen fortsetzen",
+          "fr": "Reprendre la tonte",
+          "it": "Riprendi il taglio",
+          "sv": "Återuppta klippning",
+          "no": "Gjenoppta klipping",
+          "es": "Reanudar corte",
+          "da": "Genoptag klipning",
+          "ru": "Возобновить кошение",
+          "pl": "Wznów koszenie",
+          "ko": "작업 재개",
+          "ar": "استئناف الجز"
+        },
+        "hint": {
+          "en": "Continues a paused job from where it stopped. Unlike \"Start mowing\", it does not plan a new route or start the job over from the beginning.",
+          "nl": "Hervat een gepauzeerde taak vanaf het punt waar deze stopte. Anders dan \"Start met maaien\" wordt er geen nieuwe route gepland en begint de taak niet opnieuw.",
+          "de": "Setzt einen pausierten Auftrag an der Stelle fort, an der er gestoppt wurde. Anders als \"Mähen starten\" wird keine neue Route geplant und der Auftrag nicht von vorn begonnen.",
+          "fr": "Reprend une tâche mise en pause là où elle s'est arrêtée. Contrairement à \"Démarrer la tonte\", aucune nouvelle trajectoire n'est planifiée et la tâche ne recommence pas depuis le début.",
+          "it": "Riprende un lavoro in pausa dal punto in cui si era interrotto. A differenza di \"Avvia il taglio\", non pianifica un nuovo percorso né riavvia il lavoro dall'inizio.",
+          "sv": "Återupptar ett pausat jobb där det stannade. Till skillnad från \"Starta klippning\" planeras ingen ny rutt och jobbet börjar inte om från början.",
+          "no": "Gjenopptar en pauset jobb der den stoppet. I motsetning til \"Start klipping\" planlegges ingen ny rute, og jobben starter ikke på nytt.",
+          "es": "Reanuda un trabajo pausado desde donde se detuvo. A diferencia de \"Iniciar corte\", no planifica una nueva ruta ni reinicia el trabajo desde el principio.",
+          "da": "Genoptager et pauset job, hvor det stoppede. I modsætning til \"Start klipning\" planlægges der ingen ny rute, og jobbet starter ikke forfra.",
+          "ru": "Продолжает приостановленное задание с того места, где оно остановилось. В отличие от «Начать кошение», новый маршрут не планируется и задание не начинается заново.",
+          "pl": "Wznawia wstrzymane zadanie od miejsca, w którym zostało zatrzymane. W przeciwieństwie do \"Zacznij koszenie\" nie planuje nowej trasy ani nie uruchamia zadania od nowa.",
+          "ko": "일시정지된 작업을 멈춘 지점부터 이어서 진행합니다. \"작업 시작\"과 달리 새 경로를 계획하거나 작업을 처음부터 다시 시작하지 않습니다.",
+          "ar": "يستأنف مهمة متوقفة مؤقتًا من النقطة التي توقفت عندها. على عكس \"بدء الجز\"، لا يخطط مسارًا جديدًا ولا يبدأ المهمة من جديد."
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=luba"
+          }
+        ]
+      },
+      {
         "id": "stop_mowing",
         "title": {
           "en": "Stop mowing",

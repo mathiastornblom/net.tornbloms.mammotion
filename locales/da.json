@@ -7,7 +7,12 @@
     "command_failed": "Kommandoen mislykkedes",
     "no_devices_found": "Ingen plæneklippere fundet på denne konto. Åbn Mammotion-appen og kontrollér, at delingsinvitationen er accepteret, og prøv derefter igen — der kan gå et par minutter efter accept, før plæneklipperen vises.",
     "legacy_devices_found": "Din/dine plæneklipper(e) blev fundet registreret under Mammotions ældre cloud-system, som denne app endnu ikke understøtter — udvikleren er blevet informeret og arbejder på at tilføje understøttelse. Prøv igen i en fremtidig opdatering.",
-    "no_zones_known": "Ingen klippezoner kendt endnu. Åbn plæneklipperen i Mammotion-appen, eller vent et øjeblik og prøv igen. Tip: navngiv dine zoner i Mammotion-appen for et øjeblikkeligt og pålideligt zonevalg."
+    "no_zones_known": "Ingen klippezoner kendt endnu. Åbn plæneklipperen i Mammotion-appen, eller vent et øjeblik og prøv igen. Tip: navngiv dine zoner i Mammotion-appen for et øjeblikkeligt og pålideligt zonevalg.",
+    "device_unbound": "Denne plæneklipper er ikke længere knyttet til den konto, Homey bruger. Brug Reparer på enheden og log ind igen for at knytte den igen."
+  },
+  "warning": {
+    "aliyun_budget_throttled": "Cloud-forespørgselsgrænsen er næsten nået — statusopdateringer er sat ned i tempo, så start/stop-kommandoer fortsat virker. Genoprettes automatisk.",
+    "aliyun_rate_limited": "Mammotions cloud begrænser denne konto — statustjek nedtrappes (op til hvert 30. minut), indtil det ophører. Genoprettes automatisk."
   },
   "pair": {
     "account_setup": {

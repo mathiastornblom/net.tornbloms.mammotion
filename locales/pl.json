@@ -7,7 +7,12 @@
     "command_failed": "Nie udało się wykonać komendy",
     "no_devices_found": "Nie znaleziono kosiarek na tym koncie. Otwórz aplikację Mammotion i sprawdź, czy zaproszenie do udostępnienia zostało zaakceptowane, a następnie spróbuj ponownie — po zaakceptowaniu może minąć kilka minut, zanim kosiarka się pojawi.",
     "legacy_devices_found": "Znaleziono Twoją kosiarkę (lub kosiarki) zarejestrowaną w starszym systemie chmurowym Mammotion, którego ta aplikacja jeszcze nie obsługuje — deweloper został poinformowany i pracuje nad dodaniem obsługi. Spróbuj ponownie w przyszłej aktualizacji.",
-    "no_zones_known": "Nie znamy jeszcze żadnych stref koszenia. Otwórz kosiarkę w aplikacji Mammotion lub poczekaj chwilę i spróbuj ponownie. Wskazówka: nadaj nazwy swoim strefom w aplikacji Mammotion, aby uzyskać natychmiastowy i niezawodny wybór strefy."
+    "no_zones_known": "Nie znamy jeszcze żadnych stref koszenia. Otwórz kosiarkę w aplikacji Mammotion lub poczekaj chwilę i spróbuj ponownie. Wskazówka: nadaj nazwy swoim strefom w aplikacji Mammotion, aby uzyskać natychmiastowy i niezawodny wybór strefy.",
+    "device_unbound": "Ta kosiarka nie jest już powiązana z kontem używanym przez Homey. Użyj opcji Napraw na urządzeniu i zaloguj się ponownie, aby ją powiązać."
+  },
+  "warning": {
+    "aliyun_budget_throttled": "Limit żądań do chmury prawie osiągnięty — aktualizacje stanu zostały spowolnione, aby polecenia start/stop nadal działały. Przywraca się automatycznie.",
+    "aliyun_rate_limited": "Chmura Mammotion ogranicza to konto — sprawdzanie stanu jest rzadsze (do co 30 minut), dopóki ograniczenie nie minie. Przywraca się automatycznie."
   },
   "pair": {
     "account_setup": {

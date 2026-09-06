@@ -5,6 +5,7 @@ import { decodeLubaMsg } from '../protocol/Codec.js';
 import { buildBleSyncCommand } from '../commands/LubaCommands.js';
 import { BLE_SERVICE_UUID, BLE_LOCAL_NAME_PREFIXES } from '../constants.js';
 import { errorMessage } from '../../util/errorMessage.js';
+import { hexPreview } from '../../util/hexPreview.js';
 
 /** UUIDs verified against pymammotion/bluetooth/const.py */
 const UUID_SERVICE = BLE_SERVICE_UUID;
@@ -287,7 +288,7 @@ export class BleTransport {
     try {
       decoded = decodeLubaMsg(result.data);
     } catch (err) {
-      this.logError(`BLE: protobuf decode failed: ${errorMessage(err)}`);
+      this.logError(`BLE: protobuf decode failed: ${errorMessage(err)} — payload: ${hexPreview(result.data)}`);
       return;
     }
 

@@ -17,6 +17,12 @@ import { errorMessage } from '../../lib/util/errorMessage.js';
 const SESSION_SETTINGS_KEY = 'mammotion_session';
 const CREDENTIALS_SETTINGS_KEY = 'mammotion_credentials';
 const ALIYUN_CREDENTIALS_SETTINGS_KEY = 'mammotion_aliyun_credentials';
+/** Persisted AliyunRequestGovernor window — see RequestGovernor.ts's snapshot/restore. */
+const ALIYUN_REQUEST_WINDOW_SETTINGS_KEY = 'aliyunRequestWindow';
+/** Debounce for saving that window: a save per recordRequest would be one settings write
+ *  per poll on top of the poll itself; 30 s loses at most a handful of timestamps on a
+ *  crash, which the pacing tiers absorb without noticing. */
+const ALIYUN_REQUEST_WINDOW_SAVE_DEBOUNCE_MS = 30_000;
 
 interface StoredCredentials { email: string; password: string; }
 
@@ -59,6 +65,7 @@ export default class LubaDriver extends Homey.Driver {
   private aliyunCredentialsManager!: AliyunCredentialsManager;
   /** Shared across every aliyun_legacy device on the account — see RequestGovernor.ts. */
   private readonly aliyunRequestGovernor = new AliyunRequestGovernor();
+  private requestWindowSaveTimer: NodeJS.Timeout | null = null;
   /** Consecutive real (non-fast-fail) Aliyun handshake failures — drives the auto-relogin
    *  in getAliyunCredentials(). Reset to 0 on any success. */
   private aliyunHandshakeFailureStreak = 0;
@@ -66,6 +73,15 @@ export default class LubaDriver extends Homey.Driver {
   /** Registers all Flow trigger/condition/action cards for this driver. */
   async onInit(): Promise<void> {
     this.log('LubaDriver initialized');
+    // Reload the account-wide request window so a restart doesn't begin with an empty
+    // window and a burst of full-cadence polling into an account that may already be at
+    // its limit — see RequestGovernor.ts's snapshot/restore for the report this addresses.
+    const savedWindow = this.homey.settings.get(ALIYUN_REQUEST_WINDOW_SETTINGS_KEY) as unknown;
+    this.aliyunRequestGovernor.restore(savedWindow);
+    if (this.aliyunRequestGovernor.used() > 0) {
+      this.log(`[Aliyun budget] restored ${this.aliyunRequestGovernor.used()} request(s) from before restart into the 12h window`);
+    }
+    this.aliyunRequestGovernor.setChangeListener(() => this.saveRequestWindowSoon());
     this.registerFlowCards();
     this.aliyunCredentialsManager = new AliyunCredentialsManager({
       load: () => this.homey.settings.get(ALIYUN_CREDENTIALS_SETTINGS_KEY) ?? null,
@@ -77,6 +93,13 @@ export default class LubaDriver extends Homey.Driver {
 
   /** Tears down the shared Aliyun legacy transport, if one was ever created. */
   async onUninit(): Promise<void> {
+    // Flush the Aliyun request window before the debounce would have — a restart within
+    // 30 s of the last poll must not lose it (see RequestGovernor.ts's snapshot/restore).
+    if (this.requestWindowSaveTimer) {
+      this.homey.clearTimeout(this.requestWindowSaveTimer);
+      this.requestWindowSaveTimer = null;
+    }
+    this.saveRequestWindowNow();
     this.aliyunTransport?.disconnect();
   }
 
@@ -155,6 +178,11 @@ export default class LubaDriver extends Homey.Driver {
     this.homey.flow.getActionCard('pause_mowing')
       .registerRunListener(async (args: { device: Homey.Device }) => {
         await (args.device as any).actionPause();
+      });
+
+    this.homey.flow.getActionCard('resume_mowing')
+      .registerRunListener(async (args: { device: Homey.Device }) => {
+        await (args.device as any).actionResume();
       });
 
     this.homey.flow.getActionCard('stop_mowing')
@@ -307,6 +335,24 @@ export default class LubaDriver extends Homey.Driver {
     this.aliyunCredentialsManager.invalidate();
   }
 
+  /** Persists the governor window after a short debounce — see
+   *  ALIYUN_REQUEST_WINDOW_SAVE_DEBOUNCE_MS. */
+  private saveRequestWindowSoon(): void {
+    if (this.requestWindowSaveTimer) return;
+    this.requestWindowSaveTimer = this.homey.setTimeout(() => {
+      this.requestWindowSaveTimer = null;
+      this.saveRequestWindowNow();
+    }, ALIYUN_REQUEST_WINDOW_SAVE_DEBOUNCE_MS);
+  }
+
+  private saveRequestWindowNow(): void {
+    try {
+      this.homey.settings.set(ALIYUN_REQUEST_WINDOW_SETTINGS_KEY, this.aliyunRequestGovernor.snapshot());
+    } catch (err) {
+      this.error('Failed to persist the Aliyun request window:', err);
+    }
+  }
+
   /** The shared account-wide request governor every aliyun_legacy device polls/commands
    *  through — see RequestGovernor.ts. */
   getAliyunRequestGovernor(): AliyunRequestGovernor {
@@ -375,6 +421,13 @@ export default class LubaDriver extends Homey.Driver {
     });
 
     session.setHandler('list_devices', async (): Promise<PairedDeviceResult[]> => {
+      // Wall time from handler entry to each return is logged alongside the device list.
+      // A real report (R11) showed this handler taking 13–16 s end to end — the legacy
+      // Aliyun probe runs *after* the normal fetch, times out at 6 s, then retries — and the
+      // wizard showed an empty list despite `records=1`. Whether Homey's list_devices view
+      // gives up on a slow handler could not be confirmed (SDK docs unreachable, the type
+      // package is silent on it), so the next report has to carry the number.
+      const startedAt = Date.now();
       const session = pendingSession ?? await this.getValidSession();
       // Mirrors pymammotion's login_and_initiate_cloud: the mobile app's "Accept" UI is
       // supposed to finalize a device-share invitation server-side, but a headless login
@@ -478,11 +531,29 @@ export default class LubaDriver extends Homey.Driver {
         // before handing it to Homey's pairing UI — closes the observability gap between "we
         // found bound devices" and "the wizard actually showed them" for the next diagnostic
         // report, since nothing downstream of this point is currently logged.
-        this.log(`list_devices: returning ${merged.length} device(s) to pairing UI (${list.length} normal + ${legacyList.length} legacy)`,
+        this.log(`list_devices: returning ${merged.length} device(s) to pairing UI (${list.length} normal + ${legacyList.length} legacy) after ${Date.now() - startedAt}ms`,
           JSON.stringify(merged.map((d) => ({ name: d.name, id: d.data.id }))));
         return merged;
       }
-      if (list.length > 0) return list;
+      if (list.length > 0) {
+        // Same observability rationale as the legacy branch above, for the branch a real
+        // diagnostic report actually landed in: a shared Luba 3 logged `owned=0 records=1`
+        // (so buildDeviceList had exactly one record to map) and `bound=0` (so the legacy
+        // branch was skipped), yet the pairing wizard showed an empty list — and this was
+        // the one return path with nothing logged after it, leaving no way to tell whether
+        // we returned zero devices or Homey dropped the one we returned. Logging the
+        // resolved deviceType and capability count alongside makes the second case
+        // diagnosable too, since a device whose capability list came back empty or
+        // unrecognised is the leading hypothesis for a silently-dropped entry.
+        this.log(`list_devices: returning ${list.length} device(s) to pairing UI (normal path) after ${Date.now() - startedAt}ms`,
+          JSON.stringify(list.map((d) => ({
+            name: d.name,
+            id: d.data.id,
+            deviceType: resolveDeviceType(d.store.context.deviceName ?? '', d.store.context.productKey ?? ''),
+            capabilityCount: d.capabilities.length,
+          }))));
+        return list;
+      }
       if (legacyResult && legacyResult.shareNotifications > 0) {
         // Evidence of legacy sharing activity but nothing actually bound/listable yet —
         // still an informative message rather than the generic one.
