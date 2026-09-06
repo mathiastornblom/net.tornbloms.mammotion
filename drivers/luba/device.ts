@@ -1570,6 +1570,10 @@ export default class LubaDevice extends Homey.Device {
   async actionPause(): Promise<void> { await this.sendTaskControlRaw('pause'); }
   /** Cancels/ends the current mowing job. */
   async actionStop(): Promise<void> { await this.sendTaskControlRaw('stop'); }
+  /** Resumes a paused mowing job, continuing where it left off rather than replanning.
+   *  Distinct from actionPlanAndStartMowing, which generates a fresh route and restarts
+   *  the job from the beginning — a user who paused mid-lawn wants neither. */
+  async actionResume(): Promise<void> { await this.sendTaskControlRaw('resume'); }
 
   /** Builds and sends a NavTaskCtrl command for the given task-control action. */
   private async sendTaskControlRaw(command: 'start' | 'pause' | 'resume' | 'stop' | 'dock' | 'cancelJob' | 'cancelDock'): Promise<void> {

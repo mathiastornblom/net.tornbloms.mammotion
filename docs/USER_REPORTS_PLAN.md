@@ -23,7 +23,7 @@ går inte att para. Resten är förbättringar och önskemål.
 | **P1** | [C. Task-kedjning fungerar inte](#c--p1--task-kedjning-fungerar-inte) | R1, R3, R4 | Vår egen hint lovar något appen inte gör |
 | **P1** | [D. Klippparametrar](#d--p1--klippparametrar-går-inte-att-styra) | R9 | `channelWidth` hårdkodad till 25 på den generiska startvägen |
 | **P1** | [E. Bara "Task 1" listas](#e--p1--bara-task-1-listas) | R12.2 | Ej reproducerad — behöver bekräftas |
-| **P2** | [F. Saknade Flow-kort](#f--p2--saknade-flow-kort) | R12.2 | `resume` finns i protokollet men saknar kort |
+| ✅ **P2** | [F. Saknade Flow-kort](#f--p2--saknade-flow-kort) | R12.2 | `resume_mowing`-kortet tillagt |
 | **P2** | [G. Robusthet och loggkvalitet](#g--p2--robusthet-och-loggkvalitet) | R1, R7, R8, R10 | Protobuf-fel, BLE-backoff utan tak, loggspam |
 | **P2** | [H. Dokumentation och upptäckbarhet](#h--p2--dokumentation-och-upptäckbarhet) | R4, R12.1, R12.2, R12.4 | Funktioner finns men hittas inte |
 | **P3** | [I. Nya modeller och funktioner](#i--p3--nya-modeller-och-funktioner) | R2, R6, R12.4, R12.6 | Luba 1, kamera, geopunkt |
@@ -374,8 +374,19 @@ var ett fel i v2.5.56 som redan är åtgärdat.
 **Men protokollkommandot finns redan:** `lib/mammotion/commands/LubaCommands.ts:16` deklarerar
 `'resume'` som `DeviceCommand` med opcode `3`.
 
-**Åtgärd:** lägg till ett `resume_mowing`-actionkort. Litet arbete — bara manifest, handler
-och 13 språksträngar. Bra kandidat att ta först eftersom den är billig och efterfrågad.
+**Åtgärd:** ✅ **Implementerad.** `resume_mowing` finns nu som actionkort:
+`LubaDevice.actionResume()` skickar `resume` via den befintliga `sendTaskControlRaw`,
+handlern är registrerad i `driver.ts`, och kortet är deklarerat i `driver.compose.json`
+med titel och hint på alla 13 språk.
+
+**Notis om var Flow-kort faktiskt bor:** de authoras i `$flow` i
+`drivers/luba/driver.compose.json`, **inte** i `app.json` — `app.json` är genererad och
+skrivs över av `homey app validate`/`compose`, så en redigering där försvinner tyst.
+`locales/*.json` innehåller flow-strängar för tre gamla kort (`start_mowing`,
+`pause_mowing`, `send_to_dock`) men är föråldrade: nyare kort ligger inte där alls.
+Enda källan är alltså `driver.compose.json`. Ett nytt test (`scripts/flow-cards.test.mjs`)
+vaktar att varje kort har titel, hint och argumenttitlar på alla 13 språk, eftersom ett
+kort med bara `en` validerar och publiceras utan invändning.
 
 ---
 
@@ -480,7 +491,7 @@ Flera rapporter är inte buggar utan att användare inte hittar det som finns.
 - D: klippparametrar
 
 **Steg 4 — snabba vinster, kan tas när som helst**
-- F: `resume_mowing`-kortet (protokollstödet finns redan)
+- ✅ F: `resume_mowing`-kortet — klart
 - H1/H2: forumsvar och dokumentation
 - H3: väntetext vid parning
 

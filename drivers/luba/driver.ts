@@ -157,6 +157,11 @@ export default class LubaDriver extends Homey.Driver {
         await (args.device as any).actionPause();
       });
 
+    this.homey.flow.getActionCard('resume_mowing')
+      .registerRunListener(async (args: { device: Homey.Device }) => {
+        await (args.device as any).actionResume();
+      });
+
     this.homey.flow.getActionCard('stop_mowing')
       .registerRunListener(async (args: { device: Homey.Device }) => {
         await (args.device as any).actionStop();
