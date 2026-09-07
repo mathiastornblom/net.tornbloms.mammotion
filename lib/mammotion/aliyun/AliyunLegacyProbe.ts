@@ -31,7 +31,7 @@ function generateHardwareString(length: number, seed: string): string {
 /** Set on network-level errors (ETIMEDOUT/ENETUNREACH/ECONNREFUSED/etc — the request never
  *  reached a server) as opposed to a reachable server returning a non-200 body, which is a
  *  real failure the static table below can't paper over. */
-function isNetworkLevelError(err: unknown): boolean {
+export function isNetworkLevelError(err: unknown): boolean {
   const code = (err as { code?: string } | undefined)?.code;
   if (typeof code === 'string') return true;
   const errors = (err as { errors?: unknown[] } | undefined)?.errors;
@@ -313,26 +313,118 @@ export interface LegacyProbeResult {
    *  country code (mapped: false) shows up in a real diagnostic report instead of silently
    *  guessing. See RegionFallbackInfo. */
   regionFallback?: RegionFallbackInfo;
+  /** Which handshake shape produced this result — see probeLegacyAliyunDevices. */
+  via?: 'parallel' | 'sequential';
+  /** Set only when the parallel handshake failed with a *logical* error and the strict
+   *  sequential order was run instead. The message of that first failure, for the log:
+   *  if Aliyun ever rejects the reordered steps, this is where it shows up. */
+  parallelFailure?: string;
 }
 
-/** Runs the full legacy handshake and returns what it found. Throws on any step failure —
- *  callers must treat this as best-effort and catch. */
-export async function probeLegacyAliyunDevices(session: AuthSession): Promise<LegacyProbeResult> {
+/** The seven requests of the legacy handshake, as an injectable bundle so the orchestration
+ *  below can be unit-tested with fakes that record call order and inject failures. The real
+ *  functions are module-private; this is the only seam. */
+export interface HandshakeSteps {
+  getRegion: typeof getRegion;
+  connectDevice: typeof connectDevice;
+  loginByOAuth: typeof loginByOAuth;
+  aepHandle: typeof aepHandle;
+  sessionByAuthCode: typeof sessionByAuthCode;
+  listBindingByAccount: typeof listBindingByAccount;
+  getShareNoticeList: typeof getShareNoticeList;
+}
+
+const REAL_STEPS: HandshakeSteps = {
+  getRegion, connectDevice, loginByOAuth, aepHandle, sessionByAuthCode, listBindingByAccount, getShareNoticeList,
+};
+
+/** Runs one step, retrying it exactly once if it failed at the network level (timeout,
+ *  reset, unreachable — see isNetworkLevelError). A logical failure (a reachable server
+ *  saying no) is never retried: it would say no again.
+ *
+ *  Why per step and not per handshake: a real report (R11) showed the probe's earlier
+ *  steps succeed in ~3 s, one step hang for its full 6 s timeout, and the *whole*
+ *  handshake then re-run from the top — the successful steps redone, the hung one tried
+ *  again. Retrying only the step that failed keeps what already worked. */
+async function withOneRetry<T>(run: () => Promise<T>): Promise<T> {
+  try {
+    return await run();
+  } catch (err) {
+    if (!isNetworkLevelError(err)) throw err;
+    return run();
+  }
+}
+
+/** Marks an error as coming from a stage that ran out of the original order, so
+ *  probeLegacyAliyunDevices can decide whether the sequential fallback is warranted. */
+class ReorderedStageError extends Error {
+  constructor(readonly stage: string, readonly cause: unknown) {
+    super(`legacy handshake stage '${stage}' failed: ${cause instanceof Error ? cause.message : String(cause)}`);
+    this.name = 'ReorderedStageError';
+  }
+}
+
+/** The handshake itself. `parallel` overlaps the steps whose inputs do not depend on each
+ *  other — worked out from the data flow, not from pymammotion, which runs all seven
+ *  strictly in series:
+ *
+ *    stage A   getRegion(countryCode, authCode)  ∥  connectDevice(utdid)
+ *    stage B   loginByOAuth(region, connect)     ∥  aepHandle(region)
+ *    stage C   sessionByAuthCode(oauth)
+ *    stage D   listBindingByAccount(iotToken)    ∥  getShareNoticeList(iotToken)
+ *
+ *  connectDevice takes only utdid and hits a fixed host; aepHandle takes only region and its
+ *  result feeds nothing but the returned credentials; the two listing calls both need only
+ *  iotToken. Four serial round-trips instead of seven. `sequential` is the original order,
+ *  kept verbatim as the fallback because that is the shape confirmed against a live account. */
+async function runLegacyHandshake(session: AuthSession, steps: HandshakeSteps, parallel: boolean): Promise<LegacyProbeResult> {
   if (!session.authorizationCode) throw new Error('No authorizationCode on session — cannot start Aliyun handshake');
   const countryCode = session.countryCode || 'US';
+  const authorizationCode = session.authorizationCode;
 
   const clientId = generateHardwareString(8, session.userId);
   const deviceSn = generateHardwareString(32, session.userId);
   const utdid = generateHardwareString(32, session.userId);
 
-  const { region, fallback: regionFallback } = await getRegion(countryCode, session.authorizationCode);
-  const connect = await connectDevice(utdid);
-  const oauth = await loginByOAuth(countryCode, session.authorizationCode, region, connect, utdid);
-  const aep = await aepHandle(region, clientId, deviceSn);
-  const { iotToken, iotTokenExpiresAt } = await sessionByAuthCode(region, oauth);
+  const stage = async <T>(name: string, run: () => Promise<T>): Promise<T> => {
+    try {
+      return await run();
+    } catch (err) {
+      throw parallel ? new ReorderedStageError(name, err) : err;
+    }
+  };
 
-  const bound = await listBindingByAccount(region, iotToken);
-  const notices = await getShareNoticeList(region, iotToken).catch(() => ({ code: 0, data: null }));
+  let region: Awaited<ReturnType<typeof getRegion>>['region'];
+  let regionFallback: RegionFallbackInfo | null | undefined;
+  let connect: Awaited<ReturnType<typeof connectDevice>>;
+  let oauth: Awaited<ReturnType<typeof loginByOAuth>>;
+  let aep: Awaited<ReturnType<typeof aepHandle>>;
+
+  if (parallel) {
+    const [regionResult, connectResult] = await stage('region|connect', () => Promise.all([
+      withOneRetry(() => steps.getRegion(countryCode, authorizationCode)),
+      withOneRetry(() => steps.connectDevice(utdid)),
+    ]));
+    region = regionResult.region; regionFallback = regionResult.fallback; connect = connectResult;
+    [oauth, aep] = await stage('oauth|aep', () => Promise.all([
+      withOneRetry(() => steps.loginByOAuth(countryCode, authorizationCode, region, connect, utdid)),
+      withOneRetry(() => steps.aepHandle(region, clientId, deviceSn)),
+    ]));
+  } else {
+    const regionResult = await withOneRetry(() => steps.getRegion(countryCode, authorizationCode));
+    region = regionResult.region; regionFallback = regionResult.fallback;
+    connect = await withOneRetry(() => steps.connectDevice(utdid));
+    oauth = await withOneRetry(() => steps.loginByOAuth(countryCode, authorizationCode, region, connect, utdid));
+    aep = await withOneRetry(() => steps.aepHandle(region, clientId, deviceSn));
+  }
+
+  const { iotToken, iotTokenExpiresAt } = await stage('session', () => withOneRetry(() => steps.sessionByAuthCode(region, oauth)));
+
+  const listing = () => withOneRetry(() => steps.listBindingByAccount(region, iotToken));
+  const notices = () => withOneRetry(() => steps.getShareNoticeList(region, iotToken)).catch(() => ({ code: 0, data: null }));
+  const [bound, noticeList] = parallel
+    ? await stage('binding|notice', () => Promise.all([listing(), notices()]))
+    : [await listing(), await notices()];
 
   const credentials: AliyunLegacyCredentials | undefined = aep.data
     ? {
@@ -348,8 +440,26 @@ export async function probeLegacyAliyunDevices(session: AuthSession): Promise<Le
 
   return {
     boundDevices: bound.data?.data ?? [],
-    shareNotifications: notices.data?.total ?? 0,
+    shareNotifications: noticeList.data?.total ?? 0,
     credentials,
+    via: parallel ? 'parallel' : 'sequential',
     ...(regionFallback ? { regionFallback } : {}),
   };
+}
+
+/** Runs the legacy handshake and returns what it found — parallel first, and if that fails
+ *  with a *logical* error (a server rejecting a step, which reordering could in principle
+ *  provoke) the strict original order is run once more. Network-level failures never
+ *  trigger the fallback: each step already retries itself once for those, and the
+ *  sequential order would hit the same dead network. Throws on any step failure of the
+ *  final attempt — callers must treat this as best-effort and catch. */
+export async function probeLegacyAliyunDevices(session: AuthSession, steps: HandshakeSteps = REAL_STEPS): Promise<LegacyProbeResult> {
+  try {
+    return await runLegacyHandshake(session, steps, true);
+  } catch (err) {
+    const cause = err instanceof ReorderedStageError ? err.cause : err;
+    if (isNetworkLevelError(cause)) throw cause;
+    const sequential = await runLegacyHandshake(session, steps, false);
+    return { ...sequential, parallelFailure: err instanceof Error ? err.message : String(err) };
+  }
 }

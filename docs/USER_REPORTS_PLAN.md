@@ -19,7 +19,7 @@ går inte att para. Resten är förbättringar och önskemål.
 | Prio | Kluster | Rapporter | Kärnproblem |
 |---|---|---|---|
 | ✅ **P0** | [A. Ingen statusuppdatering](#a--p0--ingen-statusuppdatering) | R5, R7, R8, R12.3, R12.5 | Alla tre orsaker åtgärdade: A1 pacing, A2 backoff per orsak + 29004 = obunden, A3 stalet-vakthund |
-| **P0** | [B. Delade enheter syns inte vid parning](#b--p0--delade-enheter-syns-inte-vid-parning) | R11, R12.7 (+minst en till) | Vår pipeline bevisat felfri (test); kvar är Homey-sidan/timing — handlern tar 13–16 s |
+| **P0** | [B. Delade enheter syns inte vid parning](#b--p0--delade-enheter-syns-inte-vid-parning) | R11, R12.7 (+minst en till) | Pipeline bevisad, proben 7→4 stadier + stegvis omkörning; timing-hypotesen **försvagad** (Homey-gräns ~30 s > R11:s 13–16 s) — nästa rapport avgör |
 | ✅ **P1** | [C. Task-kedjning fungerar inte](#c--p1--task-kedjning-fungerar-inte) | R1, R3, R4 | Return-avbrott före start implementerat — väntar hårdvaruverifiering |
 | ✅ **P1** | [D. Klippparametrar](#d--p1--klippparametrar-går-inte-att-styra) | R9, R13 | Spacing och klipphöjd hämtas nu från klipparens egna sparade tasks |
 | **P1** | [E. Bara "Task 1" listas](#e--p1--bara-task-1-listas) | R12.2 | Ej reproducerad — behöver bekräftas |
@@ -314,14 +314,45 @@ instrumenterad, och det är precis den grenen den här buggen ligger i.
 3. ✅ `productKey=uY54W5rM8YH` är känd — det är samma nyckel som Mathias egen
    `Luba-VAZSPPU6` (se `device-routing.test.mjs`), som parar utan problem när den är
    *ägd*. Skillnaden mot R11 är alltså inte modellen utan att enheten är delad.
-4. **Kvarstår — den starkaste återstående kandidaten är tid.** R11:s tidsstämplar visar
-   att handlern tog **13–16 s** innan den returnerade, vid alla fyra försöken: legacy-
-   proben körs *efter* normalhämtningen, timear ut efter 6 s, och görs sedan om. Om
-   Homeys `list_devices`-vy ger upp på en långsam handler kunde inte bekräftas — docs-
-   sajten är blockerad från utvecklingsmiljön och `@types/homey` säger inget. Nästa
-   rapport bär nu siffran. **Om den bekräftar:** kör legacy-proben *parallellt* med
-   normalhämtningen (`Promise.all`) i stället för seriellt efter — det halverar
-   väntetiden utan att ändra vad som returneras. Görs inte på spekulation i en P0-väg.
+4. ✅ **Proben körs nu parallellt — men rätt sak parallelliserad, och med en rättelse av
+   min egen hypotes.**
+
+   *Rättelsen först.* `gateway.ts` visste redan Homeys parningstimeout: kommentaren där
+   säger "needs to stay well under Homey's own ~30s pairing-UI timeout". R11:s 13–16 s
+   ligger **under** 30 s. Timing-hypotesen är därmed *försvagad*, inte bekräftad — tids-
+   loggen avgör fortfarande, men den ärliga lägesbilden är att R11 sannolikt har en annan
+   orsak. Och min tidigare "halverar väntetiden" var fel räknat: det seriella arbetet
+   *före* proben är ~0,7 s. Att överlappa proben med hämtningen sparar under en sekund.
+
+   *Var tiden verkligen gick.* Proben är sju **seriella** anrop (`getRegion → connectDevice
+   → loginByOAuth → aepHandle → sessionByAuthCode → listBindingByAccount →
+   getShareNoticeList`), 6 s timeout vardera. R11: ~3,3 s lyckade steg, ett steg som hängde
+   6 s, sedan **hela handskakningen om från början** (~6 s). Det är 15 s.
+
+   *Vad som landade* (`AliyunLegacyProbe.ts`, testat med injicerade steg):
+   - **Fyra stadier i stället för sju**, härlett ur dataflödet — inte ur pymammotion, som
+     kör allt strikt seriellt: `[region ∥ connect] → [oauth ∥ aep] → session →
+     [binding ∥ notiser]`. `connectDevice` tar bara utdid mot fast host; `aep` matar
+     enbart credentials, inte `sessionByAuthCode`; de två sista behöver bara token.
+   - **Stegvis omkörning**: ett steg som fallerar på *nätverksnivå* körs om ensamt — de
+     steg som redan lyckats görs inte om. Ett logiskt avslag körs aldrig om (servern
+     skulle säga nej igen).
+   - **Sekventiell fallback vid logiskt fel i den omordnade handskakningen** — om Aliyun
+     någonsin invänder mot ordningen körs originalsekvensen, den som är bekräftad mot
+     riktigt konto, exakt en gång. Loggas som `via=sequential (parallel handshake
+     failed …)` så det syns i nästa rapport. Nätverksfel triggar *inte* fallbacken:
+     samma döda nät, och steget har redan fått sin andra chans.
+   - **Gatewayens timeout bär nu `code: 'ETIMEDOUT'`.** Utan det klassade
+     `isNetworkLevelError` vår egen timeout som logiskt fel — så varken `getRegion`s
+     statiska fallback eller den stegvisa omkörningen hade slagit till på *exakt* R11:s
+     fel. Latent miss som fanns sedan tidigare.
+   - Proben startas direkt efter `acceptPendingShares` och överlappar hämtningen — efter
+     delningssteget med flit, eftersom det kan vara vad som skapar Aliyun-bindningen
+     proben sedan läser.
+
+   *Väntad effekt på R11:s form:* ~15 s → ungefär 9–10 s (stadierna krymper de 3,3 s;
+   hänget kostar fortfarande 6 s; bara det steget körs om). Friska konton: ~3,5 s → ~2 s.
+   Tidsloggen `returning … after NNNNms` visar det, tillsammans med `via=`.
 5. Reproducera med `scripts/test-accounts.ts` mot ett delat Luba 3-konto — kräver
    R12.7-användarens medverkan eller ett eget delat testkonto.
 
