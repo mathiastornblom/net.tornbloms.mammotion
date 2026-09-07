@@ -23,6 +23,8 @@ import type {
   MqttConnection,
   ShareRecord,
   ShareRecordsPage,
+  StreamSubscriptionResponse,
+  VideoResourceResponse,
 } from './types.js';
 
 /** Performs all Mammotion cloud HTTP calls: login, token refresh, device list, MQTT credentials. */
@@ -329,6 +331,41 @@ export class MammotionAuth {
     );
     if (resp.code !== 0 || !resp.data) {
       throw new ApiError(resp.code, resp.msg ?? 'Failed to fetch MQTT credentials');
+    }
+    return resp.data;
+  }
+
+  /**
+   * Fetch an Agora stream-subscription token granting camera-view access to a device.
+   * pymammotion's `cameraStates` payload is currently identical whether or not the device
+   * is a Yuka (`[{cameraState:1},{cameraState:0},{cameraState:0}]` — front camera only), so
+   * that fixed shape is ported as-is rather than threading an unused is_yuka flag through.
+   */
+  static async fetchStreamToken(session: AuthSession, deviceId: string): Promise<StreamSubscriptionResponse> {
+    const authHeader = { Authorization: `Bearer ${session.accessToken}` };
+    const resp = await MammotionAuth.request<MammotionApiResponse<StreamSubscriptionResponse>>(
+      `${MAMMOTION_API_DOMAIN}/device-server/v1/stream/token`,
+      {
+        method: 'POST',
+        headers: authHeader,
+        body: { deviceId, mode: 0, cameraStates: [{ cameraState: 1 }, { cameraState: 0 }, { cameraState: 0 }] },
+      },
+    );
+    if (resp.code !== 0 || !resp.data) {
+      throw new ApiError(resp.code, resp.msg ?? 'Failed to fetch stream token');
+    }
+    return resp.data;
+  }
+
+  /** Fetch a device's 4G camera-streaming usage/quota for the current billing cycle. */
+  static async fetchVideoResource(session: AuthSession, iotId: string): Promise<VideoResourceResponse> {
+    const authHeader = { Authorization: `Bearer ${session.accessToken}` };
+    const resp = await MammotionAuth.request<MammotionApiResponse<VideoResourceResponse>>(
+      `${MAMMOTION_API_DOMAIN}/device-server/v1/video-resource/${iotId}`,
+      { method: 'GET', headers: authHeader },
+    );
+    if (resp.code !== 0 || !resp.data) {
+      throw new ApiError(resp.code, resp.msg ?? 'Failed to fetch video resource');
     }
     return resp.data;
   }

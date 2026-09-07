@@ -93,6 +93,36 @@ export interface MammotionDevice {
   locationVo?: { location?: number[] };
 }
 
+/** Single Agora camera channel entry within a stream subscription response. */
+export interface StreamSubscriptionCamera {
+  cameraId: number;
+  token: string;
+}
+
+/** Agora stream subscription token and channel details for a device's camera feed. */
+export interface StreamSubscriptionResponse {
+  appid: string;
+  openEncrypt: number;
+  cameras: StreamSubscriptionCamera[];
+  channelName: string;
+  areaCode: string;
+  token: string;
+  uid: number;
+  license?: string | null;
+  availableTime?: number | null;
+}
+
+/** 4G camera-streaming usage/quota data for a device, for the current billing cycle. */
+export interface VideoResourceResponse {
+  id: string;
+  deviceId: string;
+  deviceName: string;
+  cycleType: number;
+  usageYearMonth: string;
+  totalTime: number;
+  availableTime: number;
+}
+
 /** Resolved, post-login session stored in Homey settings. */
 export interface AuthSession {
   accessToken: string;

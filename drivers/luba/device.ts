@@ -125,6 +125,38 @@ export default class LubaDevice extends Homey.Device {
     }
 
     await this.startTransports();
+
+    // TEMPORARY DEBUG — see docs/CAMERA_STREAM_FEASIBILITY.md step 3. Captures Homey's real
+    // WebRTC offer SDP so it can be diffed against agora_sdp.py's assumptions. Remove this call
+    // (and the method below) once the offer has been captured; not meant to ship.
+    await this.debugRegisterCameraSdpLogger();
+  }
+
+  /** TEMPORARY DEBUG ONLY — see docs/CAMERA_STREAM_FEASIBILITY.md. Registers a dummy WebRTC
+   *  camera purely to log the offer SDP Homey generates; the returned answer is a stub and will
+   *  not establish a real connection. `@types/homey` (homey-apps-sdk-v3-types@0.3.12) doesn't
+   *  expose ManagerVideos yet, hence the narrow local-interface casts instead of `any`. */
+  private async debugRegisterCameraSdpLogger(): Promise<void> {
+    interface DebugVideo {
+      registerOfferListener(cb: (offerSdp: string) => Promise<{ answerSdp: string }>): void;
+    }
+    interface DebugVideosManager {
+      createVideoWebRTC(): Promise<DebugVideo>;
+    }
+    try {
+      const videos = (this.homey as unknown as { videos: DebugVideosManager }).videos;
+      const video = await videos.createVideoWebRTC();
+      video.registerOfferListener(async (offerSdp: string) => {
+        this.log(`[DEBUG camera-sdp] Homey WebRTC offer SDP (${offerSdp.length} chars):\n${offerSdp}`);
+        return { answerSdp: 'v=0\r\no=- 0 0 IN IP4 127.0.0.1\r\ns=-\r\nt=0 0\r\n' };
+      });
+      await (this as unknown as {
+        setCameraVideo(id: string, title: string, video: DebugVideo): Promise<void>;
+      }).setCameraVideo('debug_cam', 'Debug Camera (SDP capture)', video);
+      this.log('[DEBUG camera-sdp] Debug camera registered — open this device in the Homey app and tap the camera to trigger an offer.');
+    } catch (err) {
+      this.error('[DEBUG camera-sdp] Failed to register debug camera:', errorMessage(err));
+    }
   }
 
   /** Reconciles this device's actual capabilities against the model-appropriate set
