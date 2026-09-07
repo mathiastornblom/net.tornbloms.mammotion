@@ -346,5 +346,8 @@
   },
   "2.5.61": {
     "en": "\"Mower finished a mowing job\" now includes which task just finished, so a Flow can tell jobs apart when several tasks are queued (only works for tasks started via \"Start mowing task\"). Also added a note on the pairing screen that finding your mower can take a moment right after logging in"
+  },
+  "2.5.62": {
+    "en": "Fixed mowers going silent for hours with old data still on screen: cloud polling now slows down gradually as Mammotion's request allowance is used up instead of stopping dead, retries back off by cause instead of every minute, and a mower nothing has been heard from is marked unavailable rather than showing stale values as fresh. \"Start mowing\" and the on/off toggle now reuse the cutting height and line spacing from your saved tasks instead of a fixed 25 mm — a blank height no longer means \"cut as short as possible\". Added \"Resume mowing\" to continue a paused job where it stopped. Chaining tasks from \"Mower finished a mowing job\" now works without manual pause and delay cards. On Bluetooth and cloud MQTT, \"Start mowing\" now fails visibly if the mower never actually starts. Faster pairing, and more logging around shared mowers not showing up. Tip, now in the app description: pause a task's schedule in the Mammotion app so it only runs when Homey starts it"
   }
 }

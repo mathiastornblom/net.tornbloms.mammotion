@@ -62,8 +62,9 @@ kommunikation:
 | R12.4 — välja zon från Flow | ✅ `start_mowing_zone` med zon-autocomplete |
 | R12.2 — starta en namngiven task | ✅ `start_mowing_schedule` med task-autocomplete |
 
-Rapportörerna körde v2.5.56/v2.5.59. **Åtgärd:** ett forumsvar som pekar på korten, plus
-att de nämns i App Store-beskrivningen. Se [H](#h--p2--dokumentation-och-upptäckbarhet).
+Rapportörerna körde v2.5.56/v2.5.59. **Åtgärd:** ett forumsvar som pekar på korten
+(utkast klart, ej postat), plus att de nu nämns i App Store-beskrivningen och README —
+✅ gjort, se [H](#h--p2--dokumentation-och-upptäckbarhet).
 
 ---
 
@@ -665,14 +666,28 @@ Flera rapporter är inte buggar utan att användare inte hittar det som finns.
 
 1. **Svara i forumtråden** med: `start_mowing_zone` finns (→ R12.4), `mower_job_finished`
    har en `task_name`-token (→ R4.2), `start_mowing_schedule` finns (→ R12.2) — och att man
-   behöver v2.5.61.
-2. **Dokumentera pause-tricket.** R12.1/R12.2:s användare kom själv på att man pausar tasken
-   i mobilappen så att bara Homey kör den. Det är icke-uppenbart och alla som kedjar tasks
-   kommer att behöva det. Hör hemma i README och App Store-beskrivningen.
-3. **Väntetext vid parning** (R4.1) — informera om att det kan dröja innan klipparen hittas.
-   Berör `drivers/luba/pair/*` och alla 13 språk.
-4. **Rätta hinten på `mower_job_finished`** tills [C](#c--p1--task-kedjning-fungerar-inte)
-   är löst.
+   behöver v2.5.61. **Utkast klart, uppdaterat till nuläget efter A–G — postas inte utan
+   godkännande.** Ligger utanför repot (scratchpad `forum-reply-draft.md`), tillsammans
+   med det engelska svaret till R13 (`reply-mowing-pattern.md`).
+2. ✅ **Dokumentera pause-tricket.** Nytt README-avsnitt *"Tip: run your saved tasks from
+   Homey"* (paus-tricket, kedjning via `task_name`, resume vs. start) och ett nytt stycke i
+   App Store-beskrivningen på alla 13 språk (`README.txt` + `README.<lang>.txt`) som nämner
+   de tre korten från [§3](#3-redan-löst-i-v2561--men-användarna-vet-inte-om-det),
+   `resume_mowing` och paus-tricket. Kortnamnen i varje språk är hämtade ordagrant ur
+   `driver.compose.json` så att texten matchar det användaren ser i Flow-editorn.
+   Hemsidan (`docs/homepage/index.html`) nämner nu sparade tasks och kedjning.
+   README listar även Yuka Mini 2 1000 som bekräftad (R12.4).
+3. ✅ **Väntetext vid parning** (R4.1) — **var redan levererad i v2.5.61**
+   (`pair.account_setup.note` i alla 13 `locales/*.json`: "After you log in, it can take a
+   moment for Homey to find your mower"). Rapportören körde en äldre version. Ingen åtgärd.
+4. ✅ **Hinten på `mower_job_finished`** — behöver inte rättas: [C](#c--p1--task-kedjning-fungerar-inte)
+   är implementerad, så koden håller nu hintens löfte ("Combine with *Start mowing task* to
+   automatically chain the next task") istället för att motsäga det. Hinten står kvar som
+   den är.
+
+Dessutom: changelog-post för **v2.5.62** i `.homeychangelog.json` som sammanfattar A–G på
+användarspråk, och versionen är höjd i `package.json`/`.homeycompose/app.json` (publicering
+är fortfarande manuell via `workflow_dispatch`).
 
 ---
 
@@ -683,7 +698,7 @@ Flera rapporter är inte buggar utan att användare inte hittar det som finns.
 | Stöd för Luba 1 | R12.6 | Kräver protokollutredning — annan generation. Arkitektarbete innan något lovas. |
 | Kamerabild i error-push | R2 | Kamera/Agora WebRTC ligger i fas 7. Utred om en stillbild går att hämta utan full WebRTC-stack, och om den kan exponeras som Homey-image-token. |
 | Kör till specifik geopunkt | R6 | Undersök om protokollet har ett "goto point"-kommando eller bara zon-/jobbnavigering. Notera att det efterfrågade användningsfallet (köra mot rörelse som bevakning) inte är avsedd användning — kräver ett ställningstagande. |
-| Bekräfta Yuka mini 2-stöd | R12.4 | Fungerar enligt användare. Uppdatera `CLAUDE.md` och App Store-listan så Yuka inte längre står som "deferred". |
+| Bekräfta Yuka mini 2-stöd | R12.4 | Fungerar enligt användare. ✅ README listar Yuka Mini 2 1000 som bekräftad (H2). `CLAUDE.md` säger fortfarande "Yuka and Spino deferred" — kvar. |
 
 ---
 
@@ -708,8 +723,10 @@ Flera rapporter är inte buggar utan att användare inte hittar det som finns.
 
 **Steg 4 — snabba vinster, kan tas när som helst**
 - ✅ F: `resume_mowing`-kortet — klart
-- H1/H2: forumsvar och dokumentation
-- H3: väntetext vid parning
+- ✅ H2: README, App Store-text (13 språk), hemsida, changelog v2.5.62
+- ✅ H3: väntetext vid parning — fanns redan i v2.5.61
+- ✅ H4: hinten står kvar, C gör den sann
+- H1: forumsvar — utkast klart, väntar på godkännande
 
 **Steg 5 — P2/P3**
 - ✅ G2–G4 — kvar i G: längdutredningen (väntar på en rapport med hexdump) och 1417

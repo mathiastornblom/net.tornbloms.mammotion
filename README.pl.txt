@@ -6,4 +6,6 @@ Ważne: Mammotion pozwala na tylko jedno aktywne logowanie na koncie, więc poł
 
 Domyślnie łączy się przez chmurę i automatycznie przełącza się na bezpośrednie połączenie Bluetooth, gdy kosiarka znajduje się w zasięgu, zapewniając szybsze i bardziej lokalne sterowanie. Użyj kart Flow, aby rozpocząć koszenie z niestandardową wysokością i prędkością, otrzymywać powiadomienia o rozpoczęciu lub zakończeniu koszenia, lub reagować na niski poziom baterii i stany błędów.
 
+Uruchamiaj zadania skonfigurowane już w aplikacji Mammotion bezpośrednio z Flow za pomocą "Uruchom zadanie koszenia" — z tymi samymi strefami, wysokością, prędkością i kątem koszenia co w aplikacji — albo skoś jedną nazwaną strefę za pomocą "Zacznij koszenie strefy". "Kosiarka zakończyła zadanie koszenia" uruchamia się w chwili zakończenia zadania i podaje, które to było zadanie, dzięki czemu możesz łączyć zadania jedno po drugim, a "Wznów koszenie" kontynuuje wstrzymane zadanie od miejsca, w którym się zatrzymało. Wskazówka: wstrzymaj harmonogram zadania w aplikacji Mammotion, aby uruchamiało się tylko wtedy, gdy uruchomi je Homey.
+
 Prywatność: w przypadku awarii aplikacja może wysłać anonimowy techniczny raport o awarii do dewelopera, aby pomóc szybciej rozwiązać problem. Nie są dołączane żadne dane konta, lokalizacji ani dane osobowe, a funkcję tę można wyłączyć w ustawieniach aplikacji.

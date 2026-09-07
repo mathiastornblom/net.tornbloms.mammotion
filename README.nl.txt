@@ -6,4 +6,6 @@ Houd het batterijniveau, de batterijcycli, het mesgebruik, het gemaaide gebied e
 
 Maakt standaard verbinding via de cloud en schakelt automatisch over op een directe Bluetooth-verbinding wanneer je maaier binnen bereik is, voor snellere en meer lokale bediening. Gebruik Flow-kaarten om te maaien met een aangepaste maaihoogte en snelheid, een melding te krijgen wanneer het maaien start of stopt, of te reageren op een laag batterijniveau of foutmeldingen.
 
+Start de taken die je al in de Mammotion-app hebt ingesteld rechtstreeks vanuit een Flow met "Start maaitaak" — met dezelfde zones, maaihoogte, snelheid en maairichting als in de app — of maai één benoemde zone met "Start met maaien van zone". "Maaier heeft een maaitaak voltooid" wordt geactiveerd zodra een taak klaar is en vertelt welke taak het was, zodat je taken achter elkaar kunt koppelen, en "Maaien hervatten" gaat verder waar een gepauzeerde taak stopte. Tip: pauzeer het schema van de taak in de Mammotion-app, zodat de taak alleen draait wanneer Homey hem start.
+
 Privacy: als de app crasht, kan deze een anoniem technisch crashrapport naar de ontwikkelaar sturen om het probleem sneller op te lossen. Er worden geen account-, locatie- of persoonsgegevens meegestuurd, en dit kan worden uitgeschakeld in de instellingen van de app.
