@@ -693,12 +693,68 @@ användarspråk, och versionen är höjd i `package.json`/`.homeycompose/app.jso
 
 ## I — P3 — Nya modeller och funktioner
 
-| Önskemål | Rapport | Bedömning |
+Utrett 2026-09-07 mot pymammotion (`main`, hämtat via raw.githubusercontent.com) och
+Mammotion-HA. Inget av detta är byggt — avsnittet är underlag för produktbeslut.
+
+| Önskemål | Rapport | Utfall |
 |---|---|---|
-| Stöd för Luba 1 | R12.6 | Kräver protokollutredning — annan generation. Arkitektarbete innan något lovas. |
-| Kamerabild i error-push | R2 | Kamera/Agora WebRTC ligger i fas 7. Utred om en stillbild går att hämta utan full WebRTC-stack, och om den kan exponeras som Homey-image-token. |
-| Kör till specifik geopunkt | R6 | Undersök om protokollet har ett "goto point"-kommando eller bara zon-/jobbnavigering. Notera att det efterfrågade användningsfallet (köra mot rörelse som bevakning) inte är avsedd användning — kräver ett ställningstagande. |
-| Bekräfta Yuka mini 2-stöd | R12.4 | Fungerar enligt användare. ✅ README listar Yuka Mini 2 1000 som bekräftad (H2). `CLAUDE.md` säger fortfarande "Yuka and Spino deferred" — kvar. |
+| Stöd för Luba 1 | R12.6 | Utrett, se [I1](#i1--luba-1-r126). Kräver beslut. |
+| Kamerabild i error-push | R2 | **Blockerat**, se [I2](#i2--kamerabild-i-error-push-r2). Ingen ny väg sedan ROADMAP-noten. |
+| Kör till specifik geopunkt | R6 | **Finns inte i protokollet**, se [I3](#i3--geopunkt-r6). Alternativ finns för användningsfallet. |
+| Bekräfta Yuka mini 2-stöd | R12.4 | ✅ README och `CLAUDE.md` uppdaterade; Yuka står inte längre som "deferred". |
+
+### I1 — Luba 1 (R12.6)
+
+_(fylls i från arkitektutredningen nedan)_
+
+### I2 — Kamerabild i error-push (R2)
+
+Ingen stillbild går att hämta utan att gå med i Agora-kanalen. Kontrollerat igen mot
+pymammotions nuvarande `http/http.py`: de enda kameraanropen är `get_stream_subscription`
+(`POST /device-server/v1/stream/token`, returnerar Agora `appid`/`channelName`/`token`/`uid`)
+och `get_video_resource` (`GET /device-server/v1/video-resource/{iotId}`); modellen
+`http/model/camera_stream.py` innehåller inga bild-URL:er, bara kanal- och token-fält.
+`commands/messages/video.py` har enbart `device_agora_join_channel_with_position` och
+`refresh_fpv` — det vill säga "gå med i strömmen", inget "ta en bild".
+
+Slutsatsen i `docs/ROADMAP.md` (P3, "Camera / Agora WebRTC") står sig oförändrad: Homeys
+kamerastöd förväntar sig antingen en strömbar URL eller generisk SDP-signalering, och
+Mammotion levererar råa Agora-SDK-uppgifter, vilket inget av Homeys två integrationsformer
+kan ta emot. En bild kräver samma Agora-anslutning som hela strömmen. **Svar till
+användaren:** inte möjligt från Homey-appen i dag; hans egen "ordnar det på annat sätt" (t.ex.
+en skärmdump från Mammotion-appen eller en separat kamera i Homey) är rätt väg. Återbesök
+bara om Mammotions API ändras.
+
+### I3 — Geopunkt (R6)
+
+Protokollet har inget "kör till koordinat"-kommando. Genomgång av pymammotions
+`commands/messages/navigation.py` (985 rader, samtliga `def`): all navigering sker över
+lagrade områden och jobb — `generate_route_information` över område-hashar, `start_job`,
+`return_to_dock`, `break_point_continue` / `break_point_anywhere_continue` (fortsätt jobbet
+från sparad brytpunkt respektive nuvarande position), plus kartredigering (gränser, korridorer,
+tömningspunkter). `x_move`/`y_move` som förekommer i Mammotion-HA:s `services.yaml` är
+SVG-kartplacering (`svg_message_t`), inte navigering.
+
+Det enda positionsstyrande som finns är joystick-körning: `driver.py::send_movement(linear,
+angular)` → `DrvMotionCtrl` (`mctrl_driver.proto`), som Mammotion-HA exponerar som fyra
+knappar (fram/vänster/höger/bak, `button.py`, helst över BLE med användaren närvarande). Det är
+fjärrkontroll med hastigheter, inte målstyrning. Positionen rapporteras i `NavPosUp`
+(`x`, `y` i meter i RTK-basens lokala ram, `toward`, `posLevel`), så en "kör till punkt"-funktion
+skulle innebära att **appen själv sluter reglerkretsen** — läser position, räknar kurs, skickar
+hastigheter tills målet nås — ovanpå en maskin med roterande knivar, utan tillverkarens
+hinderundvikning i den lägen. Det är en egenbyggd autopilot, inte en protokollfunktion.
+
+Rekommendation: **bygg inte.** Två skäl som är oberoende av varandra: (1) funktionen finns inte
+att exponera, bara att uppfinna; (2) användningsfallet — köra mot rörelse i carporten som
+bevakning — är inte avsedd användning, och ansvaret vid tillbud skulle ligga hos appen.
+
+**Alternativ som täcker användningsfallet med det som finns:** rita en liten zon i carporten i
+Mammotion-appen och kör `start_mowing_zone` på den från rörelseflödet. Klipparen navigerar dit
+med sin egen ruttplanering och hinderundvikning, och kan skickas hem med `send_to_dock` när
+rörelsen upphört. Om knivarna inte ska snurra har pymammotion/Mammotion-HA en `is_mow=false`-parameter
+på start-kommandot; den är **inte** portad till appens `StartMowOptions` (som i dag har
+`bladeHeight`, `speed`, `channelWidth`, `isEdge`, `areas`) — en liten utökning om det
+efterfrågas. Det svaret kan gå till användaren utan att något byggs.
 
 ---
 
@@ -730,7 +786,8 @@ användarspråk, och versionen är höjd i `package.json`/`.homeycompose/app.jso
 
 **Steg 5 — P2/P3**
 - ✅ G2–G4 — kvar i G: längdutredningen (väntar på en rapport med hexdump) och 1417
-- E, I
+- ✅ I: utrett (Luba 1 scopat, kamera blockerad, geopunkt finns inte, Yuka bekräftad) — beslut kvar
+- E
 
 ---
 
@@ -742,9 +799,11 @@ användarspråk, och versionen är höjd i `package.json`/`.homeycompose/app.jso
    först fastställs mot hårdvara.
 2. **Task-kedjning (C):** ska appen dölja pause/vänta-dansen internt, eller ska vi
    dokumentera workarounden och låta användaren bygga den själv?
-3. **Geopunkt (R6/I):** vill vi bygga en funktion vars beskrivna användningsfall är att köra
-   klipparen mot rörelse?
-4. **Luba 1 (R12.6):** värt en protokollutredning nu, eller ska vi svara "inte planerat"?
+3. **Geopunkt (R6/I):** ✅ utrett — finns inte i protokollet, rekommendationen är att inte
+   bygga och i stället svara med zon-alternativet i [I3](#i3--geopunkt-r6). Kvar: godkänna
+   det svaret.
+4. **Luba 1 (R12.6):** utredningen är gjord, se [I1](#i1--luba-1-r126). Kvar: välja
+   mellan alternativen där.
 5. ✅ **`unavailable` vid inaktuell data (A3) — besvarad i implementationen:** varken ett
    värde eller två, utan *relativt*: 3 × det intervall pollslingan själv senast valde, golv
    10 min. Se A3 för resonemanget och testerna som låser att det aldrig krockar med A1/A2.
