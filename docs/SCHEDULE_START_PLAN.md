@@ -159,6 +159,17 @@ shouldn't have to wait out the multi-minute physical drive back to the dock befo
 can start. `mower_docked` (unchanged) still fires only once actually docked, for anything that
 cares about physical dock arrival specifically.
 
+**Firing on `returning` has a consequence the original change missed:** a start command that
+arrives while the mower is in `MODE_RETURNING` is dropped by the device. The cloud acks it
+(`code:0`), the mower carries on to the dock, and the chained task never runs — which is exactly
+the Flow this trigger's own hint tells users to build, and a real user built it and watched it fail
+(USER_REPORTS_INBOX R1/R4). The same user found by hand what works: `pause` first, then start
+(R3). Since 2026-09 both start paths (`actionStartSchedule` and `actionPlanAndStartMowing`) call
+`interruptReturnIfNeeded()` first: if `mower_status` is `returning`, send `pause`, wait up to 10 s
+for the status to leave `returning`, then proceed with the start regardless. The 10 s is the gap
+the hand-built workaround used; `pause` rather than `cancelDock` because pause is what was
+confirmed on hardware. Not yet verified end-to-end on a real mower — see USER_REPORTS_PLAN §C.
+
 ## Descriptor coverage — NO regeneration needed (verified)
 
 | Message (`MctlNav` slot, id) | Fields in our descriptor | Needed for |

@@ -6,4 +6,6 @@ Håll koll på batterinivå, battericykler, knivslitage, klippt yta och förlopp
 
 Ansluter via molnet som standard och växlar automatiskt till en direkt Bluetooth-anslutning när klipparen är inom räckhåll, för snabbare och mer lokal styrning. Använd Flow-kort för att starta klippning med anpassad klipphöjd och hastighet, få ett meddelande när klippningen startar eller avslutas, eller reagera på lågt batteri och feltillstånd.
 
+Kör de uppgifter du redan skapat i Mammotion-appen direkt från ett Flow med "Starta klippuppgift" — samma zoner, klipphöjd, hastighet och klippvinkel som i appen — eller klipp en enskild namngiven zon med "Starta klippning av zon". "Klipparen avslutade ett klippjobb" utlöses i samma stund som ett jobb är klart och talar om vilken uppgift det var, så att du kan kedja uppgifter efter varandra, och "Återuppta klippning" fortsätter ett pausat jobb där det stannade. Tips: pausa uppgiftens schema i Mammotion-appen så att den bara körs när Homey startar den.
+
 Integritet: om appen kraschar kan den skicka en anonym teknisk kraschrapport till utvecklaren för att hjälpa till att åtgärda problemet snabbare. Inget konto, ingen plats och inga personuppgifter ingår, och funktionen kan stängas av i appens inställningar.

@@ -73,7 +73,14 @@ export function httpsRequestJsonWithStatus<T>(opts: {
     req.on('error', reject);
     // The `timeout` option above only starts a socket-inactivity timer — it doesn't abort the
     // request on its own. destroy()ing with an Error routes through the 'error' listener above.
-    req.on('timeout', () => req.destroy(new Error(`Aliyun request timed out after ${ALIYUN_GATEWAY_REQUEST_TIMEOUT_MS}ms`)));
+    // Carries code ETIMEDOUT so AliyunLegacyProbe's isNetworkLevelError() treats our own
+    // inactivity timeout like the OS's — it is the same condition, just detected by us. Without
+    // it a timed-out step was classed as a logical failure: getRegion's static-table fallback
+    // never engaged for it, and the per-step retry in the probe would have skipped exactly the
+    // failure a real report (R11) showed.
+    req.on('timeout', () => req.destroy(Object.assign(
+      new Error(`Aliyun request timed out after ${ALIYUN_GATEWAY_REQUEST_TIMEOUT_MS}ms`), { code: 'ETIMEDOUT' },
+    )));
     if (opts.body) req.write(opts.body);
     req.end();
   });

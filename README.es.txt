@@ -6,4 +6,6 @@ Vigila el nivel de batería, los ciclos de carga, el desgaste de la cuchilla, el
 
 Se conecta a través de la nube de forma predeterminada y cambia automáticamente a una conexión Bluetooth directa cuando el cortacésped está al alcance, para un control más rápido y local. Usa tarjetas de Flow para iniciar un corte con altura y velocidad personalizadas, recibir una notificación cuando el corte comience o termine, o reaccionar ante batería baja y estados de error.
 
+Ejecuta las tareas que ya has configurado en la aplicación Mammotion directamente desde un Flow con "Iniciar tarea de corte" — mismas zonas, altura de corte, velocidad y ángulo que en la aplicación — o corta una sola zona con nombre con "Iniciar corte de la zona". "El cortacésped terminó un trabajo de corte" se activa en cuanto termina un trabajo y te dice qué tarea era, para encadenar tareas una tras otra, y "Reanudar corte" continúa un trabajo pausado donde se detuvo. Consejo: pausa la programación de la tarea en la aplicación Mammotion para que solo se ejecute cuando Homey la inicie.
+
 Privacidad: si la aplicación falla, puede enviar un informe técnico anónimo al desarrollador para ayudar a solucionar el problema más rápido. No se incluyen datos de cuenta, ubicación ni personales, y esta función se puede desactivar en los ajustes de la aplicación.

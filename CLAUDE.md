@@ -15,7 +15,9 @@ A Homey SDK 3 app that integrates Mammotion robot lawn mowers (Luba 2, Luba 3) i
 ## Target Devices
 - **Luba 2** series (primary — developer-owned)
 - **Luba 3** (secondary target, same protocol family)
-- Yuka and Spino deferred to later phases
+- **Yuka** family works through the same pairing/cloud path — Yuka Mini 800 (2026-07) and Yuka
+  Mini 2 1000 (2026-08) confirmed by users, no Yuka-specific code. Spino unconfirmed. **Luba 1 parked**
+  (2026-09-07): scoped in `docs/USER_REPORTS_PLAN.md` §I1, not planned, no work without a new decision.
 
 ## Connectivity (both, from day one)
 1. **Cloud / MQTT** — Aliyun IoT (Chinese cloud), MQTT over TLS. Requires a dedicated second Mammotion account (primary account gets kicked out of the mobile app). Auth via Aliyun HTTP APIs.
@@ -180,8 +182,8 @@ A dedicated second Mammotion account must be created and mowers shared to it bef
 | 7 — Advanced | 12+ | Firmware OTA, camera stream investigation |
 
 ## Current status & subagents
-Published on the Homey App Store, post-launch. `main` = v2.5.53 (last Homey-approved build),
-`test` = v2.5.54 (active development, awaiting approval). ~180 users as of the 2026-07 forum
+Published on the Homey App Store, post-launch. `main` = v2.5.56 (last Homey-approved build),
+`test` = v2.5.61 (active development; v2.5.62 in PR #33). ~180 users as of the 2026-07 forum
 announcement. Prioritized backlog: `docs/ROADMAP.md` — currently one P0 open (the `gh-pages`
 branch disappeared from the remote, unconfirmed whether the live homepage is actually affected).
 Role-specific subagents in `.claude/agents/`: `architect` (research/scoping, opus), `developer`
