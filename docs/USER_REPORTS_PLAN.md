@@ -698,14 +698,79 @@ Mammotion-HA. Inget av detta är byggt — avsnittet är underlag för produktbe
 
 | Önskemål | Rapport | Utfall |
 |---|---|---|
-| Stöd för Luba 1 | R12.6 | Utrett, se [I1](#i1--luba-1-r126). Kräver beslut. |
+| Stöd för Luba 1 | R12.6 | Utrett, se [I1](#i1--luba-1-r126). Paras redan i dag, otestat; tre alternativ, beslut kvar. |
 | Kamerabild i error-push | R2 | **Blockerat**, se [I2](#i2--kamerabild-i-error-push-r2). Ingen ny väg sedan ROADMAP-noten. |
 | Kör till specifik geopunkt | R6 | **Finns inte i protokollet**, se [I3](#i3--geopunkt-r6). Alternativ finns för användningsfallet. |
 | Bekräfta Yuka mini 2-stöd | R12.4 | ✅ README och `CLAUDE.md` uppdaterade; Yuka står inte längre som "deferred". |
 
 ### I1 — Luba 1 (R12.6)
 
-_(fylls i från arkitektutredningen nedan)_
+Utrett mot pymammotion `main` (`utility/device_type.py`, `utility/device_config.py`,
+`commands/messages/*`) och Mammotion-HA (`coordinator.py`, `lawn_mower.py`, `switch.py`,
+`sensor.py`, `select.py`, `button.py`). Lokala påståenden nedan är stickprovskontrollerade.
+
+**Vad Luba 1 är i protokollet.** `DeviceType.LUBA` — namnprefix `Luba` (utan `-VS` etc.)
+eller ett av 11 produktnycklar, alla på Aliyun-plattformen. Det är alltså **samma
+moln/MQTT-stack** som appen redan talar, samma `LubaMsg`-kuvert och samma proto-filer.
+pymammotion har **ingen separat Luba 1-kodväg** i kommandon, BLE-ramning eller MQTT-parsning;
+all skillnad ligger i konsumenten (Mammotion-HA). Modeller: AWD 1000/3000/5000 (723/743-varianter)
+samt "Kumar-10". Gränser enligt `device_config.py`: klipphöjd **30–70 mm** (appens
+capability tillåter 25), hastighet 0,2–1,2 m/s (**max 0,4** på `a1ZU6bdGjaM`), max 3/6/10
+zoner beroende på modell, banavstånd 20–35.
+
+**Vad Mammotion-HA gör annorlunda för Luba 1** (det som faktiskt skiljer):
+- Knivar på/av via `todev_knife_ctrl` i stället för `operate_on_device`.
+- Ruttplanering tvingar `toward_mode=0`, `toward_included_angle=0` (vinkel finns bara på Luba 2/Yuka).
+- Ingen `area_name` från enheten alls — zoner har bara hash, aldrig namn.
+- Färre sensorer (bara `base_link_status` i signalgruppen), ingen kamera, ingen 4G, ingen
+  ljudvolym/röst, ingen `random_angle`, ingen omstartsknapp, `reset_blade_time` no-op.
+- Parameterläsning stannar på `allpowerfull_rw`/`bidire_comm_cmd` (Pro använder `nav_sys_param_cmd`).
+
+**Vad appen gör i dag — den utesluter inte Luba 1.** `buildDeviceList()` i
+`drivers/luba/driver.ts` filtrerar inte på produktnyckel, och `capabilitiesForModel()` tar
+inte bort något för `DeviceType.LUBA`. En Luba 1 skulle alltså **paras redan nu**, och mer
+än väntat är redan rätt:
+- `LEGACY_LUBA1_PRODUCT_KEYS` (`constants.ts:91`) innehåller alla 11 nycklar och styr
+  `isLubaProDevice()`, som routar NAV-kommandon till `DEV_MAINCTL` för Luba 1 på nio
+  anropsställen i `LubaCommands.ts`. Det är den viktigaste skillnaden — **redan implementerad
+  och levererad**.
+- `buildGenerateRouteCommand` hårdkodar `towardMode: 0, towardIncludedAngle: 0`
+  (`LubaCommands.ts:566`) — exakt HA:s Luba 1-override.
+- Regnskydd går via `bidireCommCmd` id 3 ovillkorligt — HA:s icke-Pro-väg.
+- `mow_blade_active` är bara telemetri i appen, så `knife_ctrl`-skillnaden utlöses aldrig.
+
+**Ingenting har någonsin testats mot en Luba 1.** Ingen hårdvara, inget konto.
+
+**Gaplista om stöd ska göras:**
+1. Klipphöjdens golv — capability min 25, Luba 1 kräver 30. `.homeycompose/capabilities/mow_blade_height.json` + klamp per modell i `deviceType.ts`. **S**
+2. Zonval utan namn — Luba 1 returnerar aldrig `area_name`; `docs/ZONE_BOUNDARY_FALLBACK_PLAN.md` scopar redan hash-fallbacken, verifiera att den täcker Luba 1. **M**
+3. Capability-gating — `measure_gps_stars`-härledning och Pro-only-rattar; `isLuba1()` i `deviceType.ts`, utöka `capabilitiesForModel`. **M**
+4. Hastighetstak 0,4 m/s på `a1ZU6bdGjaM`. **S**
+5. Portera gränstabellen i `device_config.py` (höjd/hastighet/avstånd/zonantal per nyckel) till ny `lib/mammotion/deviceLimits.ts`. **M**
+6. Slå ihop `LEGACY_LUBA1_PRODUCT_KEYS` med `deviceType.isLuba1()` — redan flaggat i `docs/CAPABILITY_DIFFERENTIATION_PLAN.md:117`. **S**
+7. BLE — `Luba-`-prefixskanning och BluFi-parning mot 2022-firmware. **M, går inte att verifiera utan hårdvara.**
+8. Parningstext/README/locales. **S**
+
+**Risk.** Overiferbart utan enhet: om 2022-firmware svarar på samma `todevReportCfg`-prenumeration
+(`LubaCommands.ts:60`) — en äldre firmware som avvisar okända sub-typer ger *ingen* telemetri,
+dvs. exakt "ingen status"-klassen som redan rapporterats fyra gånger; om BluFi-handskakning/MTU
+är identisk; om `bidireReqconverPath` accepteras alls. Tyst-fel-kandidater: 1,2 m/s till en
+AWD1000 (max 0,4); 25–29 mm klipphöjd; "klipp alla zoner" mot `work_area_num_max=3`; en framtida
+Luba 1-nyckel som saknas i listan routas till `DEV_NAVIGATION` och kommandon blir no-op.
+
+**Alternativ (beslut: Mathias):**
+- **A — "Inte planerat", lämna som det är (0 arbete).** Luba 1 paras redan och fungerar
+  *troligen* till stor del. Risk: en användare parar, det halvfungerar, dålig recension.
+- **B — Best effort bakom en varning (≈1–2 dagar).** Gap 1, 4, 5, 6, 8 plus riktad
+  diagnostikloggning på Luba 1-enheter, och texten "Luba 1: otestat, rapportera gärna" vid
+  parning och i README. Lägst risk per insats; gör ett okänt till mätbar signal.
+  **Rekommenderas om något alls görs.**
+- **C — Fullt stöd (≈1–2 veckor + en villig betatestare).** Alla 8 gap inklusive BLE och
+  zon-fallbacken. Kan inte nå "verifierat" utan hårdvara eller en engagerad testare.
+
+**Svar till R12.6-användaren oavsett val:** appen spärrar inte Luba 1, den kan prova att para
+den redan i dag, och en diagnostikrapport från det försöket är det som avgör hur långt det är
+kvar. Det är den billigaste vägen till ett riktigt svar.
 
 ### I2 — Kamerabild i error-push (R2)
 
