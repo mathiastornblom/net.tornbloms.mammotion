@@ -698,9 +698,9 @@ Mammotion-HA. Inget av detta är byggt — avsnittet är underlag för produktbe
 
 | Önskemål | Rapport | Utfall |
 |---|---|---|
-| Stöd för Luba 1 | R12.6 | Utrett, se [I1](#i1--luba-1-r126). Paras redan i dag, otestat; tre alternativ, beslut kvar. |
+| Stöd för Luba 1 | R12.6 | **Parkerat** (beslut 2026-09-07, alternativ A). Utredningen i [I1](#i1--luba-1-r126) sparas för senare. |
 | Kamerabild i error-push | R2 | **Blockerat**, se [I2](#i2--kamerabild-i-error-push-r2). Ingen ny väg sedan ROADMAP-noten. |
-| Kör till specifik geopunkt | R6 | **Finns inte i protokollet**, se [I3](#i3--geopunkt-r6). Alternativ finns för användningsfallet. |
+| Kör till specifik geopunkt | R6 | **Nej** (beslut 2026-09-07). Finns inte i protokollet, se [I3](#i3--geopunkt-r6); svar med zon-alternativet utkastat. |
 | Bekräfta Yuka mini 2-stöd | R12.4 | ✅ README och `CLAUDE.md` uppdaterade; Yuka står inte längre som "deferred". |
 
 ### I1 — Luba 1 (R12.6)
@@ -758,7 +758,12 @@ dvs. exakt "ingen status"-klassen som redan rapporterats fyra gånger; om BluFi-
 AWD1000 (max 0,4); 25–29 mm klipphöjd; "klipp alla zoner" mot `work_area_num_max=3`; en framtida
 Luba 1-nyckel som saknas i listan routas till `DEV_NAVIGATION` och kommandon blir no-op.
 
-**Alternativ (beslut: Mathias):**
+**Beslut 2026-09-07: alternativ A — parkerat.** Inget Luba 1-arbete planeras. Appen
+spärrar inte Luba 1, så en användare som provar gör det på egen risk; en diagnostikrapport från
+ett sådant försök tas emot och sparas här, men utlöser inget arbete förrän beslutet omprövas.
+Gaplistan ovan är det man börjar med då.
+
+**Alternativen som övervägdes:**
 - **A — "Inte planerat", lämna som det är (0 arbete).** Luba 1 paras redan och fungerar
   *troligen* till stor del. Risk: en användare parar, det halvfungerar, dålig recension.
 - **B — Best effort bakom en varning (≈1–2 dagar).** Gap 1, 4, 5, 6, 8 plus riktad
@@ -809,7 +814,7 @@ skulle innebära att **appen själv sluter reglerkretsen** — läser position, 
 hastigheter tills målet nås — ovanpå en maskin med roterande knivar, utan tillverkarens
 hinderundvikning i den lägen. Det är en egenbyggd autopilot, inte en protokollfunktion.
 
-Rekommendation: **bygg inte.** Två skäl som är oberoende av varandra: (1) funktionen finns inte
+**Beslut 2026-09-07: nej, byggs inte.** Två skäl som är oberoende av varandra: (1) funktionen finns inte
 att exponera, bara att uppfinna; (2) användningsfallet — köra mot rörelse i carporten som
 bevakning — är inte avsedd användning, och ansvaret vid tillbud skulle ligga hos appen.
 
@@ -819,7 +824,8 @@ med sin egen ruttplanering och hinderundvikning, och kan skickas hem med `send_t
 rörelsen upphört. Om knivarna inte ska snurra har pymammotion/Mammotion-HA en `is_mow=false`-parameter
 på start-kommandot; den är **inte** portad till appens `StartMowOptions` (som i dag har
 `bladeHeight`, `speed`, `channelWidth`, `isEdge`, `areas`) — en liten utökning om det
-efterfrågas. Det svaret kan gå till användaren utan att något byggs.
+efterfrågas. Svarsutkast till användaren (svenska) ligger utanför repot i scratchpad
+`reply-geopoint.md`, ej skickat.
 
 ---
 
@@ -851,7 +857,7 @@ efterfrågas. Det svaret kan gå till användaren utan att något byggs.
 
 **Steg 5 — P2/P3**
 - ✅ G2–G4 — kvar i G: längdutredningen (väntar på en rapport med hexdump) och 1417
-- ✅ I: utrett (Luba 1 scopat, kamera blockerad, geopunkt finns inte, Yuka bekräftad) — beslut kvar
+- ✅ I: utrett och beslutat (Luba 1 parkerat, geopunkt nej, kamera blockerad, Yuka bekräftad)
 - E
 
 ---
@@ -864,11 +870,10 @@ efterfrågas. Det svaret kan gå till användaren utan att något byggs.
    först fastställs mot hårdvara.
 2. **Task-kedjning (C):** ska appen dölja pause/vänta-dansen internt, eller ska vi
    dokumentera workarounden och låta användaren bygga den själv?
-3. **Geopunkt (R6/I):** ✅ utrett — finns inte i protokollet, rekommendationen är att inte
-   bygga och i stället svara med zon-alternativet i [I3](#i3--geopunkt-r6). Kvar: godkänna
-   det svaret.
-4. **Luba 1 (R12.6):** utredningen är gjord, se [I1](#i1--luba-1-r126). Kvar: välja
-   mellan alternativen där.
+3. ✅ **Geopunkt (R6/I): nej** (2026-09-07). Finns inte i protokollet; användaren får
+   zon-alternativet i [I3](#i3--geopunkt-r6). Svarsutkast finns, ej skickat.
+4. ✅ **Luba 1 (R12.6): parkerat** (2026-09-07, alternativ A). Utredningen i
+   [I1](#i1--luba-1-r126) sparas; forumsvaret säger "inte planerat".
 5. ✅ **`unavailable` vid inaktuell data (A3) — besvarad i implementationen:** varken ett
    värde eller två, utan *relativt*: 3 × det intervall pollslingan själv senast valde, golv
    10 min. Se A3 för resonemanget och testerna som låser att det aldrig krockar med A1/A2.

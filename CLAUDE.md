@@ -16,8 +16,8 @@ A Homey SDK 3 app that integrates Mammotion robot lawn mowers (Luba 2, Luba 3) i
 - **Luba 2** series (primary — developer-owned)
 - **Luba 3** (secondary target, same protocol family)
 - **Yuka** family works through the same pairing/cloud path — Yuka Mini 800 (2026-07) and Yuka
-  Mini 2 1000 (2026-08) confirmed by users, no Yuka-specific code. Spino and Luba 1 unconfirmed;
-  Luba 1 scoped in `docs/USER_REPORTS_PLAN.md` §I, not planned until a product decision.
+  Mini 2 1000 (2026-08) confirmed by users, no Yuka-specific code. Spino unconfirmed. **Luba 1 parked**
+  (2026-09-07): scoped in `docs/USER_REPORTS_PLAN.md` §I1, not planned, no work without a new decision.
 
 ## Connectivity (both, from day one)
 1. **Cloud / MQTT** — Aliyun IoT (Chinese cloud), MQTT over TLS. Requires a dedicated second Mammotion account (primary account gets kicked out of the mobile app). Auth via Aliyun HTTP APIs.
