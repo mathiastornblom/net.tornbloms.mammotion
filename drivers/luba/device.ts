@@ -46,6 +46,7 @@ import {
   pollBackoffMs, composeWithPacing, ACCOUNT_BACKOFF_MAX_MS, ACCOUNT_PENALTY_WARN_AFTER,
   UNBOUND_UNAVAILABLE_AFTER, type PollFailureKind,
 } from '../../lib/mammotion/aliyun/pollBackoff.js';
+import { isTelemetryStale, staleAfterMs } from '../../lib/mammotion/staleness.js';
 import {
   DeviceType, resolveDeviceType, capabilitiesForModel, MODEL_STRING,
 } from '../../lib/mammotion/deviceType.js';
@@ -106,6 +107,11 @@ const RATE_LIMIT_COOLDOWN_STORE_KEY = 'rateLimitCooldownUntil';
 const RATE_LIMIT_FAILURE_COUNT_STORE_KEY = 'rateLimitFailureCount';
 
 // requestBoundaryZoneDiscovery() budgets — see docs/ZONE_BOUNDARY_FALLBACK_PLAN.md §5.
+/** How often the telemetry-staleness watchdog looks at the clock. Coarse on purpose: the
+ *  floor it enforces is 10 minutes (see staleness.ts), so a one-minute tick is plenty and
+ *  costs nothing — it sends no requests, it only compares timestamps. */
+const STALE_CHECK_INTERVAL_MS = 60_000;
+
 /** How long interruptReturnIfNeeded waits for the mower to acknowledge a pause before
  *  sending the start regardless. 10 s is the gap the hand-built pause→start workaround used
  *  successfully on a real mower (report R3); a shorter window has no evidence behind it. */
@@ -153,6 +159,20 @@ export default class LubaDevice extends Homey.Device {
   /** Which warning is currently shown, so setWarning/unsetWarning are only called on change. */
   private shownWarningKey: string | null = null;
   private mqttReconnectTimer: NodeJS.Timeout | null = null;
+  /** Telemetry-staleness watchdog — see checkTelemetryStaleness(). */
+  private staleWatchdog: NodeJS.Timeout | null = null;
+  /** When the last telemetry update arrived, or null until the first one after the
+   *  transports (re)started. Baselined at startTransports, not from the stored last_sync
+   *  value, so a restart never trips the watchdog on days-old data before the transports
+   *  have had their chance. */
+  private lastTelemetryAt: number | null = null;
+  /** The delay the poll loop most recently scheduled — the watchdog's notion of "expected
+   *  interval". Tracks pacing and backoff automatically because both go through schedulePoll. */
+  private lastScheduledPollDelayMs = TELEMETRY_POLL_INTERVAL_MS;
+  /** Whether the device is currently marked unavailable *by the watchdog* (as opposed to by
+   *  a transport that knows a specific cause), so recovery is only done once and only for
+   *  what this code set. */
+  private markedStale = false;
   private mqttFailureCount = 0;
   /** Consecutive failed poll results — drives the per-cause ladders in pollBackoff.ts. Reset to 0
    *  the moment a poll succeeds or any online-transition callback fires (markOnline). */
@@ -375,6 +395,7 @@ export default class LubaDevice extends Homey.Device {
     const pref = this.transportPreference();
     const isLegacy = this.getContext().transportKind === 'aliyun_legacy';
     this.log(`startTransports: preference=${pref} transportKind=${isLegacy ? 'aliyun_legacy' : 'mammotion'}`);
+    this.startStaleWatchdog();
 
     const useBle = pref === 'auto' || pref === 'ble_only';
     const useCloud = pref === 'auto' || pref === 'mqtt_only';
@@ -1119,6 +1140,7 @@ export default class LubaDevice extends Homey.Device {
     // staying aligned — see startPollTimer's desync comment. Backoff delays pass through
     // this too, which is fine: ±10% on a cooldown changes nothing about its intent.
     const jitter = this.getContext().transportKind === 'aliyun_legacy' ? 0.9 + Math.random() * 0.2 : 1;
+    this.lastScheduledPollDelayMs = delayMs;
     this.pollTimer = setTimeout(() => {
       void this.runPollTick();
     }, Math.round(delayMs * jitter));
@@ -1302,6 +1324,43 @@ export default class LubaDevice extends Homey.Device {
     if (!wasAvailable) (this.driver as unknown as LubaDriver).triggerMowerOnline(this);
   }
 
+  /** (Re)starts the staleness watchdog and re-baselines "last heard from" to now, so the
+   *  grace period always starts from when the transports were (re)started — see
+   *  lastTelemetryAt's doc comment. Idempotent across transport restarts (onSettings). */
+  private startStaleWatchdog(): void {
+    this.lastTelemetryAt = Date.now();
+    this.markedStale = false;
+    if (this.staleWatchdog) return;
+    this.staleWatchdog = this.homey.setInterval(() => this.checkTelemetryStaleness(), STALE_CHECK_INTERVAL_MS);
+  }
+
+  /** The catch-all for silence with no known cause (see staleness.ts). Every specific cause
+   *  — budget pacing, account penalty, unbound, confirmed offline — already sets its own
+   *  signal before this fires; this exists for the case a real report showed (R12.3), where
+   *  none of them had and the device page presented five-day-old data as current. */
+  private checkTelemetryStaleness(): void {
+    if (this.markedStale) return;
+    if (!isTelemetryStale(this.lastTelemetryAt, Date.now(), this.lastScheduledPollDelayMs)) return;
+    this.markedStale = true;
+    const silentMin = Math.round((Date.now() - (this.lastTelemetryAt ?? Date.now())) / 60_000);
+    const thresholdMin = Math.round(staleAfterMs(this.lastScheduledPollDelayMs) / 60_000);
+    this.log(`No telemetry for ${silentMin} min (threshold ${thresholdMin} min at the current ${Math.round(this.lastScheduledPollDelayMs / 1000)}s cadence) — marking stale`);
+    this.markStale();
+  }
+
+  /** Like markOffline, but says what we actually know: not that the mower is offline, only
+   *  that nothing has been heard from it. Leaves a more specific unavailable message (unbound,
+   *  invalid credentials, confirmed offline) in place rather than overwriting it, and fires
+   *  mower_offline on the transition so existing Flows notice — the trigger a real report
+   *  (R12.3) implicitly asked for by having no way to alarm on this. */
+  private markStale(): void {
+    const wasAvailable = this.getAvailable();
+    if (wasAvailable) {
+      this.setUnavailable(this.homey.__('error.telemetry_stale')).catch(this.error.bind(this));
+      (this.driver as unknown as LubaDriver).triggerMowerOffline(this);
+    }
+  }
+
   /** Marks the device unavailable and fires the mower_offline Flow trigger, but only on an
    *  actual online→offline transition — safe to call repeatedly (e.g. from a poll that
    *  keeps confirming the mower is still offline) without spamming the trigger. */
@@ -1345,6 +1404,12 @@ export default class LubaDevice extends Homey.Device {
   private handleTelemetry(iotId: string, state: Partial<TelemetryState>, via: TransportName): void {
     if (iotId !== this.getData().id) return;
     this.mqttFailureCount = 0;
+    this.lastTelemetryAt = Date.now();
+    if (this.markedStale) {
+      this.markedStale = false;
+      this.log('Telemetry resumed — clearing the stale-data state');
+      this.markOnline();
+    }
     this.setCapIfChanged('last_sync', this.formatNowForLastSync());
 
     const changed: string[] = [];
@@ -1752,6 +1817,7 @@ export default class LubaDevice extends Homey.Device {
 
   /** Stops timers and disconnects all transports. */
   private cleanup(): void {
+    if (this.staleWatchdog) { this.homey.clearInterval(this.staleWatchdog); this.staleWatchdog = null; }
     if (this.pollTimer) { clearTimeout(this.pollTimer); this.pollTimer = null; }
     if (this.mqttReconnectTimer) { clearTimeout(this.mqttReconnectTimer); this.mqttReconnectTimer = null; }
     this.mqtt?.disconnect();

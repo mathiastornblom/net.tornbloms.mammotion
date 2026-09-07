@@ -18,7 +18,7 @@ går inte att para. Resten är förbättringar och önskemål.
 
 | Prio | Kluster | Rapporter | Kärnproblem |
 |---|---|---|---|
-| **P0** | [A. Ingen statusuppdatering](#a--p0--ingen-statusuppdatering) | R5, R7, R8, R12.3, R12.5 | Tre orsaker; ✅ A1 pacing, ✅ A2 backoff per orsak + 29004 = obunden — A3 kvar |
+| ✅ **P0** | [A. Ingen statusuppdatering](#a--p0--ingen-statusuppdatering) | R5, R7, R8, R12.3, R12.5 | Alla tre orsaker åtgärdade: A1 pacing, A2 backoff per orsak + 29004 = obunden, A3 stalet-vakthund |
 | **P0** | [B. Delade enheter syns inte vid parning](#b--p0--delade-enheter-syns-inte-vid-parning) | R11, R12.7 (+minst en till) | Vår pipeline bevisat felfri (test); kvar är Homey-sidan/timing — handlern tar 13–16 s |
 | ✅ **P1** | [C. Task-kedjning fungerar inte](#c--p1--task-kedjning-fungerar-inte) | R1, R3, R4 | Return-avbrott före start implementerat — väntar hårdvaruverifiering |
 | ✅ **P1** | [D. Klippparametrar](#d--p1--klippparametrar-går-inte-att-styra) | R9, R13 | Spacing och klipphöjd hämtas nu från klipparens egna sparade tasks |
@@ -218,12 +218,47 @@ vore normalt. Enda signalen är den lilla texten "fem dagar sedan" vid WiFi-vär
 Det här är varför användarna skriver "status uppdateras inte" snarare än "appen är nere" —
 **UI:t ljuger inte, men det säger inte sanningen tillräckligt tydligt.**
 
-**Åtgärd:**
-1. Sätt enheten `unavailable` i Homey när ingen telemetri kommit in på X minuter (X bör
-   vara transportberoende — `aliyun_legacy` är långsammare än `mqtt` även när allt fungerar).
-2. En Flow-trigger "status har inte uppdaterats på X minuter" så användare kan larma själva.
-   `mower_offline`-triggern finns redan — kontrollera om den faktiskt fyras av i det här
-   läget, eller om den bara reagerar på transportnedkoppling.
+**Vad som gjorde A3 annorlunda efter A1/A2.** De kända orsakerna till tystnad har nu
+egna signaler — budget → varning, kontostraff → varning, obunden → unavailable, bekräftat
+offline → unavailable. Det som återstår är den **oförklarade** tystnaden: transporten ser
+fin ut, inget fel loggas, men inget kommer. Det kräver en vakthund som inte bryr sig om
+*varför*, bara om *hur länge*.
+
+**Åtgärd — ✅ implementerad** (`lib/mammotion/staleness.ts` + vakthund i `device.ts`):
+1. ✅ **Unavailable vid oförklarad tystnad.** En vakthund kollar varje minut om senaste
+   telemetri är äldre än tröskeln; då `setUnavailable` med `error.telemetry_stale`
+   (13 språk) — som säger det vi *vet*: inte att klipparen är offline, bara att inget hörts
+   — och `mower_offline` fyras på övergången. Nästa telemetri återställer via `markOnline()`.
+   En mer specifik unavailable-orsak (obunden, ogiltiga credentials, bekräftat offline)
+   skrivs **inte** över.
+2. ✅ **`mower_offline` fyras nu i det här läget.** Planens fråga var om triggern reagerar på
+   stalet data eller bara på transportnedkoppling — svaret var bara nedkoppling. Nu fyras den
+   på vakthundens övergång också, så befintliga flöden larmar utan att en ny kortsort behövs.
+   Ett dedikerat "inte uppdaterad på X min"-kort med användarvald X är därmed inte
+   nödvändigt; lägg till det bara om någon ber om det.
+
+**Svaret på planens fråga 5 — tröskeln:** *inte* ett fast värde, och inte två. Tröskeln är
+**tre gånger det intervall pollslingan själv senast schemalade**, med ett golv på 10 min:
+`staleAfterMs(interval) = max(10 min, 3 × interval)`. Eftersom både A1:s pacing och A2:s
+backoff går genom `schedulePoll`, följer vakthunden dem automatiskt — förväntar vi oss en
+poll var 30:e minut är tystnad stalet först efter 90 min; vid 120 s (eller MQTT:s 5 s)
+gäller golvet. Tre missade förväntade uppdateringar är punkten där transportens egen retry
+uppenbart inte löst det själv. **Vakthunden kan alltså aldrig flagga en enhet som appen
+själv medvetet saktat ner** — det är låst i test, inte bara avsett.
+
+Grundlinjen sätts till *starttiden* i `startTransports`, inte till det sparade
+`last_sync`-värdet: annars hade varje omstart flippat enheter till unavailable på dagar
+gammal data innan transporterna hunnit försöka. Överlever transportbyten (`onSettings`).
+
+**Verifiering:** 10 tester i `telemetry-staleness.test.mjs`, bl.a. R12.3:s fem dygn stalet
+vid varje intervall appen någonsin kan schemalägga; en enhet som den *riktiga* governorn
+pacat till 30 min är inte stalet vid 45 eller 89 min men vid 91; samma för A2:s
+30-minutersbackoff; MQTT tyst 11 min är stalet (130 missade rapporter är ingen blipp);
+regeln är monoton i både tystnad och intervall.
+
+**Kvarstår:** inget kodmässigt. R12.3-fallet ("Geten") skulle med A2 träffas av
+`device_unbound` långt före vakthunden — vakthunden är skyddsnätet för det vi *inte* har
+förutsett.
 
 ### A4. Att undersöka separat
 
@@ -593,7 +628,7 @@ Flera rapporter är inte buggar utan att användare inte hittar det som finns.
 **Steg 2 — P0, statusproblemet**
 - ✅ A1 budgetsvält — stegvis pacing, jitter, `setWarning`, persistent fönster
 - ✅ A2 backoff per orsak, 29004 klassificerad som obunden, räknare persisterad
-- A3 `unavailable` vid inaktuell data
+- ✅ A3 stalet-vakthund, relativ tröskel, `mower_offline` fyras
 - Parallellt: utred firmwarekopplingen (A4) och `getRegion 500`-fönstret
 
 **Steg 3 — P0/P1**
@@ -622,6 +657,6 @@ Flera rapporter är inte buggar utan att användare inte hittar det som finns.
 3. **Geopunkt (R6/I):** vill vi bygga en funktion vars beskrivna användningsfall är att köra
    klipparen mot rörelse?
 4. **Luba 1 (R12.6):** värt en protokollutredning nu, eller ska vi svara "inte planerat"?
-5. **`unavailable` vid inaktuell data (A3):** hur länge ska vi vänta innan en enhet markeras
-   otillgänglig? Går det att sätta ett värde som fungerar för både `mqtt` och
-   `aliyun_legacy`, eller behövs olika?
+5. ✅ **`unavailable` vid inaktuell data (A3) — besvarad i implementationen:** varken ett
+   värde eller två, utan *relativt*: 3 × det intervall pollslingan själv senast valde, golv
+   10 min. Se A3 för resonemanget och testerna som låser att det aldrig krockar med A1/A2.
