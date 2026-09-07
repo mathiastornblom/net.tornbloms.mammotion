@@ -107,3 +107,94 @@ test('BLE backoff: does not regress a device that is actually found (no change t
   const delays = await collectDelays(transport, 2);
   assert.deepEqual(delays, [30_000, 60_000]);
 });
+
+// ── Failure classification and parking (USER_REPORTS_INBOX R5/R7/R8/R10) ─────────────────
+//
+// Three failure modes used to share one counter and one message. These drive the real
+// transport with fakes for each mode and assert what gets logged, and that after ~6 h at
+// the quiet cadence the transport parks at 2 h and goes quiet until something changes.
+
+function withLogCapture(bleManager) {
+  const lines = [];
+  const transport = new BleTransport({
+    bleManager,
+    iotId: 'test-iot-id',
+    deviceName: 'Luba-TEST',
+    onMessage: () => {},
+    onStatus: () => {},
+    log: (m) => lines.push(m),
+    logError: (m) => lines.push(`ERR ${m}`),
+  });
+  return { transport, lines };
+}
+
+const othersOnlyBleManager = () => ({
+  async discover() { return [{ localName: 'Luba-OTHER', rssi: -80 }, { localName: 'Fridge', rssi: -60 }]; },
+  async find() { throw new Error('no cached uuid'); },
+});
+const foundButUnconnectableBleManager = () => ({
+  async discover() { return [{ localName: 'Luba-TEST', rssi: -85, async connect() { throw new Error('BLE Timeout'); } }]; },
+  async find() { throw new Error('no cached uuid'); },
+});
+
+test('BLE classification: an empty scan is "radio silent", not "mower out of range"', async () => {
+  const { transport, lines } = withLogCapture(neverFoundBleManager());
+  await collectDelays(transport, 1);
+  assert.ok(lines.some((l) => /no advertisements at all/.test(l)), lines.join('\n'));
+  assert.ok(!lines.some((l) => /not found in scan/.test(l)));
+});
+
+test('BLE classification: three empty scans in a row produce exactly one radio notice', async () => {
+  const { transport, lines } = withLogCapture(neverFoundBleManager());
+  await collectDelays(transport, 6);
+  const notices = lines.filter((l) => /hub's Bluetooth radio/.test(l));
+  assert.equal(notices.length, 1, lines.join('\n'));
+});
+
+test('BLE classification: others seen but not this mower is "out of range", with the count', async () => {
+  const { transport, lines } = withLogCapture(othersOnlyBleManager());
+  await collectDelays(transport, 1);
+  assert.ok(lines.some((l) => /not found in scan \(2 other advertisement\(s\) seen\)/.test(l)), lines.join('\n'));
+  assert.ok(!lines.some((l) => /hub's Bluetooth radio/.test(l)), 'a radio that sees other devices is not silent');
+});
+
+test('BLE classification: mower seen but the link fails is "connect failed"', async () => {
+  const { transport, lines } = withLogCapture(foundButUnconnectableBleManager());
+  await collectDelays(transport, 1);
+  assert.ok(lines.some((l) => /found Luba-TEST/.test(l)));
+  assert.ok(lines.some((l) => /connect failed: BLE Timeout/.test(l)), lines.join('\n'));
+});
+
+test('BLE parking: after the persistent threshold plus 12 more failures the cadence is 2 h', async () => {
+  const { transport } = withLogCapture(othersOnlyBleManager());
+  const delays = await collectDelays(transport, 20);
+  // Failure #1..#5: 4-min cap; #6..#17: 30-min quiet cap; #18+: parked at 2 h.
+  assert.equal(delays[16], 30 * 60_000, 'failure #17 is still the quiet cadence');
+  assert.equal(delays[17], 2 * 60 * 60_000, 'failure #18 is parked');
+  assert.equal(delays[19], 2 * 60 * 60_000, 'and it stays parked');
+});
+
+test('BLE parking: one notice when parking, then silence until the failure kind changes', async () => {
+  const { transport, lines } = withLogCapture(othersOnlyBleManager());
+  await collectDelays(transport, 25);
+  const parkNotices = lines.filter((l) => /parking/.test(l));
+  assert.equal(parkNotices.length, 1, 'exactly one parking line');
+  const perAttemptAfterPark = lines.slice(lines.findIndex((l) => /parking/.test(l)) + 1)
+    .filter((l) => /scheduling reconnect|not found in scan/.test(l));
+  assert.equal(perAttemptAfterPark.length, 0, `no per-attempt lines while parked, got:\n${perAttemptAfterPark.join('\n')}`);
+});
+
+test('BLE parking: a change of failure kind while parked is logged once, then quiet again', async () => {
+  let mode = 'others';
+  const switching = {
+    async discover() { return mode === 'others' ? [{ localName: 'Luba-OTHER', rssi: -80 }] : []; },
+    async find() { throw new Error('no cached uuid'); },
+  };
+  const { transport, lines } = withLogCapture(switching);
+  await collectDelays(transport, 20); // parked, out_of_range
+  const before = lines.length;
+  mode = 'silent';
+  await collectDelays(transport, 3); // radio_silent ×3 — the kind changed once
+  const added = lines.slice(before);
+  assert.equal(added.filter((l) => /no advertisements at all/.test(l)).length, 1, `one line for the change, got:\n${added.join('\n')}`);
+});

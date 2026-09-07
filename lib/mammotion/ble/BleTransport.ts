@@ -27,6 +27,25 @@ const BLE_RECONNECT_MAX_MS  = 4 * 60_000; // 4 min
  *  back off much further to avoid hammering the radio for a connection that isn't coming. */
 const BLE_PERSISTENT_FAILURE_THRESHOLD = 5;
 const BLE_RECONNECT_MAX_MS_QUIET = 30 * 60_000; // 30 min
+/** Consecutive failures *beyond* the persistent threshold before the transport parks: at the
+ *  30-minute quiet cap, 12 more is ~6 hours of the mower being out of reach. Two real reports
+ *  (USER_REPORTS_INBOX R5/R8) showed `failure #243` … `#245` — the quiet cadence had been
+ *  running for days, logging three identical lines every half hour, with the counter as the
+ *  only thing changing. Parking is not giving up: a mower that comes back into range on any
+ *  attempt resets everything. It is admitting that after six hours the next attempt is not
+ *  news, and neither is the one after that. */
+const BLE_PARK_AFTER_FAILURES = 12;
+const BLE_RECONNECT_MAX_MS_PARKED = 2 * 60 * 60_000; // 2 h
+/** Consecutive scans returning *zero* advertisements of any kind before it is worth saying
+ *  so once: that is not the mower being far away, it is Homey's radio seeing nothing at all
+ *  (R7 showed exactly this, every scan, for the whole log). */
+const BLE_RADIO_SILENT_NOTICE_AFTER = 3;
+
+/** Why a connect attempt failed — the three modes real reports showed lumped under one
+ *  counter and one message: R7 (radio sees nothing), R5/R8/R1 (radio sees others, not this
+ *  mower), R8/R10 (mower seen, link fails after 20–37 s). They have different fixes and
+ *  deserve different log lines. */
+type BleFailureKind = 'radio_silent' | 'out_of_range' | 'connect_failed' | 'no_service';
 
 /** Max time to wait for post-connect GATT setup before giving up and retrying.
  *  Homey's own BLE operation timeout is ~30s — too slow to wait on when the
@@ -84,6 +103,13 @@ export class BleTransport {
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private stopped = false;
   private consecutiveFailures = 0;
+  /** How many advertisements the last full scan returned — distinguishes "radio saw nothing"
+   *  from "radio saw others but not this mower" when the mower is not found. */
+  private lastScanAdvertisementCount: number | null = null;
+  private consecutiveRadioSilentScans = 0;
+  private radioSilentNoticeGiven = false;
+  private lastFailureKind: BleFailureKind | null = null;
+  private parkedNoticeGiven = false;
 
   /** Cached after first discovery; persisted across restarts via device store. */
   private peripheralUuid: string | null;
@@ -135,7 +161,13 @@ export class BleTransport {
         // quiet cap this backoff already has for exactly that persistent case. A
         // single successful connect still resets the counter to 0 below, so a mower
         // that comes back into range promptly returns to the fast 15s cadence.
-        this.reportFailure(`BLE: device ${this.deviceName} not found in scan`);
+        const radioSilent = this.lastScanAdvertisementCount === 0;
+        this.reportFailure(
+          radioSilent ? 'radio_silent' : 'out_of_range',
+          radioSilent
+            ? `BLE: scan returned no advertisements at all — ${this.deviceName} could not be looked for`
+            : `BLE: device ${this.deviceName} not found in scan (${this.lastScanAdvertisementCount ?? '?'} other advertisement(s) seen)`,
+        );
         this.scheduleReconnect();
         return;
       }
@@ -157,13 +189,18 @@ export class BleTransport {
         throw new Error(`GATT setup timed out after ${BLE_SETUP_TIMEOUT_MS}ms`);
       }
       if (result === 'no-service') {
-        this.reportFailure(`BLE: service ${UUID_SERVICE} not found on ${this.deviceName}`);
+        this.reportFailure('no_service', `BLE: service ${UUID_SERVICE} not found on ${this.deviceName}`);
         await this.disconnectPeripheral();
         this.scheduleReconnect();
         return;
       }
 
+      if (this.parkedNoticeGiven) this.log('BLE: back in range — resuming the normal reconnect cadence');
       this.consecutiveFailures = 0;
+      this.consecutiveRadioSilentScans = 0;
+      this.radioSilentNoticeGiven = false;
+      this.lastFailureKind = null;
+      this.parkedNoticeGiven = false;
       this.onStatus(this.iotId, true);
 
       // One-shot BLE sync — same as pymammotion's _ble_sync(2) on connect.
@@ -171,7 +208,7 @@ export class BleTransport {
       this.log('BLE: sent todev_ble_sync(2)');
 
     } catch (err) {
-      this.reportFailure(`BLE: connect failed: ${errorMessage(err)}`);
+      this.reportFailure('connect_failed', `BLE: connect failed: ${errorMessage(err)}`);
       this.onStatus(this.iotId, false);
       await this.disconnectPeripheral();
       this.scheduleReconnect();
@@ -182,9 +219,31 @@ export class BleTransport {
    *  just the mower being out of range of the hub, not a fault, so it's logged at info
    *  level rather than error — an error-level entry every few minutes for a mower that's
    *  simply parked at the far end of the garden would be misleading noise. */
-  private reportFailure(message: string): void {
+  /** Counts a failed attempt and logs it — every time while the cadence is still fast, and
+   *  only when the *kind* of failure changes once parked, so a mower that has been out of
+   *  range for days produces one line when it parks, one if the failure mode shifts, and one
+   *  when it comes back, instead of three lines every half hour indefinitely. */
+  private reportFailure(kind: BleFailureKind, message: string): void {
     this.consecutiveFailures++;
-    this.log(message);
+    const kindChanged = kind !== this.lastFailureKind;
+    this.lastFailureKind = kind;
+    if (!this.isParked() || kindChanged) this.log(message);
+
+    if (kind === 'radio_silent') {
+      this.consecutiveRadioSilentScans++;
+      if (!this.radioSilentNoticeGiven && this.consecutiveRadioSilentScans >= BLE_RADIO_SILENT_NOTICE_AFTER) {
+        this.radioSilentNoticeGiven = true;
+        this.log(`BLE: ${this.consecutiveRadioSilentScans} consecutive scans saw no Bluetooth advertisements from any device — this points at the hub's Bluetooth radio, not at the mower`);
+      }
+    } else {
+      this.consecutiveRadioSilentScans = 0;
+    }
+  }
+
+  /** True once the mower has been unreachable for long enough that the transport has moved
+   *  to the parked cadence — see BLE_PARK_AFTER_FAILURES. */
+  private isParked(): boolean {
+    return this.consecutiveFailures > BLE_PERSISTENT_FAILURE_THRESHOLD + BLE_PARK_AFTER_FAILURES;
   }
 
   /** Discover the GATT service/characteristics and subscribe to notifications.
@@ -259,6 +318,7 @@ export class BleTransport {
     // present once GATT-connected. discover([UUID_SERVICE]) silently excludes it; match
     // by local name only. Service presence is verified post-connect via discoverServices.
     const ads = await this.bleManager.discover();
+    this.lastScanAdvertisementCount = ads.length;
     this.log(`BLE: scan found ${ads.length} BLE advertisements`);
     const ad = ads.find(
       (a) => BLE_LOCAL_NAME_PREFIXES.some((prefix) => a.localName?.startsWith(prefix))
@@ -324,11 +384,17 @@ export class BleTransport {
   /** Schedules the next connect() attempt with exponential backoff based on consecutive failures. */
   private scheduleReconnect(): void {
     if (this.stopped || this.reconnectTimer) return;
-    const cap = this.consecutiveFailures > BLE_PERSISTENT_FAILURE_THRESHOLD
-      ? BLE_RECONNECT_MAX_MS_QUIET
-      : BLE_RECONNECT_MAX_MS;
+    const parked = this.isParked();
+    const cap = parked ? BLE_RECONNECT_MAX_MS_PARKED
+      : this.consecutiveFailures > BLE_PERSISTENT_FAILURE_THRESHOLD ? BLE_RECONNECT_MAX_MS_QUIET
+        : BLE_RECONNECT_MAX_MS;
     const delay = Math.min(BLE_RECONNECT_BASE_MS * (2 ** this.consecutiveFailures), cap);
-    this.log(`BLE: scheduling reconnect in ${Math.round(delay / 1000)}s (failure #${this.consecutiveFailures})`);
+    if (parked && !this.parkedNoticeGiven) {
+      this.parkedNoticeGiven = true;
+      this.log(`BLE: ${this.deviceName} has been unreachable for ${this.consecutiveFailures} attempts (~${Math.round(BLE_PARK_AFTER_FAILURES * BLE_RECONNECT_MAX_MS_QUIET / 3_600_000)} h at the quiet cadence) — parking: retrying every ${Math.round(delay / 60_000)} min, logging only when something changes; any successful connect resumes normal cadence`);
+    } else if (!parked) {
+      this.log(`BLE: scheduling reconnect in ${Math.round(delay / 1000)}s (failure #${this.consecutiveFailures})`);
+    }
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null;
       void this.connect();

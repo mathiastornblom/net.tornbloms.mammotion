@@ -24,7 +24,7 @@ går inte att para. Resten är förbättringar och önskemål.
 | ✅ **P1** | [D. Klippparametrar](#d--p1--klippparametrar-går-inte-att-styra) | R9, R13 | Spacing och klipphöjd hämtas nu från klipparens egna sparade tasks |
 | **P1** | [E. Bara "Task 1" listas](#e--p1--bara-task-1-listas) | R12.2 | Ej reproducerad — behöver bekräftas |
 | ✅ **P2** | [F. Saknade Flow-kort](#f--p2--saknade-flow-kort) | R12.2 | `resume_mowing`-kortet tillagt |
-| **P2** | [G. Robusthet och loggkvalitet](#g--p2--robusthet-och-loggkvalitet) | R1, R7, R8, R10 | Protobuf-fel, BLE-backoff utan tak, loggspam |
+| ✅ **P2** | [G. Robusthet och loggkvalitet](#g--p2--robusthet-och-loggkvalitet) | R1, R7, R8, R10 | Hexdump, BLE klassad+parkerad, start verifieras mot status, MQTT-stege 10 s→5 min; kvar: protobuf-längd (behöver dump), felkod 1417 (behöver tabell) |
 | **P2** | [H. Dokumentation och upptäckbarhet](#h--p2--dokumentation-och-upptäckbarhet) | R4, R12.1, R12.2, R12.4 | Funktioner finns men hittas inte |
 | **P3** | [I. Nya modeller och funktioner](#i--p3--nya-modeller-och-funktioner) | R2, R6, R12.4, R12.6 | Luba 1, kamera, geopunkt |
 
@@ -577,9 +577,13 @@ Fyra fel över tre dagar i R10, ett i R1. Två distinkta signaturer:
 - `invalid wire type X at offset 35` — R10 (`wire type 6`, `wire type 4`)
 
 Att `+ 10 >` -mönstret återkommer med olika N hos olika användare tyder på ett systematiskt
-längdfel snarare än enstaka korrupta paket. **Åtgärd:** undersök längdhanteringen; logga
-den råa payloaden (hexdump, begränsad längd) vid avkodningsfel så nästa rapport blir
-diagnostiserbar.
+längdfel snarare än enstaka korrupta paket. **Åtgärd:** ✅ hexdump (kapad till 64 byte) vid
+avkodningsfel på alla tre ställen (MQTT, BLE, Aliyun MQTT) — landade i första kodcommiten.
+**Kvarstår:** längdutredningen kan inte göras ärligt utan en rapport som *bär* dumpen; R1
+och R10 loggades före den fanns. Avkodaren (`Codec.ts:111`) matar buffern rakt in i
+protobufjs utan egen framing, så `+ 10 >` betyder att ett längdprefix i själva payloaden
+pekar 10 byte förbi slutet — trunkerat meddelande eller ett icke-protobuf-tillägg. Vilket,
+säger nästa dump.
 
 ### G2. BLE-backoff utan tak eller återställning
 
@@ -593,9 +597,18 @@ logik:
 | Enheten syns aldrig i scannen (13–24 andra hittas) | R5, R8, R1 |
 | Enheten hittas men anslutning misslyckas efter 20–37 s | R8, R10 |
 
-**Åtgärd:** skilj på fallen; sluta scanna efter N misslyckanden när mowern konsekvent är
-utom räckhåll; informera användaren om BLE varit nere i dagar i stället för att tyst
-fortsätta.
+**Åtgärd — ✅ implementerad** (`BleTransport.ts`, 7 nya tester i `ble-backoff.test.mjs`):
+- **Tre felmoder klassificeras** i loggen i stället för en räknare och ett meddelande:
+  `radio_silent` (scan gav noll annonser — R7), `out_of_range` (andra sågs, inte mowern —
+  R5/R8/R1, med antalet), `connect_failed` (mowern sågs, länken föll — R8/R10).
+- **Radion-tyst-notis en gång:** tre tomma scans i rad ger *en* rad som säger att det pekar
+  på hubbens Bluetooth, inte på klipparen. Det är den distinktion R7 behövde.
+- **Parkering efter ~6 h utom räckhåll:** efter tröskeln (5) plus 12 till vid 30-minuters-
+  takten går transporten till **2 h** mellan försök, loggar *en* parkeringsrad, och sedan
+  bara när felmoden *ändras* — inte tre identiska rader varje halvtimme i dagar (#245).
+  Vilken lyckad anslutning som helst nollställer allt och loggar "back in range".
+- Inget `setWarning` för BLE: molnet är primärt, och för `ble_only`-användare fångar A3:s
+  vakthund redan "ingen data alls". Ingen ny koppling behövdes.
 
 ### G3. Kommandon kvitteras men utförs inte
 
@@ -603,10 +616,27 @@ R10 är det tydligaste fallet: `generate_route` + `start` skickas elva gånger p
 **alla får `{"code":0,"msg":"Request success"}`**, och mowern kör ändå inte (mowing → paused
 → idle inom 16 sekunder). Användaren ser samtidigt **fel 1417 i Mammotions egen app**.
 
-Vi har alltså ingen återkoppling på om ett kommando faktiskt fick effekt. **Åtgärd:**
-verifiera `start` mot efterföljande `sysStatus` och rapportera ett begripligt fel i Homey
-när körningen inte startar. Ta också reda på vad **felkod 1417** betyder — om det är ett
-enhetsfel (kniv, lyftsensor, RTK) bör det gå att visa i Homey i stället för tystnad.
+Vi har alltså ingen återkoppling på om ett kommando faktiskt fick effekt.
+
+**Åtgärd — ✅ implementerad** (`StartOutcome.ts` + `confirmStarted()` i `device.ts`):
+- Efter varje start (`start_mowing`, `start_mowing_zone`, on/off, `start_mowing_schedule`)
+  bevakas statusen i **25 s**. Utfallet döms rent: `confirmed` (mowing och fortfarande
+  mowing vid fönstrets slut), `never_started` (aldrig mowing), eller
+  **`started_then_stopped`** — R10:s form exakt: mowing vid +6 s, paused +17 s, idle +22 s.
+  De två senare gör att **Flow-kortet felar synligt** med lokaliserad text på 13 språk som
+  hänvisar till Mammotion-appen, och loggen får hela tidslinjen plus eventuell felkod som
+  mowern pushat under fönstret. Elva "lyckade" starter blir elva tydliga fel.
+- **Ärlig transportgräns:** bara på push-transporterna (BLE, MQTT). På `aliyun_legacy`
+  kommer status via polling på två minuter eller långsammare — inget kan dömas inom den tid
+  ett Flow-kort får ta — så där loggas "sent; not awaiting confirmation" och kortet
+  returnerar som förut. R10 var MQTT.
+- En kort paus följd av mowing igen inom fönstret räknas som `confirmed`; ett stopp *efter*
+  fönstret ändrar inte domen — det är `mower_status_changed`-triggerns sak.
+
+**Kvarstår: felkod 1417.** Fortfarande okänd — pymammotions tabell är inte nåbar härifrån
+och `handleErrorCodeMessage` är diagnostisk. R10:s logg hade ingen `[error_code]`-rad, så
+mowern pushade den inte via den vägen. Nu *namnges* koden i loggen om den kommer; att
+*översätta* den kräver tabellen.
 
 ### G4. Loggspam när transporten är nere
 
@@ -615,8 +645,17 @@ minuter. Appen loopar en gång i minuten genom `initial sync` → `rain protecti
 `zone list` — **tre felrader per försök, ~60 rader**, alla med samma kända orsak. Ingen
 backoff: exakt 60 s mellan försöken.
 
-**Åtgärd:** dämpa `No transport available for command: …` när transporten redan är känt
-nere; lägg backoff på initial-sync-loopen.
+**Åtgärd — ✅ implementerad:**
+- **Mekanismen:** `connectMqtt` startar anslutningen fire-and-forget och schemalade sedan
+  *ovillkorligt* tre initiala läsningar 2 s senare. Vägrade brokern kom felet via `onClose`
+  → återanslutning → samma tre läsningar mot en transport som aldrig kom upp. Nu körs
+  läsningarna bara om `mqtt.isConnected` — annars tyst; återanslutningsraden säger redan
+  vad som pågår. Två av tre rader per försök borta.
+- **Stegen** var linjär (10 s × n, tak 60 s) — från försök 6 en gång i minuten resten av
+  avbrottet. Nu `lib/mammotion/mqtt/reconnectBackoff.ts`: **10 s → 20 → 40 → 80 → 160 →
+  5 min** platt. Ett 30-minutersavbrott kostar **~9 försök i stället för ~30**; första
+  steget är kvar på 10 s så en blipp återhämtas snabbt. Räknaren nollställs på telemetri
+  *och* på brokerns online-signal. 3 tester.
 
 ---
 
@@ -673,7 +712,8 @@ Flera rapporter är inte buggar utan att användare inte hittar det som finns.
 - H3: väntetext vid parning
 
 **Steg 5 — P2/P3**
-- G2–G4, E, I
+- ✅ G2–G4 — kvar i G: längdutredningen (väntar på en rapport med hexdump) och 1417
+- E, I
 
 ---
 

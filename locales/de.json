@@ -9,7 +9,9 @@
     "legacy_devices_found": "Dein(e) Mäher wurde(n) im älteren Cloud-System von Mammotion gefunden, das diese App noch nicht unterstützt — der Entwickler wurde informiert und arbeitet an der Unterstützung. Bitte versuche es in einem zukünftigen Update erneut.",
     "no_zones_known": "Noch keine Mähzonen bekannt. Öffne den Mäher in der Mammotion-App oder warte einen Moment und versuche es erneut. Tipp: Benenne deine Zonen in der Mammotion-App für eine sofortige, zuverlässige Zonenauswahl.",
     "device_unbound": "Dieser Mäher ist nicht mehr mit dem Konto verbunden, das Homey verwendet. Verwende „Reparieren“ am Gerät und melde dich erneut an, um ihn neu zu verbinden.",
-    "telemetry_stale": "Vom Mäher wurde seit einer Weile nichts empfangen — die angezeigten Daten sind möglicherweise veraltet. Homey versucht es automatisch weiter; hält das an, prüfe das WLAN des Mähers und ob er noch in der Mammotion-App erscheint."
+    "telemetry_stale": "Vom Mäher wurde seit einer Weile nichts empfangen — die angezeigten Daten sind möglicherweise veraltet. Homey versucht es automatisch weiter; hält das an, prüfe das WLAN des Mähers und ob er noch in der Mammotion-App erscheint.",
+    "start_not_confirmed": "Der Mäher ist nicht gestartet. Prüfe die Mammotion-App auf eine Fehlermeldung am Mäher.",
+    "start_then_stopped": "Der Mäher ist gestartet, aber nach wenigen Sekunden wieder stehen geblieben. Prüfe die Mammotion-App auf eine Fehlermeldung am Mäher."
   },
   "warning": {
     "aliyun_budget_throttled": "Cloud-Anfragelimit fast erreicht — Statusaktualisierungen sind verlangsamt, damit Start/Stopp-Befehle weiter funktionieren. Erholt sich automatisch.",

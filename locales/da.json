@@ -9,7 +9,9 @@
     "legacy_devices_found": "Din/dine plæneklipper(e) blev fundet registreret under Mammotions ældre cloud-system, som denne app endnu ikke understøtter — udvikleren er blevet informeret og arbejder på at tilføje understøttelse. Prøv igen i en fremtidig opdatering.",
     "no_zones_known": "Ingen klippezoner kendt endnu. Åbn plæneklipperen i Mammotion-appen, eller vent et øjeblik og prøv igen. Tip: navngiv dine zoner i Mammotion-appen for et øjeblikkeligt og pålideligt zonevalg.",
     "device_unbound": "Denne plæneklipper er ikke længere knyttet til den konto, Homey bruger. Brug Reparer på enheden og log ind igen for at knytte den igen.",
-    "telemetry_stale": "Der er ikke hørt fra plæneklipperen i et stykke tid — de viste data kan være forældede. Homey bliver ved med at prøve automatisk; fortsætter det, så tjek plæneklipperens wi-fi, og at den stadig vises i Mammotion-appen."
+    "telemetry_stale": "Der er ikke hørt fra plæneklipperen i et stykke tid — de viste data kan være forældede. Homey bliver ved med at prøve automatisk; fortsætter det, så tjek plæneklipperens wi-fi, og at den stadig vises i Mammotion-appen.",
+    "start_not_confirmed": "Plæneklipperen startede ikke. Tjek Mammotion-appen for en fejl på plæneklipperen.",
+    "start_then_stopped": "Plæneklipperen startede, men stoppede igen inden for få sekunder. Tjek Mammotion-appen for en fejl på plæneklipperen."
   },
   "warning": {
     "aliyun_budget_throttled": "Cloud-forespørgselsgrænsen er næsten nået — statusopdateringer er sat ned i tempo, så start/stop-kommandoer fortsat virker. Genoprettes automatisk.",

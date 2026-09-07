@@ -9,7 +9,9 @@
     "legacy_devices_found": "Votre/vos tondeuse(s) a/ont été trouvée(s) enregistrée(s) dans l'ancien système cloud de Mammotion, que cette application ne prend pas encore en charge — le développeur a été informé et travaille à l'ajout de cette prise en charge. Réessayez lors d'une future mise à jour.",
     "no_zones_known": "Aucune zone de tonte connue pour le moment. Ouvrez la tondeuse dans l'application Mammotion, ou attendez un instant et réessayez. Astuce : nommez vos zones dans l'application Mammotion pour une sélection de zone instantanée et fiable.",
     "device_unbound": "Cette tondeuse n'est plus liée au compte utilisé par Homey. Utilisez Réparer sur l'appareil et reconnectez-vous pour la relier.",
-    "telemetry_stale": "Aucune nouvelle de la tondeuse depuis un moment — les données affichées peuvent être obsolètes. Homey réessaie automatiquement ; si cela persiste, vérifiez le Wi-Fi de la tondeuse et qu'elle apparaît toujours dans l'application Mammotion."
+    "telemetry_stale": "Aucune nouvelle de la tondeuse depuis un moment — les données affichées peuvent être obsolètes. Homey réessaie automatiquement ; si cela persiste, vérifiez le Wi-Fi de la tondeuse et qu'elle apparaît toujours dans l'application Mammotion.",
+    "start_not_confirmed": "La tondeuse n'a pas démarré. Vérifiez dans l'application Mammotion si la tondeuse signale une erreur.",
+    "start_then_stopped": "La tondeuse a démarré puis s'est de nouveau arrêtée en quelques secondes. Vérifiez dans l'application Mammotion si la tondeuse signale une erreur."
   },
   "warning": {
     "aliyun_budget_throttled": "Limite de requêtes cloud presque atteinte — les mises à jour d'état sont ralenties pour que les commandes démarrer/arrêter continuent de fonctionner. Se rétablit automatiquement.",

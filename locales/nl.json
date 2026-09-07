@@ -9,7 +9,9 @@
     "legacy_devices_found": "Je maaier(s) zijn gevonden, geregistreerd onder Mammotions oudere cloudsysteem, dat deze app nog niet ondersteunt — de ontwikkelaar is op de hoogte gebracht en werkt aan ondersteuning. Probeer het later opnieuw in een toekomstige update.",
     "no_zones_known": "Nog geen maaizones bekend. Open de maaier in de Mammotion-app, of wacht even en probeer het opnieuw. Tip: geef je zones een naam in de Mammotion-app voor directe, betrouwbare zoneselectie.",
     "device_unbound": "Deze maaier is niet langer gekoppeld aan het account dat Homey gebruikt. Gebruik Repareren op het apparaat en meld je opnieuw aan om hem opnieuw te koppelen.",
-    "telemetry_stale": "Er is al een tijd niets van de maaier ontvangen — de getoonde gegevens kunnen verouderd zijn. Homey blijft het automatisch proberen; houdt dit aan, controleer dan de wifi van de maaier en of hij nog in de Mammotion-app staat."
+    "telemetry_stale": "Er is al een tijd niets van de maaier ontvangen — de getoonde gegevens kunnen verouderd zijn. Homey blijft het automatisch proberen; houdt dit aan, controleer dan de wifi van de maaier en of hij nog in de Mammotion-app staat.",
+    "start_not_confirmed": "De maaier is niet gestart. Controleer de Mammotion-app op een foutmelding op de maaier.",
+    "start_then_stopped": "De maaier is gestart maar binnen enkele seconden weer gestopt. Controleer de Mammotion-app op een foutmelding op de maaier."
   },
   "warning": {
     "aliyun_budget_throttled": "Cloudverzoeklimiet bijna bereikt — statusupdates zijn vertraagd zodat start/stop-opdrachten blijven werken. Herstelt automatisch.",

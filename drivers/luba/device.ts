@@ -47,6 +47,8 @@ import {
   UNBOUND_UNAVAILABLE_AFTER, type PollFailureKind,
 } from '../../lib/mammotion/aliyun/pollBackoff.js';
 import { isTelemetryStale, staleAfterMs } from '../../lib/mammotion/staleness.js';
+import { mqttReconnectDelayMs } from '../../lib/mammotion/mqtt/reconnectBackoff.js';
+import { judgeStartOutcome, type StatusEvent } from '../../lib/mammotion/protocol/StartOutcome.js';
 import {
   DeviceType, resolveDeviceType, capabilitiesForModel, MODEL_STRING,
 } from '../../lib/mammotion/deviceType.js';
@@ -86,10 +88,11 @@ const DUPLICATE_COMMAND_WINDOW_MS = 1_500;
 const SYNC_ON_CONNECT_DELAY_MS = 2_000;
 // Once the mower has confirmed itself offline (DeviceOfflineError, not just a transient
 // send failure), polling every 5s indefinitely is wasted cloud traffic for a mower that
-// could be powered off for a while — back off, but cap low (60s, matching
-// scheduleMqttReconnect's own cap below) rather than minutes: a user coming home and
-// switching the mower back on expects Homey to notice within well under a minute, not
-// however long a looser cap would allow.
+// could be powered off for a while — back off, but cap low (60s) rather than minutes: a
+// user coming home and switching the mower back on expects Homey to notice within well
+// under a minute. (The MQTT *broker* reconnect ladder is a separate thing with a higher
+// cap — see lib/mammotion/mqtt/reconnectBackoff.ts — because a refused broker, unlike a
+// switched-off mower, is not something the user is about to fix by walking outside.)
 // The ladders themselves now live in lib/mammotion/aliyun/pollBackoff.ts, split by what
 // failed — see that file for why one 60 s-capped ladder for everything was the R7 bug.
 // Persisted across app restarts (see startPollTimer/runPollTick) so restarting the app during
@@ -111,6 +114,12 @@ const RATE_LIMIT_FAILURE_COUNT_STORE_KEY = 'rateLimitFailureCount';
  *  floor it enforces is 10 minutes (see staleness.ts), so a one-minute tick is plenty and
  *  costs nothing — it sends no requests, it only compares timestamps. */
 const STALE_CHECK_INTERVAL_MS = 60_000;
+
+/** How long confirmStarted() watches the mower's status after a start command before giving
+ *  a verdict. Long enough to see R10's whole start→pause→idle sequence (22 s), short enough
+ *  to finish inside Homey's own limit on how long a Flow action may run. Only used on the
+ *  push transports (BLE, MQTT) — see confirmStarted. */
+const START_CONFIRM_WINDOW_MS = 25_000;
 
 /** How long interruptReturnIfNeeded waits for the mower to acknowledge a pause before
  *  sending the start regardless. 10 s is the gap the hand-built pause→start workaround used
@@ -173,6 +182,9 @@ export default class LubaDevice extends Homey.Device {
    *  a transport that knows a specific cause), so recovery is only done once and only for
    *  what this code set. */
   private markedStale = false;
+  /** The last MctlSys.toapp_err_code the mower pushed, with when — so a start that did not
+   *  take can say which fault the mower reported at the time, if it reported one. */
+  private lastErrorCode: { code: number; at: number } | null = null;
   private mqttFailureCount = 0;
   /** Consecutive failed poll results — drives the per-cause ladders in pollBackoff.ts. Reset to 0
    *  the moment a poll succeeds or any online-transition callback fires (markOnline). */
@@ -592,6 +604,39 @@ export default class LubaDevice extends Homey.Device {
     });
   }
 
+  /** Watches the mower's status for START_CONFIRM_WINDOW_MS after a start command and
+   *  throws a localized error if the mower did not actually start, or started and stopped
+   *  again on its own. A cloud ack (`code:0`) only means the command was delivered; a real
+   *  report (R10) had eleven acknowledged starts and a mower that never cut. Until now every
+   *  one of those Flow actions reported success.
+   *
+   *  Push transports only. On aliyun_legacy status arrives by polling at two minutes or
+   *  slower, so nothing can be concluded inside a window a Flow action is allowed to take —
+   *  there it logs that the start was sent unconfirmed and returns. If the mower reported a
+   *  fault code during the window it is named in the log; the localized message tells the
+   *  user to look in the official app, which is where that code is explained. */
+  private async confirmStarted(label: string): Promise<void> {
+    if (this.activeTransport !== 'mqtt' && this.activeTransport !== 'ble') {
+      this.log(`${label}: sent; not awaiting confirmation on ${this.activeTransport} (status arrives too slowly to judge inside a Flow action)`);
+      return;
+    }
+    const sentAt = Date.now();
+    const events: StatusEvent[] = [{ status: this.currentStatus, atMs: 0 }];
+    for (;;) {
+      const remaining = START_CONFIRM_WINDOW_MS - (Date.now() - sentAt);
+      if (remaining <= 0) break;
+      const next = await this.waitForStatusChange(remaining);
+      if (next === null) break;
+      events.push({ status: next, atMs: Date.now() - sentAt });
+    }
+    const outcome = judgeStartOutcome(events, START_CONFIRM_WINDOW_MS);
+    if (outcome === 'confirmed') return;
+    const code = this.lastErrorCode && this.lastErrorCode.at >= sentAt ? this.lastErrorCode.code : null;
+    const timeline = events.map((e) => `${e.status}@${(e.atMs / 1000).toFixed(0)}s`).join(' → ');
+    this.error(`${label}: ${outcome.replace(/_/g, ' ')} — status timeline ${timeline}${code !== null ? `; device reported error code ${code}` : '; no error code reported'}`);
+    throw new MammotionError(this.homey.__(outcome === 'never_started' ? 'error.start_not_confirmed' : 'error.start_then_stopped'));
+  }
+
   /** If the mower is currently driving back to the dock, pauses it and waits for it to
    *  acknowledge before the caller sends a start — otherwise a no-op.
    *
@@ -630,6 +675,7 @@ export default class LubaDevice extends Homey.Device {
    *  table (e.g. wheel-lift/emergency-stop) isn't confirmed against a real device, so this
    *  just surfaces the raw value until a real fault event's log data can map it. */
   private handleErrorCodeMessage(code: number): void {
+    this.lastErrorCode = { code, at: Date.now() };
     this.log(`[error_code] device reported errorCode=${code}`);
   }
 
@@ -752,6 +798,7 @@ export default class LubaDevice extends Homey.Device {
     const context = this.getContext();
     const cmd = buildStartScheduleCommand(session.userAccount, context.deviceName, planId, this.seq, context.productKey);
     await this.sendRaw(Buffer.from(cmd, 'base64'), 'start_schedule');
+    await this.confirmStarted('start_schedule');
   }
 
   /** Requests the device's full zone hash/name list; the reply is picked up by
@@ -972,6 +1019,12 @@ export default class LubaDevice extends Homey.Device {
       this.mqtt.connect(mqttCreds, contexts);
 
       setTimeout(() => {
+        // The connect above is fire-and-forget; a refused broker only shows up later via
+        // onClose. Without this check the three reads below ran on every reconnect attempt
+        // against a transport that never came up — two "No transport available" errors and
+        // one "Initial sync failed" per attempt, once a minute, for the length of the outage
+        // (R10). The reconnect log line already says what is going on; these stay silent.
+        if (!this.mqtt?.isConnected) return;
         this.requestSync().catch((err) => {
           this.error(`Initial sync failed: ${errorMessage(err)}`);
         });
@@ -1010,6 +1063,7 @@ export default class LubaDevice extends Homey.Device {
   private handleMqttStatus(iotId: string, online: boolean): void {
     if (iotId !== this.getData().id) return;
     if (online) {
+      this.mqttFailureCount = 0;
       // Only become available/primary if BLE isn't already providing telemetry.
       if (this.activeTransport === 'none') {
         this.log('MQTT: online — switching active transport to MQTT');
@@ -1025,11 +1079,12 @@ export default class LubaDevice extends Homey.Device {
     }
   }
 
-  /** Schedules the next connectMqtt() attempt with linear backoff, capped at 60s. */
+  /** Schedules the next connectMqtt() attempt — exponential, 10 s → 5 min, see
+   *  reconnectBackoff.ts for the thirty-minute outage that made the old 60 s cap a problem. */
   private scheduleMqttReconnect(): void {
     if (this.mqttReconnectTimer) return;
     this.mqttFailureCount += 1;
-    const delayMs = Math.min(60_000, 10_000 * this.mqttFailureCount);
+    const delayMs = mqttReconnectDelayMs(this.mqttFailureCount);
     this.log(`Scheduling MQTT reconnect in ${delayMs}ms (attempt ${this.mqttFailureCount})`);
     this.mqttReconnectTimer = setTimeout(() => {
       this.mqttReconnectTimer = null;
@@ -1715,6 +1770,7 @@ export default class LubaDevice extends Homey.Device {
     // standing setting rather than just this run.
     if (typeof options.bladeHeight === 'number') await this.sendBladeHeight(options.bladeHeight);
     await this.sendTaskControlRaw('start');
+    await this.confirmStarted('start');
   }
 
   /** Sends a pre-built raw command, then reflects the new value on the given capability. On
