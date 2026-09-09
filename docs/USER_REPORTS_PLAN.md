@@ -525,7 +525,7 @@ så de lämnas orörda tills någon rapporterar dem.
 
 ---
 
-## E — P1 — Bara "Task 1" listas
+## E — P1 — Bara "Task 1" listas ✅
 
 **Rapporter:** R12.2, **R14** (2026-09-09, v2.5.62, den färska diagnostik som efterfrågades)
 
@@ -562,7 +562,7 @@ Varför zon-listan aldrig drabbas: `get_area_name_list` är **ett** anrop vars s
 av `handleAreaHashNamesResponse` direkt in i cachen, utan tidsfönster. Task-läsningen är den
 enda platsen i appen som behöver fånga N svar i N fönster i följd.
 
-### Åtgärd
+### Åtgärd — ✅ implementerad (v2.5.63)
 
 - **Registrera lyssnaren före sändningen**, inte efter. Fönstret öppnas innan
   `requestSchedule(i)` anropas, så ett eko som kommer under HTTPS-anropet fångas.
@@ -580,6 +580,21 @@ enda platsen i appen som behöver fånga N svar i N fönster i följd.
   injicerbar `send`/`echo`-källa, samma form som `runLegacyHandshake`, så att alla tre felen
   får tester: eko-före-lyssnare, felindexerat eko, avbruten läsning som inte får krympa
   cachen.
+
+### Vad som byggdes
+
+`lib/mammotion/protocol/ScheduleEnumeration.ts` — `ScheduleEchoRegistry` (lyssnare per
+`planIndex`, öppnas före sändning, tidsfönstret armas först när sändningen returnerat, sena
+dubbletter avvisas via `planId`, säkerhetsventil för firmware som ekar fel index),
+`enumerateSchedules()` (ett omförsök per index, tak på antal och väggklocka, rapporterar
+`complete`/`missedIndexes`) och `mergeScheduleCache()` (fullständig → ersätt, ofullständig →
+slå ihop per `planId`, inget → oförändrat). `runScheduleRefresh` i `device.ts` använder
+modulen och loggar `Schedule refresh complete: N task(s)` respektive `incomplete: read X of
+N (missed index …)`; ett eko som ingen väntar på loggas som `not awaited`.
+`scripts/schedule-enumeration.test.mjs` (11 tester) driver den riktiga modulen med en
+skriptad klippare: R14:s eko-före-lyssnare för alla fem index, tyst index med lyckat
+omförsök, tyst index som avslutar ofullständigt, sen dubblett som avvisas, säkerhetsventilen,
+kastande sändning, registrets arm/cancel, de tre sammanslagningsreglerna och `maxPlans`.
 
 ### Verifiering
 
@@ -906,7 +921,7 @@ efterfrågas. Svarsutkast till användaren (svenska) ligger utanför repot i scr
 **Steg 5 — P2/P3**
 - ✅ G2–G4 — kvar i G: längdutredningen (väntar på en rapport med hexdump) och 1417
 - ✅ I: utrett och beslutat (Luba 1 parkerat, geopunkt nej, kamera blockerad, Yuka bekräftad)
-- E: rotorsak hittad via R14 (kapplöpning + ofullständig läsning skriver över cachen) — fix designad, väntar på klartecken
+- ✅ E: rotorsak via R14 (kapplöpning + ofullständig läsning skrev över cachen) — fixad i v2.5.63, hårdvaruverifiering hos R14:s användare kvar
 
 ---
 

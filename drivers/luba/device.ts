@@ -8,6 +8,7 @@ import { extractTelemetry } from '../../lib/mammotion/protocol/TelemetryParser.j
 import { workModeToStatus, isErrorMode, type MowerStatus } from '../../lib/mammotion/protocol/WorkModeStatus.js';
 import { MOWING_ACTIVE_WORK_MODES } from '../../lib/mammotion/constants.js';
 import { resolveStoredBladeHeight, resolveStoredRouteSpacing, extractSchedule, type ScheduleInfo } from '../../lib/mammotion/protocol/ScheduleParser.js';
+import { ScheduleEchoRegistry, enumerateSchedules, mergeScheduleCache } from '../../lib/mammotion/protocol/ScheduleEnumeration.js';
 import { extractErrorCode, extractUpdateBuf, extractRainProtection } from '../../lib/mammotion/protocol/ErrorCodeParser.js';
 import { extractAreaHashNames, type AreaHashName } from '../../lib/mammotion/protocol/AreaNameParser.js';
 import {
@@ -133,12 +134,15 @@ const BOUNDARY_PER_HASH_TIMEOUT_MS = 8_000; // classify + drain budget for a sin
 const BOUNDARY_MAX_HASHES = 32; // hash-count cap
 const BOUNDARY_OVERALL_BUDGET_MS = 25_000; // whole-sequence wall-clock cap
 
-// refreshScheduleCache() budgets — see docs/SCHEDULE_START_PLAN.md §4. Each stored task
-// requires its own read/echo round-trip (planIndex 0..totalPlanCount-1), so this is bounded
-// the same way requestBoundaryZoneDiscovery() is: a per-read timeout plus a hard cap on both
-// count and total wall-clock time, so a device that stops responding mid-enumeration degrades
-// to "whatever was collected so far" instead of hanging.
+// refreshScheduleCache() budgets — see docs/SCHEDULE_START_PLAN.md §4 and
+// lib/mammotion/protocol/ScheduleEnumeration.ts. Each stored task requires its own read/echo
+// round-trip (planIndex 0..totalPlanCount-1), so this is bounded the same way
+// requestBoundaryZoneDiscovery() is: a per-read timeout (measured from when the send returned,
+// see the module's note on the MQTT invoke race), one retry per index, and a hard cap on both
+// count and total wall-clock time. A device that stops responding mid-enumeration degrades to
+// a merged "what we know" list instead of a truncated one (USER_REPORTS_INBOX R14).
 const SCHEDULE_READ_TIMEOUT_MS = 5_000;
+const SCHEDULE_READ_RETRIES = 1;
 const SCHEDULE_MAX_PLANS = 20;
 const SCHEDULE_REFRESH_OVERALL_BUDGET_MS = 20_000;
 // The one reliable "job actually finished" signal — see docs/SCHEDULE_START_PLAN.md §5: there
@@ -228,8 +232,9 @@ export default class LubaDevice extends Homey.Device {
    *  mirrored to the store so a warm cache survives an app restart — same pattern as
    *  zoneCache. Populated by sequentially reading each planIndex via refreshScheduleCache(). */
   private scheduleCache: ScheduleInfo[] = [];
-  /** Pending resolvers for the next schedule-read echo — see refreshScheduleCache(). */
-  private scheduleCacheWaiters: Array<(schedule: ScheduleInfo) => void> = [];
+  /** Waiters for schedule-read echoes, matched by planIndex — see refreshScheduleCache() and
+   *  ScheduleEnumeration.ts for why a waiter is opened before its send goes out. */
+  private scheduleEchoes = new ScheduleEchoRegistry();
   /** In-flight refreshScheduleCache() run, if any — de-dupes concurrent callers (e.g. the
    *  autocomplete dropdown opening twice in quick succession) onto one round-trip sequence. */
   private scheduleRefreshInFlight: Promise<void> | null = null;
@@ -690,10 +695,11 @@ export default class LubaDevice extends Homey.Device {
     this.log(`[update_buf] device reported systemUpdateBuf=[${data.join(',')}]`);
   }
 
-  /** Logs a parsed schedule read response for diagnostics and wakes anything waiting on the
-   *  next one — see refreshScheduleCache(). Any schedule-read echo resolves pending waiters
-   *  regardless of who triggered the read (the diagnostic "Read mowing schedule" action or a
-   *  background refresh), same characteristic as handleAreaHashNamesResponse/zoneCacheWaiters. */
+  /** Logs a parsed schedule read response for diagnostics and hands it to the waiter for
+   *  that planIndex — see refreshScheduleCache(). An echo nobody is waiting for (the
+   *  diagnostic "Read mowing schedule" action, or a reply that arrived after its read was
+   *  retried and answered) is logged as such rather than mistaken for the next read's answer;
+   *  that mistake is what turned one dropped echo into a truncated task list (R14). */
   private handleScheduleResponse(schedule: ScheduleInfo): void {
     this.log(
       `Schedule [${schedule.planIndex + 1}/${schedule.totalPlanCount || '?'}] `
@@ -703,9 +709,9 @@ export default class LubaDevice extends Homey.Device {
       + `dates=${schedule.startDate || '-'}..${schedule.endDate || '-'} `
       + `blade=${schedule.bladeHeightMm}mm speed=${schedule.speedMs}m/s`,
     );
-    const waiters = this.scheduleCacheWaiters;
-    this.scheduleCacheWaiters = [];
-    waiters.forEach((resolve) => resolve(schedule));
+    if (!this.scheduleEchoes.deliver(schedule)) {
+      this.log(`Schedule echo for index ${schedule.planIndex} was not awaited (late duplicate or manual read) — ignored`);
+    }
   }
 
   /** Diagnostic/read-only: request the mower's stored mowing schedule (logged, not yet
@@ -721,23 +727,6 @@ export default class LubaDevice extends Homey.Device {
     const context = this.getContext();
     const cmd = buildReadScheduleCommand(session.userAccount, context.deviceName, planIndex, this.seq, context.productKey);
     await this.sendRaw(Buffer.from(cmd, 'base64'), `read_schedule:${planIndex}`);
-  }
-
-  /** Resolves the next schedule-read echo, or null if none arrives within timeoutMs — see
-   *  refreshScheduleCache(). */
-  private waitForScheduleResponse(timeoutMs: number): Promise<ScheduleInfo | null> {
-    return new Promise((resolve) => {
-      const timer = setTimeout(() => {
-        const idx = this.scheduleCacheWaiters.indexOf(onResponse);
-        if (idx !== -1) this.scheduleCacheWaiters.splice(idx, 1);
-        resolve(null);
-      }, timeoutMs);
-      const onResponse = (schedule: ScheduleInfo) => {
-        clearTimeout(timer);
-        resolve(schedule);
-      };
-      this.scheduleCacheWaiters.push(onResponse);
-    });
   }
 
   /** Returns the cached task list immediately (for start_mowing_schedule's autocomplete
@@ -758,29 +747,42 @@ export default class LubaDevice extends Homey.Device {
     return run.finally(() => { this.scheduleRefreshInFlight = null; });
   }
 
-  /** Enumerates every stored task by sequentially reading planIndex 0, 1, 2, … — each read's
-   *  response reports totalPlanCount, discovered only once the first response arrives. Bounded
-   *  by SCHEDULE_MAX_PLANS/SCHEDULE_REFRESH_OVERALL_BUDGET_MS so a device that stops
-   *  responding mid-enumeration degrades to "whatever was collected so far" rather than
-   *  hanging — same shape as requestBoundaryZoneDiscovery(). Only overwrites the cache if at
-   *  least one task was actually read back, so a failed refresh leaves the last-known list
-   *  (and the store's warm copy) intact rather than blanking the autocomplete dropdown. */
+  /** Enumerates every stored task by sequentially reading planIndex 0, 1, 2, … — the pure
+   *  orchestration lives in ScheduleEnumeration.ts (waiter opened before each send, echoes
+   *  matched by index, one retry per index, bounded by count and wall-clock). A complete
+   *  enumeration replaces the cache; a partial one is merged by planId so a flaky read updates
+   *  what it did reach and never removes what it did not (R14: the picker went 2 → 1 of 5 as
+   *  each truncated read overwrote the last). Nothing read leaves the last-known list (and the
+   *  store's warm copy) intact rather than blanking the autocomplete dropdown. */
   private async runScheduleRefresh(): Promise<void> {
-    const deadline = Date.now() + SCHEDULE_REFRESH_OVERALL_BUDGET_MS;
-    const collected: ScheduleInfo[] = [];
-    let totalPlanCount = 1; // unknown until the first response arrives
-    for (let planIndex = 0; planIndex < totalPlanCount && planIndex < SCHEDULE_MAX_PLANS; planIndex += 1) {
-      if (Date.now() > deadline) break;
-      await this.requestSchedule(planIndex).catch(() => {});
-      const response = await this.waitForScheduleResponse(SCHEDULE_READ_TIMEOUT_MS);
-      if (!response) break;
-      collected.push(response);
-      if (response.totalPlanCount > 0) totalPlanCount = response.totalPlanCount;
+    const result = await enumerateSchedules(
+      {
+        send: (planIndex) => this.requestSchedule(planIndex),
+        registry: this.scheduleEchoes,
+        log: (line) => this.log(line),
+      },
+      {
+        readTimeoutMs: SCHEDULE_READ_TIMEOUT_MS,
+        retriesPerIndex: SCHEDULE_READ_RETRIES,
+        maxPlans: SCHEDULE_MAX_PLANS,
+        overallBudgetMs: SCHEDULE_REFRESH_OVERALL_BUDGET_MS,
+      },
+    );
+    const merged = mergeScheduleCache(this.scheduleCache, result);
+    if (result.complete) {
+      this.log(`Schedule refresh complete: ${result.collected.length} task(s)`);
+    } else if (result.collected.length > 0) {
+      this.log(
+        `Schedule refresh incomplete: read ${result.collected.length} of ${result.totalPlanCount ?? '?'} `
+        + `(missed index ${result.missedIndexes.join(',') || '-'}) — merged with ${this.scheduleCache.length} previously known, `
+        + `${merged.length} in the picker`,
+      );
+    } else {
+      this.log(`Schedule refresh got no answer (missed index ${result.missedIndexes.join(',') || '-'}) — keeping ${this.scheduleCache.length} previously known`);
+      return;
     }
-    if (collected.length > 0) {
-      this.scheduleCache = collected;
-      this.setStoreValue('schedules', collected).catch(this.error.bind(this));
-    }
+    this.scheduleCache = merged;
+    this.setStoreValue('schedules', merged).catch(this.error.bind(this));
   }
 
   /** Sends the "run this stored task now" command (MctlNav.plan_task_execute, sub_cmd=1) —
