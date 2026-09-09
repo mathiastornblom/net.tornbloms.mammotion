@@ -28,6 +28,7 @@ det här är bara råmaterialet.
 | [R11](#r11--diagnostik--luba-3-delad-till-andrakonto-syns-inte-vid-homey-parning) | Diagnostik (manuellt inskickad) | 2026-08-15 | Luba 3 delad till sekundärkonto syns och styrs i Mammotion-appen, men inga enheter visas vid Homey-parning. `owned=0 records=1` | v2.5.56 |
 | [R12](#r12--forumtråd--homey-community-2026-07-26--2026-08-15) | Homey Community-forum | 2026-07-26 → 2026-08-15 | Sju inlägg: task/schema-krock, saknade tasks, resume-kort, utebliven status efter firmwareuppdatering, zonval för Yuka, Luba mini utan status, Luba 1-stöd, Luba 3-parning | v2.5.56 |
 | [R13](#r13--app-store-rapport--klipparen-kör-samma-mönster-på-lägsta-höjd) | App Store-förslag via Homey | 2026-09-06 | Vill köra sina sparade tasks. Generisk start ger alltid samma mönster på lägsta klipphöjd — användaren lyfter själv risken att klippa för kort | — |
+| [R14](#r14--diagnostik--task-väljaren-visar-ofullständig-lista-och-uppdateras-bara-vid-omstart) | Diagnostik (manuellt inskickad, strukturerad felrapport) | 2026-09-09 | "Start mowing task" listar 2 av 5 tasks, gamla namn, uppdateras bara vid app-omstart — då 1 av 5. Zon-listan fungerar. Luba Mini 2 AWD 1500 LiDAR över MQTT | v2.5.62 |
 
 > **Notis om personuppgifter:** det här dokumentet ligger i ett publikt repo. Namn har
 > förkortats och e-postadresser maskerats. Fullständiga uppgifter finns i originalkällan
@@ -1065,10 +1066,112 @@ Det användaren efterfrågar i punkt 1 **finns redan**: `start_mowing_schedule`
 
 ---
 
+## R14 — Diagnostik — task-väljaren visar ofullständig lista och uppdateras bara vid omstart
+
+**Källa:** Diagnostikrapport, manuellt inskickad av användaren med egen strukturerad felbeskrivning
+**Inkom:** 2026-09-09
+**Log ID:** `b4384d98-af12-4ff6-8017-53d5c4a1522b`
+**Version:** v2.5.62 (test), Homey Pro (Early 2023), Homey v13.5.0
+**Mower:** Luba Mini 2 AWD 1500 LiDAR, `active_transport: mqtt`, online och laddande hela tiden
+**Besvarar:** [E](./USER_REPORTS_PLAN.md#e--p1--bara-task-1-listas) — den färska diagnostik E väntade på
+
+### Användarens egna ord (ordagrant, rubrikerna är användarens)
+
+```
+Task picker (start_mowing_schedule) returns an incomplete task list and only refreshes on app restart
+
+Environment
+- Homey Pro, Mammotion app v2.5.62 (test)
+- Mower: Luba Mini 2 AWD 1500 LiDAR, connected over MQTT (cloud transport, active_transport: mqtt),
+  online and charging throughout
+- Zones on the mower: Achtertuin, Voortuin, Laantje, Zijtuin
+
+What I have in the official Mammotion iOS app
+Five saved tasks in total:
+- four older tasks, all currently disabled, one of which I renamed from Voortuin to VoortuinA
+- one newly created task Task-1, enabled
+
+What the "Start mowing task" card shows
+Before restarting the app — five queries spread over roughly 7 minutes, all identical:
+Voortuin   (id 17874007672555030121)
+Zijtuin    (id 17874009238371935932)
+Two of five, and both under their old names. The rename, the disabling and the new task
+did not come through at all, no matter how often the picker was reopened.
+
+After restarting the app — two queries, ~45 seconds apart, identical:
+VoortuinA  (id 17874007672555030121)
+So the rename does arrive, but only after a restart — and the number of tasks returned went
+from two down to one.
+
+Observations
+- The task list appears to be cached and is never refreshed while the app is running. Only an
+  app restart picks up changes made in the official app.
+- The number of tasks returned is incomplete and varies per restart (2, then 1, out of 5).
+- Enabled/disabled is not the filter: VoortuinA is disabled and is listed, Task-1 is
+  enabled and is not listed.
+- Not a UI issue: the picker in the Homey Flow editor and the same autocomplete queried
+  through the Homey Web API both return exactly the same results.
+- Counter-proof that the connection itself is fine: the zone autocomplete on
+  start_mowing_zone consistently returns all four zones, immediately and completely.
+
+Guess at the cause
+It looks like the per-index plan read loop stops early or drops replies, rather than a
+transport problem — which would fit the two rounds of changes in 2.5.58 and 2.5.59 around how
+many tasks get requested.
+
+Why this matters
+The goal is exactly the use case the changelog describes: chaining "Mower finished a mowing
+job" into "Start mowing task" so two areas are mowed one after the other with their own
+cutting height, without waiting for the dock. With one task in the picker there is nothing to
+chain.
+
+Diagnostic report
+Debug logging enabled and a diagnostic report sent. Happy to run any further test on this mower.
+```
+
+### Vad loggen innehåller
+
+Det bifogade stdout-utdraget täcker 14:43:40–14:48:53 och består nästan uteslutande av
+MQTT-telemetri var femte sekund (`[mqtt] telemetry changed` + `[debug] received` med
+`toappReportData`). Inget `read_schedule`, inget `Schedule [i/n]` och inget
+`[MQTT] sending command` förekommer i fönstret — väljarfrågorna låg utanför utdraget. Det som
+finns utöver telemetri:
+
+```
+14:45:56 [BLE] BLE: scan found 19 BLE advertisements
+14:45:56 [BLE] BLE: device Luba-LANNXE49 not found in scan (19 other advertisement(s) seen)
+14:45:56 [BLE] BLE: scheduling reconnect in 960s (failure #6)
+```
+
+stderr, hela innehållet:
+
+```
+13:59:10 Poll sync failed: Mammotion invoke request timed out after 8000ms
+```
+
+Telemetrin visar `sysStatus=11`, `chargeState=5`, `batteryVal=96`, `work.plan=0`,
+`knifeHeight=45`, `linkType=3` (4G-modul LE270-EU, `mnetRssi` −67…−81), `wifiRssi` −65,
+firmware `2.3.30.26`. Enheten är alltså uppe och svarar löpande — precis som användaren
+skriver.
+
+### Fakta att bära med till planfasen
+
+- Rapportörens egen hypotes ("per-index-loopen stannar tidigt eller tappar svar") **stämmer
+  med koden**, se [E](./USER_REPORTS_PLAN.md#e--p1--bara-task-1-listas).
+- Zon-listan fungerar ⇒ transporten och `handleRawMessage` fungerar; skillnaden är att
+  zon-läsningen är *ett* anrop med *ett* svar, medan task-läsningen är N sekventiella
+  anrop där varje svar måste fångas i ett tidsfönster.
+- Antalet tasks varierade mellan omstarter (2 → 1) och ingen omläsning under drift ändrade
+  listan ⇒ omläsningarna under drift samlade **noll** svar (cachen skrivs bara över när minst
+  ett svar kommit), och omläsningen efter omstart samlade ett.
+- Användaren erbjuder sig att köra ytterligare tester — bra kandidat för verifiering av fixen.
+
+---
+
 ## Insamlingen avslutad
 
 Mathias stängde insamlingen 2026-08-17 ("Det var alla för denna gång"). Rapporterna
 R1–R12 utgör underlaget för åtgärdsplanen i
 [`docs/USER_REPORTS_PLAN.md`](./USER_REPORTS_PLAN.md).
 
-Om fler rapporter kommer in läggs de till här som R13 och framåt, och planen uppdateras.
+Rapporter som kommit in efteråt läggs till här (R13, R14, …) och planen uppdateras.

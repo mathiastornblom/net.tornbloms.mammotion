@@ -525,19 +525,82 @@ så de lämnas orörda tills någon rapporterar dem.
 
 ---
 
-## E — P1 — Bara "Task 1" listas
+## E — P1 — Bara "Task 1" listas ✅
 
-**Rapport:** R12.2
+**Rapporter:** R12.2, **R14** (2026-09-09, v2.5.62, den färska diagnostik som efterfrågades)
 
-Användaren får bara "Task 1" i task-autocompleten, trots att fler tasks finns i
-Mammotion-appen. **Ej reproducerad.** Motstridig datapunkt: R1:s användare skrev
-"alla task fanns nu", och R1:s logg listar åtta zoner korrekt.
+R12.2 gav bara symptomet. R14 gav en exakt beskrivning: 5 sparade tasks, väljaren visar 2
+med gamla namn, ingen omläsning under 7 minuter ändrar något, efter omstart visas 1 med nytt
+namn. Zon-väljaren fungerar hela tiden. Med det underlaget är orsaken läsbar direkt ur koden.
 
-Möjliga förklaringar att testa: pausade tasks i mobilappen listas annorlunda (R12.2:s
-användare hade uttryckligen pausat sina tasks), autocompleten filtrerar på något, eller det
-var ett fel i v2.5.56 som redan är åtgärdat.
+### Rotorsak — tre fel i samma slinga (`runScheduleRefresh`, `drivers/luba/device.ts`)
 
-**Åtgärd:** be användaren om en diagnostik med aktuell version innan något ändras.
+Slingan läser `planIndex` 0, 1, 2 … sekventiellt: skicka `read_schedule:i`, vänta upp till
+5 s på ett eko (`todevPlanjobSet`), lägg till, fortsätt. `totalPlanCount` kommer i första
+svaret.
+
+1. **Kapplöpning: svaret kan komma innan någon lyssnar.** Ordningen är
+   `await requestSchedule(i)` → `waitForScheduleResponse(5000)`. Över MQTT är
+   `requestSchedule` ett HTTPS-anrop till Mammotions invoke-gateway
+   (`MqttClient.sendCommand`) som **inte returnerar förrän molnet svarat**, och molnet svarar
+   först när enheten har behandlat kommandot. Enhetens eko publiceras över MQTT och kan
+   därför landa i `handleScheduleResponse` **innan** `await` släppt och lyssnaren
+   registrerats. Då finns inga `scheduleCacheWaiters`, ekot loggas och kastas, lyssnaren
+   väntar 5 s på ett svar som redan passerat, får `null`, och slingan bryts. Om det händer
+   på index 0 samlas noll tasks och cachen lämnas orörd — exakt R14:s "ingen omläsning ändrar
+   något på 7 minuter". Utfallet beror på molnets latens, vilket förklarar varför samma kod
+   gav 15/15 på en Luba 2 Pro (verifieringen i v2.5.58) och 2 respektive 1 av 5 här.
+2. **En ofullständig läsning skriver över en fullständig.** Villkoret för att skriva cachen
+   är `collected.length > 0`. Bryts slingan på index 2 av 5 ersätts hela listan med 2 poster;
+   nästa gång på index 1 blir det 1. Det är R14:s "2, sedan 1, av 5". Tasks som inte hann
+   läsas *försvinner* ur väljaren fast de finns kvar på enheten.
+3. **Svaren matchas inte mot förfrågan.** `waitForScheduleResponse` löser på *vilket* eko
+   som helst. Ett försenat eko för index 1 kan lösa väntan för index 2, så listan kan få
+   fel eller dubblerade poster, och ett verkligt svar för index 2 blir sedan "oväntat".
+
+Varför zon-listan aldrig drabbas: `get_area_name_list` är **ett** anrop vars svar hanteras
+av `handleAreaHashNamesResponse` direkt in i cachen, utan tidsfönster. Task-läsningen är den
+enda platsen i appen som behöver fånga N svar i N fönster i följd.
+
+### Åtgärd — ✅ implementerad (v2.5.63)
+
+- **Registrera lyssnaren före sändningen**, inte efter. Fönstret öppnas innan
+  `requestSchedule(i)` anropas, så ett eko som kommer under HTTPS-anropet fångas.
+- **Matcha på `planIndex`.** Lyssnaren för index i löser bara på ett eko med
+  `schedule.planIndex === i`; andra ekon lämnas till sin egen lyssnare (eller loggas som
+  försenade).
+- **Ett omförsök per index** innan slingan bryts, så ett enstaka tappat eko inte kapar
+  listan.
+- **Skriv bara över cachen när läsningen är fullständig** (`collected.length ===
+  totalPlanCount`). Vid ofullständig läsning: slå ihop per `planId` (nya poster uppdaterar
+  namn, gamla poster behålls) och logga en rad `schedule refresh incomplete: got X of N`.
+  Borttagna tasks försvinner först vid nästa fullständiga läsning — hellre en task för
+  mycket i väljaren än en som saknas.
+- Lyft slingan till en ren funktion (`lib/mammotion/protocol/ScheduleEnumeration.ts`) med
+  injicerbar `send`/`echo`-källa, samma form som `runLegacyHandshake`, så att alla tre felen
+  får tester: eko-före-lyssnare, felindexerat eko, avbruten läsning som inte får krympa
+  cachen.
+
+### Vad som byggdes
+
+`lib/mammotion/protocol/ScheduleEnumeration.ts` — `ScheduleEchoRegistry` (lyssnare per
+`planIndex`, öppnas före sändning, tidsfönstret armas först när sändningen returnerat, sena
+dubbletter avvisas via `planId`, säkerhetsventil för firmware som ekar fel index),
+`enumerateSchedules()` (ett omförsök per index, tak på antal och väggklocka, rapporterar
+`complete`/`missedIndexes`) och `mergeScheduleCache()` (fullständig → ersätt, ofullständig →
+slå ihop per `planId`, inget → oförändrat). `runScheduleRefresh` i `device.ts` använder
+modulen och loggar `Schedule refresh complete: N task(s)` respektive `incomplete: read X of
+N (missed index …)`; ett eko som ingen väntar på loggas som `not awaited`.
+`scripts/schedule-enumeration.test.mjs` (11 tester) driver den riktiga modulen med en
+skriptad klippare: R14:s eko-före-lyssnare för alla fem index, tyst index med lyckat
+omförsök, tyst index som avslutar ofullständigt, sen dubblett som avvisas, säkerhetsventilen,
+kastande sändning, registrets arm/cancel, de tre sammanslagningsreglerna och `maxPlans`.
+
+### Verifiering
+
+R14:s användare har erbjudit sig att testa. Förväntat efter fixen: alla 5 tasks i väljaren
+vid första öppningen efter uppdatering, med aktuella namn, utan omstart. Loggraden
+`Schedule [i/5]` ska förekomma fem gånger per omläsning.
 
 ---
 
@@ -858,7 +921,7 @@ efterfrågas. Svarsutkast till användaren (svenska) ligger utanför repot i scr
 **Steg 5 — P2/P3**
 - ✅ G2–G4 — kvar i G: längdutredningen (väntar på en rapport med hexdump) och 1417
 - ✅ I: utrett och beslutat (Luba 1 parkerat, geopunkt nej, kamera blockerad, Yuka bekräftad)
-- E
+- ✅ E: rotorsak via R14 (kapplöpning + ofullständig läsning skrev över cachen) — fixad i v2.5.63, hårdvaruverifiering hos R14:s användare kvar
 
 ---
 
