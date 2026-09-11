@@ -29,6 +29,7 @@ det här är bara råmaterialet.
 | [R12](#r12--forumtråd--homey-community-2026-07-26--2026-08-15) | Homey Community-forum | 2026-07-26 → 2026-08-15 | Sju inlägg: task/schema-krock, saknade tasks, resume-kort, utebliven status efter firmwareuppdatering, zonval för Yuka, Luba mini utan status, Luba 1-stöd, Luba 3-parning | v2.5.56 |
 | [R13](#r13--app-store-rapport--klipparen-kör-samma-mönster-på-lägsta-höjd) | App Store-förslag via Homey | 2026-09-06 | Vill köra sina sparade tasks. Generisk start ger alltid samma mönster på lägsta klipphöjd — användaren lyfter själv risken att klippa för kort | — |
 | [R14](#r14--diagnostik--task-väljaren-visar-ofullständig-lista-och-uppdateras-bara-vid-omstart) | Diagnostik (manuellt inskickad, strukturerad felrapport) | 2026-09-09 | "Start mowing task" listar 2 av 5 tasks, gamla namn, uppdateras bara vid app-omstart — då 1 av 5. Zon-listan fungerar. Luba Mini 2 AWD 1500 LiDAR över MQTT | v2.5.62 |
+| [R15](#r15--diagnostik--inga-enheter-kan-läggas-till-efter-inloggning-luba--yuka-homey-pro-mini) | Diagnostik (manuellt inskickad) | 2026-09-11 | "App funktioniert nicht" — efter inloggning kan varken Luba eller Yuka läggas till. Loggen visar tre enheter returnerade till parningsvyn, tre gånger. Homey Pro mini (2025) | v2.5.56 |
 
 > **Notis om personuppgifter:** det här dokumentet ligger i ett publikt repo. Namn har
 > förkortats och e-postadresser maskerats. Fullständiga uppgifter finns i originalkällan
@@ -1168,10 +1169,75 @@ skriver.
 
 ---
 
+## R15 — Diagnostik — inga enheter kan läggas till efter inloggning (Luba + Yuka, Homey Pro mini)
+
+**Källa:** Homey diagnostikrapport, manuellt inskickad av användaren
+**Inkom:** 2026-09-11
+**Log ID:** `85c515cc-46cb-4bf3-9b07-9cf6a66d29a6`
+**Version:** v2.5.56, Homey Pro mini (2025) `homey6q`, Homey v13.5.0
+**Konto:** ett gmx.at-konto (maskerat), samma konto vid alla tre försök
+**Hör till:** [B](./USER_REPORTS_PLAN.md#b--p0--delade-enheter-syns-inte-vid-parning) — **andra rapporten** med exakt samma form som R11
+
+### Användarens egna ord (ordagrant, tyska)
+
+```
+App funktioniert nicht.Nach anmeldund können keine geräte ( yuka oder luba) hinzugefügt werden.
+```
+
+### Vad loggen visar
+
+Tre kompletta parningsförsök på sju minuter (07:27, 07:31, 07:33), alla identiska. Per försök:
+
+```
+Authenticated: <konto>
+list_devices: share invitations found=0 accepted=0
+list_devices: owned=3 records=2 total=2 msg="Request success"
+   owned:   Luba-LATDKNWH (4Fdx…), RBSA1GH4NKA (2DJc…), Yuka-MN7S6MLF (LfD6…)
+   records: Luba-LATDKNWH productKey=CDYuKXTYrSP, Yuka-MN7S6MLF productKey=8xMGQS6DESC
+list_devices: Aliyun connectivity check (api.link.aliyun.com) — OK after 831ms
+list_devices: legacy Aliyun probe — bound=1 shareNotifications=2
+   [{"deviceName":"RBSA1GH4NKA","productKey":"a1wIIUUdAMX","owned":1}]
+list_devices: returning 3 device(s) to pairing UI (2 normal + 1 legacy)
+   [Luba-LATDKNWH, Yuka-MN7S6MLF, RBSA1GH4NKA]
+```
+
+- Handlern tar **~7 s** från inloggning till retur (07:27:18.7 → 07:27:25.5), varav proben
+  ~5,6 s. Väl under Homeys ~30 s.
+- stderr: `n/a`. Ingen `LubaDevice … initializing`-rad någonstans ⇒ **ingen enhet skapades
+  någonsin** i den här appinstansen.
+- Efter `returning 3 device(s)` finns ingenting mer i loggen förrän nästa inloggning 4,5 min
+  senare. Användaren startade alltså om guiden från början tre gånger.
+
+### Två fakta som är nya jämfört med R11
+
+1. **`RBSA1GH4NKA` med `productKey=a1wIIUUdAMX` är en RTK-basstation**, inte en klippare
+   (`NON_MOWER_PRODUCT_KEYS` i `lib/mammotion/constants.ts`, `resolveDeviceType` →
+   `DeviceType.RTK`). Den kom via legacy-proben (`bound=1`) och erbjöds ändå i parningsvyn
+   som tredje "klippare". Normalvägen filtrerar den bort implicit (den saknas i `records`),
+   men `buildLegacyDeviceList()` filtrerar inte alls. Ett eget, klart fel — men det
+   förklarar inte att Luba och Yuka inte kan läggas till.
+2. **Båda rapporterna med denna form (R11, R15) kör v2.5.56**, på olika Homey-modeller
+   (Pro Early 2023 resp. Pro mini 2025) och olika kontotyper (delad Luba 3 resp. ägd Luba
+   `Luba-LA…` + Yuka Mini). Det som fungerar (R14 på 2.5.62, Örjan, Mathias) är andra
+   versioner eller okänd version. Sambandet med versionen är inte bevisat — men ingen
+   rapport av den här formen har kommit från 2.5.57 eller senare.
+
+### Vad som INTE finns i loggen
+
+- Vad användaren faktiskt såg: tom lista, eller en lista där "lägg till" misslyckas. Orden
+  "können keine Geräte hinzugefügt werden" täcker båda.
+- Något felmeddelande från Homey.
+- Enheternas upplösta typ: `Luba-LATDKNWH` → `LUBA_LA` (samma prefix som R14:s Luba Mini 2,
+  som fungerar), `Yuka-MN7S6MLF` → `YUKA_MINI`. Båda ger 26 av 27 capabilities.
+  Capability-definitionerna i v2.5.56 är kompletta (kontrollerat mot commit `23bf05c`), så
+  "okänd capability" är avförd även för den versionen.
+
+---
+
 ## Insamlingen avslutad
 
 Mathias stängde insamlingen 2026-08-17 ("Det var alla för denna gång"). Rapporterna
 R1–R12 utgör underlaget för åtgärdsplanen i
 [`docs/USER_REPORTS_PLAN.md`](./USER_REPORTS_PLAN.md).
 
-Rapporter som kommit in efteråt läggs till här (R13, R14, …) och planen uppdateras.
+Rapporter som kommit in efteråt läggs till här (R13, R14, R15, …) och planen uppdateras.

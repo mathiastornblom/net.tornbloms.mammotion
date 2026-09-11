@@ -279,8 +279,37 @@ förutsett.
 
 ## B — P0 — Delade enheter syns inte vid parning
 
-**Rapporter:** R11 / R12.7. R12.7 skriver **"I have the same issue"** — det finns alltså
-minst en tidigare rapportör i forumtråden som inte finns med i materialet och som bör letas upp.
+**Rapporter:** R11 / R12.7, **R15** (2026-09-11). R12.7 skriver **"I have the same issue"** — det
+finns alltså minst en tidigare rapportör i forumtråden som inte finns med i materialet och
+som bör letas upp.
+
+### R15 — andra förekomsten, och vad den ändrar (2026-09-11)
+
+R15 (Homey Pro mini 2025, v2.5.56, ägd `Luba-LA…` + Yuka Mini, tyskspråkig användare) har
+exakt R11:s form: `returning 3 device(s) to pairing UI`, tre gånger, inget läggs till, ingen
+`LubaDevice … initializing`. Vår sida returnerar rätt; förlusten sker i Homeys list-/lägg-
+till-steg som vi inte kan se. Vad R15 tillför:
+
+- **Inte modellberoende**: R11 var Pro Early 2023, R15 Pro mini 2025. Inte delnings-
+  beroende: R11 delad, R15 ägd. Inte typberoende: `LUBA_LA` parar fint hos R14.
+- **Versionsmönster**: båda rapporterna kör **v2.5.56**. Inget bevis, men ingen rapport av
+  den här formen finns från 2.5.57+. Det billigaste nästa steget är därför att be båda
+  användarna uppdatera till 2.5.63 (testspåret) och försöka igen — 2.5.62+ har dessutom
+  tidsloggen och `via=`.
+- **Nytt, separat fel (B5): en RTK-basstation erbjuds som klippare.** Legacy-proben
+  returnerade `RBSA1GH4NKA` med `productKey=a1wIIUUdAMX` (`DeviceType.RTK`,
+  `NON_MOWER_PRODUCT_KEYS`), och `buildLegacyDeviceList()` skickade den till parningsvyn
+  som tredje enhet. Normalvägen slipper det bara för att `records` inte innehåller
+  basstationen. Fix: filtrera bort `NON_MOWER_PRODUCT_KEYS`/RTK- och pooltyper i **båda**
+  byggarna, med test. Liten (S). Förklarar inte huvudfelet, men en användare som väljer
+  "RBSA1GH4NKA" får en enhet som aldrig kan fungera.
+- **Vad vi fortfarande inte vet**: om användaren ser en tom lista eller ett fel vid "lägg
+  till". Svarsutkastet (tyska) frågar exakt det, plus ber om uppdatering till 2.5.63 och en
+  ny diagnostik efter försöket.
+
+Om R11/R15 kvarstår på 2.5.63 är nästa steg att instrumentera själva överlämningen: byta
+Homeys inbyggda `list_devices`-vy mot en egen som loggar vad den tar emot, så att "returnerat
+men aldrig visat" blir "visat men inte tillagt" eller "aldrig mottaget".
 
 **Diagnos — delvis.** Loggen i R11 visar att enheten faktiskt hittas:
 
