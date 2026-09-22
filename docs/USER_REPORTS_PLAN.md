@@ -279,9 +279,77 @@ förutsett.
 
 ## B — P0 — Delade enheter syns inte vid parning
 
-**Rapporter:** R11 / R12.7, **R15** (2026-09-11). R12.7 skriver **"I have the same issue"** — det
-finns alltså minst en tidigare rapportör i forumtråden som inte finns med i materialet och
-som bör letas upp.
+**Rapporter:** R11 / R12.7, R15, **R16** (2026-09-22). R12.7 skriver **"I have the same issue"** —
+det finns alltså minst en tidigare rapportör i forumtråden som inte finns med i materialet
+och som bör letas upp.
+
+### B6 — R16: nätverksvägen till Aliyun bekräftat blockerad, inte en app-bugg (2026-09-22)
+
+R16 skiljer sig från R11/R15 på ett avgörande sätt: **här returnerar normal-API:t genuint
+noll enheter** (`owned=0 records=0 total=0 msg="Request success"`, snabbt, inget fel) och
+**Aliyun-konnektivitetskontrollen slår fel för första gången sedan den byggdes** —
+`TIMEOUT after 5006ms`, tre av tre försök, samtidigt som legacy-proben timear ut på
+nätverksnivå i varje försök (`ETIMEDOUT`, både första och omförsöket). R11 och R15 visade
+båda `OK` på samma kontroll (831/1358 ms).
+
+Konnektivitetskontrollen byggdes uttryckligen för att skilja "kan vi nå Aliyuns kinesiska
+servrar från det här nätverket" från "gick handskakningslogiken sönder" — se
+`lib/mammotion/aliyun/connectivityCheck.ts` och kommentaren i `driver.ts` om en tidigare
+rapport (2026-07-16, nämnd i `gateway.ts`) där ett nät blockerade Aliyun helt. R16 är
+**första bekräftade träffen**: inte en hypotes längre, utan uppmätt två gånger oberoende
+(konnektivitetskontrollen och legacy-proben, samma nätverk, samma resultat).
+
+**Varför det spelar roll att normal-API:t också gav noll.** Enligt
+`docs/ALIYUN_LEGACY_PLAN.md` är Mammotions moln uppdelat i två helt separata system: det
+nyare (post-2025, `domestic.mammotion.com`, det appen normalt frågar) och det gamla Alibaba
+Cloud IoT Link Platform-systemet (pre-2025, `api.link.aliyun.com`, bara nåbart via
+legacy-proben). En pre-2025-enhet **existerar inte alls** i det nyare API:t — därav
+`records=0` trots att kontot enligt användaren delats för timmar sedan. Användarens egen
+beskrivning (Luba mini AWD 800, firmware 1.15.21.1, medvetet ohållen gammal) är konsistent
+med en pre-2025-enhet, men det är inte verifierat mot pymammotions egen enhetstabell.
+
+**Konsekvensen om båda stämmer:** legacy-proben är då den **enda** vägen som någonsin kan
+hitta den här klipparen, och den vägen är stängd av nätverket — inte av kontot. Ingen
+om-delning, om-inbjudan eller väntan löser det. Parningsskärmens generiska text
+("kontrollera att delningsinbjudan accepterats", `error.no_devices_found`) är i det här
+fallet **direkt missvisande**: den pekar användaren mot att kontrollera något som redan är
+rätt, medan det verkliga problemet ligger i nätverket mellan Homey-huben och Kina.
+
+**Öppna frågor, kan inte avgöras från en enda körning:**
+- Är `api.link.aliyun.com` blockerat bara från det här nätverket (DNS-filter, brandvägg,
+  ISP:ns blockering av kinesiska IP-intervall — vanligt hos vissa danska/nordiska ISP:er
+  och en del DNS-baserade skyddstjänster) eller otillgängligt mer generellt just då?
+  Naturlig nästa-test: samma parning från en mobil hotspot.
+- Är Luba mini AWD 800 med den här firmwaren faktiskt pre-2025-bunden? Skulle kräva
+  jämförelse mot pymammotions enhetstabell eller ett svar från Mammotion-supporten.
+
+**Åtgärd — ✅ implementerad (v2.5.64).** Mathias godkände beslutspunkten (2.5): kontrollens
+resultat *kostar ingenting extra* i den branschen, eftersom legacy-proben redan tar längre
+tid än konnektivitetskontrollens 5 s-budget — den hinner alltid svara under tiden. Ändringen
+sparar löftet från `checkAliyunConnectivity()` (i stället för fire-and-forget) och läser av
+det bara i den absoluta sista grenen, där båda systemen redan gett noll enheter — de
+tidigare returvägarna (normalt fynd, legacy-fynd, "delningsaktivitet men inget bundet") är
+opåverkade och kollar aldrig konnektivitet.
+
+- `lib/mammotion/aliyun/connectivityCheck.ts` — ny ren funktion `isAliyunReachable(result)`,
+  testad separat (`scripts/aliyun-connectivity.test.mjs`, 5 tester inklusive R16:s exakta
+  sträng `"TIMEOUT after 5006ms"`).
+- `drivers/luba/driver.ts` — samma loggning som förut, men löftet behålls; om enhetslistan
+  är helt tom **och** kontrollen misslyckats (`TIMEOUT`/`FAILED`), kastas ett nytt,
+  nätverks-specifikt fel i stället för "kontrollera delningsinbjudan".
+- Ny lokal nyckel `error.aliyun_network_unreachable` i alla 13 språk: pekar på nätverket
+  (router/DNS/brandvägg som blockerar `aliyun.com`), föreslår att testa ett annat nätverk
+  (t.ex. mobildata på telefonen i stället för wifi — samma nät som hemmawifi:t kan dela
+  samma blockerande ISP/DNS, så ett annat *nätverk*, inte bara en annan enhet, är poängen).
+
+**Kvar att göra, inte i den här ändringen:**
+1. **Svara Gert** (utkastet finns, uppdaterat för att nämna att fixen är på väg) och be om
+   samma två saker som innan: testa parning från mobildata, och kolla router/DNS/brandvägg.
+2. Om nätverksblockering bekräftas hos fler användare (t.ex. samma ISP): värt en
+   forum-/dokumentationsnot med en enkel `nslookup`/`ping`-instruktion mot
+   `api.link.aliyun.com` som användaren kan köra själv innan de felsöker vidare i appen.
+
+---
 
 ### R15 — andra förekomsten, och vad den ändrar (2026-09-11)
 

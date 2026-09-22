@@ -6,6 +6,7 @@
     "device_offline": "Klipperen er offline",
     "command_failed": "Kommandoen mislyktes",
     "no_devices_found": "Ingen gressklippere funnet på denne kontoen. Åpne Mammotion-appen og sjekk at delingsinvitasjonen er akseptert, og prøv deretter på nytt — det kan ta noen minutter etter aksept før gressklipperen vises.",
+    "aliyun_network_unreachable": "Dette nettverket når ikke Mammotions skytjenere i Kina — det er det som blokkerer paringen, ikke kontoen din eller delingsoppsettet. Sjekk ruteren, DNS-en eller brannmuren for noe som blokkerer aliyun.com, eller prøv igjen på et annet nettverk (f.eks. mobildata på telefonen i stedet for wifi).",
     "legacy_devices_found": "Gressklipperen(e) din/dine ble funnet registrert under Mammotions eldre skysystem, som denne appen ikke støtter ennå — utvikleren er informert og jobber med å legge til støtte. Prøv igjen i en fremtidig oppdatering.",
     "no_zones_known": "Ingen klippesoner kjent ennå. Åpne klipperen i Mammotion-appen, eller vent litt og prøv igjen. Tips: gi sonene navn i Mammotion-appen for et umiddelbart og pålitelig sonevalg.",
     "device_unbound": "Denne klipperen er ikke lenger knyttet til kontoen Homey bruker. Bruk Reparer på enheten og logg inn på nytt for å knytte den igjen.",

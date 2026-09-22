@@ -7,7 +7,7 @@ import { AuthError, AliyunCredentialsRefreshError } from '../../lib/mammotion/er
 import { probeLegacyAliyunDevices, isNetworkLevelError, type AliyunLegacyCredentials, type LegacyProbeResult } from '../../lib/mammotion/aliyun/AliyunLegacyProbe.js';
 import type { AliyunAccountDevice } from '../../lib/mammotion/aliyun/types.js';
 import { AliyunMqttTransport } from '../../lib/mammotion/aliyun/AliyunMqttTransport.js';
-import { checkAliyunConnectivity } from '../../lib/mammotion/aliyun/connectivityCheck.js';
+import { checkAliyunConnectivity, isAliyunReachable } from '../../lib/mammotion/aliyun/connectivityCheck.js';
 import { ALIYUN_DOMAIN } from '../../lib/mammotion/aliyun/constants.js';
 import { AliyunCredentialsManager } from '../../lib/mammotion/aliyun/AliyunCredentialsManager.js';
 import { AliyunRequestGovernor } from '../../lib/mammotion/aliyun/RequestGovernor.js';
@@ -494,14 +494,26 @@ export default class LubaDriver extends Homey.Driver {
         }));
       const list = this.buildDeviceList(devices, records);
 
-      // Raw TLS reachability check against the legacy handshake's fixed entry point, run
-      // alongside (not blocking) the real probe below — isolates "can we even reach Aliyun's
-      // servers from this network" from "did the 6-step handshake itself fail", after a real
-      // diagnostic report showed the same account/handshake failing consistently from one
-      // Homey hub's network while working fine from another. See connectivityCheck.ts.
-      checkAliyunConnectivity(ALIYUN_DOMAIN)
-        .then((result) => this.log(`list_devices: Aliyun connectivity check (${ALIYUN_DOMAIN}) — ${result}`))
-        .catch((err) => this.error('Aliyun connectivity check threw unexpectedly:', err));
+      // Raw TLS reachability check against the legacy handshake's fixed entry point, kicked
+      // off alongside (not blocking) the real probe below — isolates "can we even reach
+      // Aliyun's servers from this network" from "did the 6-step handshake itself fail",
+      // after a real diagnostic report showed the same account/handshake failing
+      // consistently from one Homey hub's network while working fine from another. See
+      // connectivityCheck.ts. The promise itself (not just its logged side effect) is kept
+      // so the zero-devices branch far below can tell "the account genuinely has nothing"
+      // apart from "we couldn't reach Aliyun to find out" — see USER_REPORTS_INBOX R16,
+      // where this check timed out on every attempt while the normal device API answered
+      // instantly with a genuine zero. Never rejects (checkAliyunConnectivity always
+      // resolves), so the .catch() is defensive only, same as before this promise was kept.
+      const connectivityCheckResult = checkAliyunConnectivity(ALIYUN_DOMAIN)
+        .then((result) => {
+          this.log(`list_devices: Aliyun connectivity check (${ALIYUN_DOMAIN}) — ${result}`);
+          return result;
+        })
+        .catch((err) => {
+          this.error('Aliyun connectivity check threw unexpectedly:', err);
+          return `FAILED (${errorMessage(err)})`;
+        });
 
       // Always probe the legacy Aliyun IoT Link Platform too, even when the normal path
       // already found devices — an account can have SOME mowers on each system at once
@@ -577,8 +589,19 @@ export default class LubaDriver extends Homey.Driver {
       }
 
       // Zero devices on both systems usually means the sharing invitation hasn't been
-      // accepted yet (or hasn't propagated) — tell the user what to check instead of
-      // showing Homey's generic "no new devices found".
+      // accepted yet (or hasn't propagated) — but that's not the only cause, and telling a
+      // user to re-check sharing when their real problem is a blocked network wastes their
+      // time on the wrong fix (USER_REPORTS_INBOX R16: sharing was correct, the network
+      // path to Aliyun's Chinese servers was not). By the time we get here the legacy probe
+      // (which takes several seconds itself, retried) has already run, so this check has
+      // almost always settled already — awaiting it costs nothing extra in the case that
+      // actually matters here, and the ~5s worst case only applies to a pairing attempt
+      // that was already about to fail. A failed connectivity check gets its own, accurate
+      // message; only the two-systems-truly-empty case still shows the sharing one.
+      const connectivity = await connectivityCheckResult;
+      if (!isAliyunReachable(connectivity)) {
+        throw new Error(this.homey.__('error.aliyun_network_unreachable'));
+      }
       throw new Error(this.homey.__('error.no_devices_found'));
     });
   }

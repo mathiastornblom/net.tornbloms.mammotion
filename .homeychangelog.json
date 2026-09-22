@@ -352,5 +352,8 @@
   },
   "2.5.63": {
     "en": "Fixed \"Start mowing task\" listing only some of your saved tasks, under old names, and only picking up changes after an app restart. Reading the task list is one request per task, and over the cloud the mower's answer could arrive before the app had started listening for it — that answer was thrown away, the read gave up, and whatever had been read so far replaced the whole list (so the picker could go from 5 tasks to 2 to 1). The app now listens before it asks, matches each answer to the task it asked for, retries a missed one, and only replaces the list once it has read all of it — a flaky read updates what it reached and never removes what it didn't"
+  },
+  "2.5.64": {
+    "en": "If pairing finds zero mowers on your account, the app now checks whether it can actually reach Mammotion's servers in China before blaming the sharing setup. If the network can't get through, you'll see a message about that instead of being told to re-check an invitation that was already accepted correctly — and a tip to try a different network, such as your phone's mobile data"
   }
 }
