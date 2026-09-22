@@ -7,7 +7,7 @@ det här är bara råmaterialet.
 **Status:** ✅ Insamling avslutad 2026-08-17. Åtgärdsplanen finns i
 [`docs/USER_REPORTS_PLAN.md`](./USER_REPORTS_PLAN.md).
 
-**Insamling startad:** 2026-08-17 · **Antal rapporter:** 13 (R1–R12, plus R13 tillagd 2026-09-06)
+**Insamling startad:** 2026-08-17 · **Antal rapporter:** 16 (R1–R12, plus R13–R16 tillagda efter avslutad insamling)
 
 ---
 
@@ -30,6 +30,7 @@ det här är bara råmaterialet.
 | [R13](#r13--app-store-rapport--klipparen-kör-samma-mönster-på-lägsta-höjd) | App Store-förslag via Homey | 2026-09-06 | Vill köra sina sparade tasks. Generisk start ger alltid samma mönster på lägsta klipphöjd — användaren lyfter själv risken att klippa för kort | — |
 | [R14](#r14--diagnostik--task-väljaren-visar-ofullständig-lista-och-uppdateras-bara-vid-omstart) | Diagnostik (manuellt inskickad, strukturerad felrapport) | 2026-09-09 | "Start mowing task" listar 2 av 5 tasks, gamla namn, uppdateras bara vid app-omstart — då 1 av 5. Zon-listan fungerar. Luba Mini 2 AWD 1500 LiDAR över MQTT | v2.5.62 |
 | [R15](#r15--diagnostik--inga-enheter-kan-läggas-till-efter-inloggning-luba--yuka-homey-pro-mini) | Diagnostik (manuellt inskickad) | 2026-09-11 | "App funktioniert nicht" — efter inloggning kan varken Luba eller Yuka läggas till. Loggen visar tre enheter returnerade till parningsvyn, tre gånger. Homey Pro mini (2025) | v2.5.56 |
+| [R16](#r16--diagnostik--aliyun-nätverksväg-otillgänglig-första-bekräftade-fallet-luba-mini-awd-800) | Diagnostik (manuellt inskickad) | 2026-09-22 | "Can't find any mover" — Aliyun-konnektivitetskontrollen TIMEOUT tre gånger i rad, normal-API:t ger genuint 0 enheter. Luba mini AWD 800, gammal firmware, Homey Pro (2026) | v2.5.63 |
 
 > **Notis om personuppgifter:** det här dokumentet ligger i ett publikt repo. Namn har
 > förkortats och e-postadresser maskerats. Fullständiga uppgifter finns i originalkällan
@@ -1231,6 +1232,91 @@ list_devices: returning 3 device(s) to pairing UI (2 normal + 1 legacy)
   som fungerar), `Yuka-MN7S6MLF` → `YUKA_MINI`. Båda ger 26 av 27 capabilities.
   Capability-definitionerna i v2.5.56 är kompletta (kontrollerat mot commit `23bf05c`), så
   "okänd capability" är avförd även för den versionen.
+
+---
+
+## R16 — Diagnostik — Aliyun-nätverksväg otillgänglig, första bekräftade fallet (Luba mini AWD 800)
+
+**Källa:** Homey diagnostikrapport, manuellt inskickad av användaren ("Gert")
+**Inkom:** 2026-09-22
+**Log ID:** `e2509f3d-7c0f-46be-90e6-2ea23a40abdd`
+**Version:** v2.5.63, Homey Pro (2026) `homey7q`, Homey v13.5.0
+**Konto:** homey@humlevej.dk, skapat och delat "för timmar sedan"
+**Mower:** Luba mini AWD 800, firmware **1.15.21.1** — användaren håller den gamla med flit
+("Older version due to the catastrophes updates they have made later on")
+**Hör till:** [B](./USER_REPORTS_PLAN.md#b--p0--delade-enheter-syns-inte-vid-parning) — ny
+underorsak, se B6
+
+### Användarens egna ord (ordagrant)
+
+```
+Can't find any mover - Gert
+
+I can't find any Mammotion Mover – I have created new account and invited it etc. (For hours ago)
+
+Is there a limitation on which models it is working with ? My model is Luba mini AWD 800 …
+Firmware version 1.15.21.1 (Older version due to the catastrophes updates they have made
+later on)
+```
+
+### Bifogad skärmbild — pairing-vyn
+
+Homeys egen "New Devices Found"-vy, tom, med appens standardtext (`error.no_devices_found`
+i `locales/en.json`): "No mowers found on this account. Open the Mammotion app and check
+that the sharing invitation has been accepted, then try again…"
+
+### Vad loggen visar
+
+Tre kompletta parningsförsök på fyra minuter (18:54, 18:56, 18:58), identiska:
+
+```
+Authenticated: homey@humlevej.dk
+list_devices: share invitations found=0 accepted=0
+list_devices: owned=0 records=0 total=0 msg="Request success"  {"owned":[],"records":[]}
+list_devices: Aliyun connectivity check (api.link.aliyun.com) — TIMEOUT after 5006ms
+```
+
+stderr, samtliga tre försök:
+
+```
+probeLegacyAliyunDevices failed (attempt 1, network-level): Error: Aliyun request timed out after 6000ms
+  ... code: 'ETIMEDOUT'
+probeLegacyAliyunDevices failed (attempt 2): Error: Aliyun request timed out after 6000ms
+  ... code: 'ETIMEDOUT'
+```
+
+### Vad som är nytt jämfört med R11/R15
+
+1. **Första bekräftade fallet där själva konnektivitetskontrollen mot `api.link.aliyun.com`
+   slår fel.** Kontrollen byggdes uttryckligen för att isolera "kan vi nå Aliyuns servrar
+   från det här nätverket" från "gick handskakningen sönder" (`connectivityCheck.ts`,
+   kommentaren i `driver.ts:391-394`) — efter en tidigare rapport (2026-07-16, nämnd i
+   `gateway.ts`) om ett nät som blockerade Aliyun helt. R11 och R15 visade båda **OK**
+   (831 ms respektive 1358 ms). Här: **TIMEOUT, tre av tre gånger**, samma resultat som
+   legacy-proben (som också timear ut på nätverksnivå, både första försöket och omförsöket,
+   alla tre gånger). Två oberoende mätningar, samma slutsats: nätverksvägen till Aliyuns
+   kinesiska moln är blockerad eller otillgänglig från just det här Homey-nätet.
+2. **`owned=0 records=0 total=0` på den vanliga (post-2025) Mammotion-API:t också**, inte
+   bara på Aliyun-sidan — och det svaret kom snabbt (under 350 ms) med `msg="Request
+   success"`, alltså inget fel, bara genuint noll. Enligt `docs/ALIYUN_LEGACY_PLAN.md` är
+   det exakt vad man väntar sig av en **pre-2025-enhet** som bara någonsin funnits i det
+   gamla Aliyun IoT Link Platform-systemet — normal-API:t vet inte att den existerar.
+   Användarens egen beskrivning (gammal firmware, en äldre Luba mini-modell) stämmer med
+   den hypotesen, men är inte bekräftad mot pymammotions enhetstabell.
+3. **Följden av 1+2 tillsammans:** om den här klipparen bara är bunden via legacy-systemet,
+   är legacy-proben den **enda** vägen som någonsin kan hitta den — och den vägen är stängd
+   av nätverket, inte av kontokonfigurationen. Ingen mängd om-delning eller om-inbjudan kan
+   fixa det. Parningsskärmens generiska text ("kontrollera att delningsinbjudan accepterats")
+   är därför direkt missvisande i det här fallet — den pekar på fel del av problemet.
+
+### Vad som INTE finns i loggen
+
+- Om `api.link.aliyun.com` verkligen är onåbar generellt (DNS-blockering, brandvägg,
+  ISP-filtrering av kinesiska IP-intervall) eller om det är en tillfällig störning — bara en
+  körning, ingen jämförelse över tid eller från annat nätverk.
+- Bekräftelse på att Luba mini AWD 800 med den här firmwaren faktiskt är en pre-2025-enhet.
+- Vad som händer om användaren provar från ett annat nätverk (mobil hotspot) — den naturliga
+  näst-testen för att skilja "blockerat lokalt" från "Aliyun nere/otillgängligt generellt".
 
 ---
 
