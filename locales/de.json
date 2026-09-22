@@ -6,6 +6,7 @@
     "device_offline": "Mäher ist offline",
     "command_failed": "Befehl fehlgeschlagen",
     "no_devices_found": "Keine Mäher auf diesem Konto gefunden. Öffne die Mammotion-App und prüfe, ob die Freigabe-Einladung angenommen wurde, und versuche es dann erneut — nach dem Annehmen kann es einige Minuten dauern, bis der Mäher erscheint.",
+    "aliyun_network_unreachable": "Dieses Netzwerk erreicht Mammotions Cloud-Server in China nicht — das blockiert die Kopplung, nicht dein Konto oder die Freigabe-Einrichtung. Prüfe deinen Router, DNS oder deine Firewall auf etwas, das aliyun.com blockiert, oder versuche es in einem anderen Netzwerk erneut (z. B. mobile Daten statt WLAN).",
     "legacy_devices_found": "Dein(e) Mäher wurde(n) im älteren Cloud-System von Mammotion gefunden, das diese App noch nicht unterstützt — der Entwickler wurde informiert und arbeitet an der Unterstützung. Bitte versuche es in einem zukünftigen Update erneut.",
     "no_zones_known": "Noch keine Mähzonen bekannt. Öffne den Mäher in der Mammotion-App oder warte einen Moment und versuche es erneut. Tipp: Benenne deine Zonen in der Mammotion-App für eine sofortige, zuverlässige Zonenauswahl.",
     "device_unbound": "Dieser Mäher ist nicht mehr mit dem Konto verbunden, das Homey verwendet. Verwende „Reparieren“ am Gerät und melde dich erneut an, um ihn neu zu verbinden.",

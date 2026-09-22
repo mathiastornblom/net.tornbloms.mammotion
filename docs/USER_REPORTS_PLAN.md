@@ -323,23 +323,31 @@ rätt, medan det verkliga problemet ligger i nätverket mellan Homey-huben och K
 - Är Luba mini AWD 800 med den här firmwaren faktiskt pre-2025-bunden? Skulle kräva
   jämförelse mot pymammotions enhetstabell eller ett svar från Mammotion-supporten.
 
-**Föreslagen åtgärd, i ordning:**
-1. **Svara användaren** (utkast finns, se nedan) och be om två saker: (a) testa parning
-   från ett annat nätverk (mobil hotspot) för att skilja lokal blockering från generell
-   otillgänglighet, (b) kontrollera om routern/nätverket har någon brandvägg, DNS-filtrering
-   eller VPN som skulle kunna blockera kinesiska molntjänster.
-2. **Beslutspunkt (ej byggd):** ska parningsskärmens felmeddelande bli smartare när
-   enhetslistan är tom *och* konnektivitetskontrollen misslyckas? I dag är kontrollen
-   avsiktligt fire-and-forget — den blockerar inte parningen och loggas bara (se kommentaren
-   i `driver.ts`: "run alongside (not blocking) the real probe below"). Att låta parningen
-   invänta kontrollen (med en snäv budget, kontrollens egen timeout är redan ~5 s) och visa
-   ett annat, nätverks-specifikt meddelande i det fallet är möjligt men kostar parningen
-   upp till ~5 s extra i det vanliga (lyckade) fallet också. Värt att göra om fler rapporter
-   av den här formen kommer in; för en enda rapport är det för dyrt att bygga blint.
-3. Om nätverksblockering bekräftas (t.ex. av flera användare på samma ISP): värt en
-   forum-/dokumentationsnot om att vissa nätverk/DNS-tjänster blockerar `api.link.aliyun.com`
-   och `*.aliyun.com`, med en enkel `nslookup`/`ping`-instruktion användaren kan köra själv
-   för att verifiera innan de felsöker vidare i appen.
+**Åtgärd — ✅ implementerad (v2.5.64).** Mathias godkände beslutspunkten (2.5): kontrollens
+resultat *kostar ingenting extra* i den branschen, eftersom legacy-proben redan tar längre
+tid än konnektivitetskontrollens 5 s-budget — den hinner alltid svara under tiden. Ändringen
+sparar löftet från `checkAliyunConnectivity()` (i stället för fire-and-forget) och läser av
+det bara i den absoluta sista grenen, där båda systemen redan gett noll enheter — de
+tidigare returvägarna (normalt fynd, legacy-fynd, "delningsaktivitet men inget bundet") är
+opåverkade och kollar aldrig konnektivitet.
+
+- `lib/mammotion/aliyun/connectivityCheck.ts` — ny ren funktion `isAliyunReachable(result)`,
+  testad separat (`scripts/aliyun-connectivity.test.mjs`, 5 tester inklusive R16:s exakta
+  sträng `"TIMEOUT after 5006ms"`).
+- `drivers/luba/driver.ts` — samma loggning som förut, men löftet behålls; om enhetslistan
+  är helt tom **och** kontrollen misslyckats (`TIMEOUT`/`FAILED`), kastas ett nytt,
+  nätverks-specifikt fel i stället för "kontrollera delningsinbjudan".
+- Ny lokal nyckel `error.aliyun_network_unreachable` i alla 13 språk: pekar på nätverket
+  (router/DNS/brandvägg som blockerar `aliyun.com`), föreslår att testa ett annat nätverk
+  (t.ex. mobildata på telefonen i stället för wifi — samma nät som hemmawifi:t kan dela
+  samma blockerande ISP/DNS, så ett annat *nätverk*, inte bara en annan enhet, är poängen).
+
+**Kvar att göra, inte i den här ändringen:**
+1. **Svara Gert** (utkastet finns, uppdaterat för att nämna att fixen är på väg) och be om
+   samma två saker som innan: testa parning från mobildata, och kolla router/DNS/brandvägg.
+2. Om nätverksblockering bekräftas hos fler användare (t.ex. samma ISP): värt en
+   forum-/dokumentationsnot med en enkel `nslookup`/`ping`-instruktion mot
+   `api.link.aliyun.com` som användaren kan köra själv innan de felsöker vidare i appen.
 
 ---
 

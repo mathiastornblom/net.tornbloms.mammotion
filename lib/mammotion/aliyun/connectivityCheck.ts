@@ -32,3 +32,13 @@ export async function checkAliyunConnectivity(
     socket.once('error', (err: Error & { code?: string }) => finish(`FAILED (${err.code ?? err.message})`));
   });
 }
+
+/** True when a checkAliyunConnectivity() result represents a successful TLS handshake
+ *  ("OK after Nms") rather than a timeout or an active reject/reset ("TIMEOUT after Nms",
+ *  "FAILED (CODE) after Nms"). Pulled out as its own pure predicate so the pairing handler
+ *  can decide, from the exact same string it already logs, whether to blame the network
+ *  instead of the account/sharing setup — see USER_REPORTS_INBOX R16, where this check
+ *  itself timed out on every attempt (a first, since R11/R15 both showed it reporting OK). */
+export function isAliyunReachable(connectivityResult: string): boolean {
+  return connectivityResult.startsWith('OK ');
+}

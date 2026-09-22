@@ -6,6 +6,7 @@
     "device_offline": "Kosiarka jest offline",
     "command_failed": "Nie udało się wykonać komendy",
     "no_devices_found": "Nie znaleziono kosiarek na tym koncie. Otwórz aplikację Mammotion i sprawdź, czy zaproszenie do udostępnienia zostało zaakceptowane, a następnie spróbuj ponownie — po zaakceptowaniu może minąć kilka minut, zanim kosiarka się pojawi.",
+    "aliyun_network_unreachable": "Ta sieć nie może połączyć się z serwerami chmury Mammotion w Chinach — to blokuje parowanie, a nie Twoje konto ani ustawienia udostępniania. Sprawdź router, DNS lub zaporę pod kątem czegoś, co blokuje aliyun.com, albo spróbuj ponownie w innej sieci (np. użyj danych mobilnych telefonu zamiast Wi-Fi).",
     "legacy_devices_found": "Znaleziono Twoją kosiarkę (lub kosiarki) zarejestrowaną w starszym systemie chmurowym Mammotion, którego ta aplikacja jeszcze nie obsługuje — deweloper został poinformowany i pracuje nad dodaniem obsługi. Spróbuj ponownie w przyszłej aktualizacji.",
     "no_zones_known": "Nie znamy jeszcze żadnych stref koszenia. Otwórz kosiarkę w aplikacji Mammotion lub poczekaj chwilę i spróbuj ponownie. Wskazówka: nadaj nazwy swoim strefom w aplikacji Mammotion, aby uzyskać natychmiastowy i niezawodny wybór strefy.",
     "device_unbound": "Ta kosiarka nie jest już powiązana z kontem używanym przez Homey. Użyj opcji Napraw na urządzeniu i zaloguj się ponownie, aby ją powiązać.",

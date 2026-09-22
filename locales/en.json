@@ -6,6 +6,7 @@
     "device_offline": "Mower is offline",
     "command_failed": "Command failed",
     "no_devices_found": "No mowers found on this account. Open the Mammotion app and check that the sharing invitation has been accepted, then try again — it can take a few minutes after accepting before the mower appears.",
+    "aliyun_network_unreachable": "This network can't reach Mammotion's cloud servers in China — that's what's blocking pairing, not your account or sharing setup. Check your router, DNS, or firewall for anything blocking aliyun.com, or try again on a different network (e.g. your phone's mobile data instead of Wi-Fi).",
     "legacy_devices_found": "Found your mower(s) registered under Mammotion's older cloud system, which this app doesn't support yet — I've informed the developer, who is working on adding support. Please try again in a future update.",
     "no_zones_known": "No mowing zones known yet. Open the mower in the Mammotion app, or wait a moment and try again. Tip: name your zones in the Mammotion app for instant, reliable zone selection.",
     "device_unbound": "This mower is no longer bound to the account Homey uses. Use Repair on the device and sign in again to re-bind it.",
