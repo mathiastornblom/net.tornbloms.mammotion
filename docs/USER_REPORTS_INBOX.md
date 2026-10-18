@@ -7,7 +7,7 @@ det här är bara råmaterialet.
 **Status:** ✅ Insamling avslutad 2026-08-17. Åtgärdsplanen finns i
 [`docs/USER_REPORTS_PLAN.md`](./USER_REPORTS_PLAN.md).
 
-**Insamling startad:** 2026-08-17 · **Antal rapporter:** 16 (R1–R12, plus R13–R16 tillagda efter avslutad insamling)
+**Insamling startad:** 2026-08-17 · **Antal rapporter:** 19 (R1–R12, plus R13–R19 tillagda efter avslutad insamling)
 
 ---
 
@@ -31,6 +31,9 @@ det här är bara råmaterialet.
 | [R14](#r14--diagnostik--task-väljaren-visar-ofullständig-lista-och-uppdateras-bara-vid-omstart) | Diagnostik (manuellt inskickad, strukturerad felrapport) | 2026-09-09 | "Start mowing task" listar 2 av 5 tasks, gamla namn, uppdateras bara vid app-omstart — då 1 av 5. Zon-listan fungerar. Luba Mini 2 AWD 1500 LiDAR över MQTT | v2.5.62 |
 | [R15](#r15--diagnostik--inga-enheter-kan-läggas-till-efter-inloggning-luba--yuka-homey-pro-mini) | Diagnostik (manuellt inskickad) | 2026-09-11 | "App funktioniert nicht" — efter inloggning kan varken Luba eller Yuka läggas till. Loggen visar tre enheter returnerade till parningsvyn, tre gånger. Homey Pro mini (2025) | v2.5.56 |
 | [R16](#r16--diagnostik--aliyun-nätverksväg-otillgänglig-första-bekräftade-fallet-luba-mini-awd-800) | Diagnostik (manuellt inskickad) | 2026-09-22 | "Can't find any mover" — Aliyun-konnektivitetskontrollen TIMEOUT tre gånger i rad, normal-API:t ger genuint 0 enheter. Luba mini AWD 800, gammal firmware, Homey Pro (2026) | v2.5.63 |
+| [R17](#r17--diagnostik--parning-kraschar-tillbaka-till-add-device-menyn-trots-att-list_devices-lyckas) | Diagnostik (manuellt inskickad) | 2026-10-18 | "Kan maaier niet toevoegen" — `list_devices` hittar och returnerar enheten (`records=1`, 26 capabilities) men parningsguiden hoppar ändå tillbaka till "lägg till enhet"-menyn. Homey Pro mini (2025) | v2.5.63 |
+| [R18](#r18--diagnostik--getregion-500-flera-gånger-om-dygnet-inte-bara-ett-dagligt-fönster) | Diagnostik (manuellt inskickad) | 2026-10-06 | "Connection with Luba. No updated info" — `getRegion failed: code=500` vid minst fem olika tider på dygnet (inte bara 07:43–07:55 som i R5/R8), plus 429 rate-limit och BLE som inte hittar enheten. Homey Pro (Early 2023) | v2.5.56 |
+| [R19](#r19--e-post--upprepade-falska-mower-started-notiser-samma-användare-som-r16) | Direkt e-post till Mathias (samma användare som R16, "Gert") | 2026-10-05 | "Lots of false positive messages from my mover" — skärmdump visar `Hr. Poulsen Started`-notiser var 10:e–30:e minut under flera timmar. Ingen diagnostikrapport bifogad | — |
 
 > **Notis om personuppgifter:** det här dokumentet ligger i ett publikt repo. Namn har
 > förkortats och e-postadresser maskerats. Fullständiga uppgifter finns i originalkällan
@@ -1317,6 +1320,212 @@ probeLegacyAliyunDevices failed (attempt 2): Error: Aliyun request timed out aft
 - Bekräftelse på att Luba mini AWD 800 med den här firmwaren faktiskt är en pre-2025-enhet.
 - Vad som händer om användaren provar från ett annat nätverk (mobil hotspot) — den naturliga
   näst-testen för att skilja "blockerat lokalt" från "Aliyun nere/otillgängligt generellt".
+
+---
+
+## R17 — Diagnostik — parning kraschar tillbaka till "add device"-menyn, trots att list_devices lyckas
+
+**Källa:** Homey diagnostikrapport, manuellt inskickad av användaren (Ludo Peeters)
+**Inkom:** 2026-10-18
+**Log ID:** `ffded05e-a0ef-41de-9b4c-171de6f59658`
+**Version:** v2.5.63, Homey Pro mini (2025) `homey6q`, Homey v13.5.2
+**Konto:** ludopeeters@yahoo.com
+**Mower:** `Luba-MBLCS4ZE`, iotId `4EBqdpa9niPQBM866VYCpBRtXh`, productKey `3drMFnqGVNe`
+**Hör till:** Ny kluster-underorsak, se [B7](./USER_REPORTS_PLAN.md#b7--r17-list_devices-lyckas-ändå-kraschar-parningen-efter) —
+skiljer sig från B:s övriga rapporter genom att `list_devices` **lyckas**
+
+### Användarens egna ord (ordagrant, nederländska)
+
+```
+Kan maaier niet toevoegen aan homey. Vanaf het apparaat toevoegen, kan ik mij inloggen,
+dan de volgende stap om de robot toe te voegen crasht het proces en zit ik terug op het
+menu om een apparaat toe te voegen
+```
+
+Fritt översatt: "Kan inte lägga till klipparen i Homey. Från enhetstillägget kan jag logga
+in, men nästa steg för att lägga till roboten kraschar processen och jag hamnar tillbaka på
+menyn för att lägga till en enhet."
+
+### Vad loggen visar
+
+Ett enda parningsförsök, inget upprepat (till skillnad från R11/R15/R16 som alla visar
+flera identiska försök):
+
+```
+Mammotion app initialized (v2.5.63)
+LubaDriver initialized
+Authenticated: ludopeeters@yahoo.com
+list_devices: share invitations found=0 accepted=0
+list_devices: owned=0 records=1 total=1 msg="Request success"
+  {"owned":[],"records":[{"iotId":"4EBqdpa9niPQBM866VYCpBRtXh","deviceName":"Luba-MBLCS4ZE","productKey":"3drMFnqGVNe"}]}
+list_devices: Aliyun connectivity check (api.link.aliyun.com) — OK after 1825ms
+list_devices: legacy Aliyun probe — bound=0 shareNotifications=0 via=parallel []
+list_devices: returning 1 device(s) to pairing UI (normal path) after 3455ms
+  [{"name":"Luba-MBLCS4ZE","id":"4EBqdpa9niPQBM866VYCpBRtXh","deviceType":23,"capabilityCount":26}]
+```
+
+Loggen slutar där. Inget stderr. Inga fler rader efter den sista `list_devices:
+returning...`-raden — varken ett nytt `onPair`-anrop, ett `onInit`/`onAdded` för den nya
+enheten, eller något fel.
+
+### Vad som är nytt jämfört med B:s tidigare rapporter (R11, R15, R16)
+
+1. **`list_devices` gör exakt vad det ska.** Enheten hittas på normalvägen (`records=1`),
+   Aliyun-konnektiviteten är OK (1825 ms), legacy-proben körs rent (`bound=0`, inget fel) —
+   och metoden returnerar enligt loggen ett korrekt format med 26 capabilities till Homeys
+   parnings-UI efter 3455 ms. Det är precis det tillstånd B1–B6 har jobbat för att uppnå.
+2. **Kraschen användaren beskriver händer alltså efter den punkten** — i steget där Homey
+   actually skapar enheten av det som returnerades, eller i parningsguidens nästa vy. Det
+   steget loggas idag inte alls med `list_devices:`-prefixet (eller något annat prefix som
+   syns i den här loggen), så **vi vet inte om det kastar ett fel, bara att inget loggas
+   efter att listan returnerats.**
+3. Att processen "kraschar tillbaka till add device-menyn" matchar Homeys eget beteende när
+   enhetsskapandet (`onInit`/`onAdded` på den nya enhetens instans) kastar ett ohanterat fel
+   — guiden avbryts och användaren hamnar om på startskärmen för att lägga till en enhet,
+   utan något körfel synligt i app-loggen eftersom felet kan inträffa innan enhetens egen
+   loggkontext finns.
+
+### Vad som INTE finns i loggen
+
+- Allt som händer efter `returning 1 device(s)` — ingen bekräftelse på om Homey ens
+  försökte skapa enheten, och inget spår av `onInit`/`onAdded` för `Luba-MBLCS4ZE`.
+- Om detta är reproducerbart (bara ett försök loggat) eller om ett omförsök skulle lyckas.
+- Om användaren ser ett specifikt felmeddelande i parnings-UI:t eller bara tystnad —
+  "crashes" beskriver beteendet, inte texten.
+
+---
+
+## R18 — Diagnostik — getRegion 500 flera gånger om dygnet, inte bara ett dagligt fönster
+
+**Källa:** Homey diagnostikrapport, manuellt inskickad av användaren
+**Inkom:** 2026-10-06 (stdout/stderr spänner 2026-10-02 → 2026-10-06)
+**Log ID:** `b17928bf-f117-4eaf-b068-85cfdbd92cb6`
+**Version:** v2.5.56, Homey Pro (Early 2023) `homey5q`, Homey v13.5.1
+**Device ID:** `1c449c77-4cd5-44f3-9f67-2b71042e8512`
+**Mower:** Luba 2 (`Luba-VS5FH5AS`, `deviceType: LUBA_2`, productKey `a1LLmy1zc0j`)
+**Hör till:** [A4](./USER_REPORTS_PLAN.md#a4-att-undersöka-separat) — utökar
+`getRegion failed: code=500`-observationen från R5/R8
+
+### Användarens egna ord (ordagrant)
+
+```
+Connection with Luba. No updated info
+```
+
+### Vad som är nytt jämfört med R5/R8
+
+A4 i planen noterade att `getRegion failed: code=500` sågs **en gång per dygn vid
+~07:43–07:55 UTC** hos R5/R8, och frågade om det var ett återkommande Aliyun-sidigt
+fönster. Den här loggen visar samma fel vid **minst fem olika tidpunkter spridda över
+dygnet**, tre dagar i rad:
+
+```
+2026-10-03T15:22:33.382Z  getRegion failed: code=500
+2026-10-03T15:22:54.959Z  getRegion failed: code=500
+2026-10-03T15:24:38.382Z  getRegion failed: code=500
+2026-10-04T14:27:35.450Z  getRegion failed: code=500
+2026-10-04T14:27:56.852Z  getRegion failed: code=500
+2026-10-04T14:29:38.402Z  getRegion failed: code=500
+2026-10-05T09:29:56.418Z  getRegion failed: code=500
+2026-10-05T09:30:57.444Z  getRegion failed: code=500
+2026-10-05T09:31:58.658Z  getRegion failed: code=500
+2026-10-06T04:32:19.276Z  getRegion failed: code=500
+2026-10-06T04:33:20.327Z  getRegion failed: code=500
+2026-10-06T04:34:21.197Z  getRegion failed: code=500
+```
+
+Mönstret inom varje dag är tre försök ~1–2 minuter isär (21/21/~100 s), sedan tyst till
+nästa dags helt andra klockslag (15:22 → 14:27 → 09:29 → 04:32 — ingen fast tid, snarare
+**~23 timmar mellan varje kluster**, vilket pekar mer mot "något i vår egen kod försöker
+var N:e timme och misslyckas tre gånger i rad" än mot ett Aliyun-sidigt daghgligt fönster).
+R5/R8:s 07:43–07:55-observation var sannolikt samma mekanism, bara råkade träffa samma
+klockslag två dagar i rad av en slump eller pga. appens starttid.
+
+### Övriga mönster i samma logg
+
+- **429 rate-limiting** (`Too many requests`) på både ett `set_blade_speed`-kommando
+  (2026-10-02) och `requestAreaNameList` (2026-10-03 22:00) — det senare med fullständig
+  stack trace som visar vägen `requestAreaNameList → sendRaw → sendAliyunRaw →
+  sendAliyunCloudCommand`.
+- **"Poll: rate-limited by Aliyun"** i stdout, med stigande `failure #`-räknare och
+  `next check in Ns` som växer 20s→40s→60s — ser ut som A2:s per-orsak-backoff i drift,
+  och räknaren återställs (`failure #1`) efter varje lyckad `requestSync`, vilket matchar
+  den implementerade logiken.
+- **BLE:** `scan found 2 BLE advertisements`, men `device Luba-VS5FH5AS not found in scan`,
+  följt av `scheduling reconnect in 1800s (failure #20)` — enheten har alltså redan
+  backat av 20 gånger till app:ens tak innan den här loggen ens börjar.
+- Telemetrin fortsätter trots allt att komma in (`[aliyun_legacy] telemetry changed: ...`)
+  med några minuters mellanrum genom hela loggen — så detta är inte en total avbrott, bara
+  användarens upplevelse av "no updated info" vid de tillfällen pollningen är nerbromsad.
+
+### Vad som INTE finns i loggen
+
+- Om `getRegion`-felen hänger ihop med 429-begränsningen (samma gateway, samma konto) eller
+  är orelaterade — ingen av raderna visar vilken kod som anropar `getRegion` eller varför.
+- Konsekvensen av ett `getRegion`-misslyckande för en redan parkopplad enhet (till skillnad
+  från A4:s ursprungliga fråga, som gällde `registerAliyunDevice` vid *första* parkopplingen)
+  — den här enheten är redan parkopplad och fortsätter leverera telemetri, så frågan är om
+  `getRegion` bara används vid credential-refresh och är ofarligt här, eller om den tappade
+  regionen är orsaken till att BLE-reconnect och Aliyun-pollning samtidigt är nerbromsade.
+- Appversionen är v2.5.56 (samma som `main`) — okänt om detta mönster finns kvar i `test`.
+
+---
+
+## R19 — E-post — upprepade falska "Mower Started"-notiser, samma användare som R16
+
+**Källa:** Direkt e-post till Mathias (inte Homeys diagnostiksystem), skickad av Gert
+Hansen <gha@danofficeit.com> — sannolikt samma "Gert" som R16 (dansk kontext,
+`humlevej.dk`/`danofficeit.com`), men med en annan klippare (döpt "Hr. Poulsen")
+**Inkom:** 2026-10-05
+**Version:** okänd — "Still run on the Test App" (dvs. `test`-spåret, version ej angiven)
+**Hör till:** Ingen befintlig kluster — se öppen punkt i
+[A4](./USER_REPORTS_PLAN.md#a4-att-undersöka-separat)
+
+### Användarens egna ord (ordagrant)
+
+```
+Just for your information… receive lots of false positive messages from my mover 😊
+Could properly be my mover which have some glitched ? But quite annoying 🤣
+
+Still run on the Test App
+```
+
+### Bifogad skärmbild — iOS-notiscenter
+
+En stapel Homey-notiser, alla med texten **"Hr. Poulsen Started"**, med tidsstämplar:
+"6 min siden", i går 20:04, 19:48, 19:21, 19:11, 19:04, 18:46, plus ytterligare dolda under
+"Vis mindre" — dvs. minst sju "Started"-notiser inom ungefär 1,5 timme, och ytterligare en
+"6 min siden" nästa dag.
+
+### Analys (utan diagnostikloggens stöd)
+
+`mower_started_mowing`-triggerkortet (`drivers/luba/driver.ts:231-233`) fyras av
+`LubaDevice` bara vid en **kant** — `if (status === wasStatus) return;` i
+`device.ts:1590` stoppar omfyrningar så länge statusen inte faktiskt ändras, och triggern
+fyras bara när den nya statusen är `'mowing'` (`device.ts:1596-1597`). Om notiserna
+verkligen representerar riktiga `mowing`-övergångar i appens status (inte ett
+dubbelfyrnings-fel) betyder det att mowern eller statuskällan **faktiskt växlar in och ut
+ur `mowing`** var 10:e–30:e minut under flera timmar — t.ex. upprepade korta pauser
+(hinder, regn, GPS-tapp) som var och en följs av en återupptagning appen korrekt tolkar
+som en ny start. Det skulle vara samma typ av brusig statuskälla som A-klustrets R5
+(snabba charging/paused-växlingar), fast här manifesterat som upprepade `mowing`-starter
+i stället.
+
+Kan **inte** skiljas från ett appsidigt fel (t.ex. en regression som kringgår
+kant-vakten, eller statuskällan som levererar `mowing` → något annat → `mowing` på rent
+telemetribrus utan att klipparen faktiskt pausat) utan en diagnostikrapport som visar
+status-tidslinjen för samma period. Ingen sådan logg bifogad här — bara skärmdumpen.
+
+### Vad som INTE finns
+
+- Ingen Homey-diagnostikrapport (Log ID) — detta kom som vanlig e-post, inte via
+  "Skicka diagnostikrapport"-funktionen.
+- Appversion okänt mer specifikt än "Test App".
+- Ingen bekräftelse på om mowern verkligen stannade/pausade mellan varje "Started", eller
+  om det är appen som felaktigt rapporterar upprepade starter.
+
+**Nästa steg:** be Gert skicka en riktig diagnostikrapport (`report problem` i Homey-appen)
+från samma period, så status-tidslinjen kan jämföras mot notistiderna.
 
 ---
 

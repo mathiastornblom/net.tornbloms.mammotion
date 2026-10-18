@@ -19,7 +19,7 @@ går inte att para. Resten är förbättringar och önskemål.
 | Prio | Kluster | Rapporter | Kärnproblem |
 |---|---|---|---|
 | ✅ **P0** | [A. Ingen statusuppdatering](#a--p0--ingen-statusuppdatering) | R5, R7, R8, R12.3, R12.5 | Alla tre orsaker åtgärdade: A1 pacing, A2 backoff per orsak + 29004 = obunden, A3 stalet-vakthund |
-| **P0** | [B. Delade enheter syns inte vid parning](#b--p0--delade-enheter-syns-inte-vid-parning) | R11, R12.7 (+minst en till) | Pipeline bevisad, proben 7→4 stadier + stegvis omkörning; timing-hypotesen **försvagad** (Homey-gräns ~30 s > R11:s 13–16 s) — nästa rapport avgör |
+| **P0** | [B. Delade enheter syns inte vid parning](#b--p0--delade-enheter-syns-inte-vid-parning) | R11, R12.7, R15, R16, R17 (+minst en till) | Pipeline bevisad, proben 7→4 stadier + stegvis omkörning; B6 (nätverk) ✅ fixad v2.5.64; **B7 (R17, ny)** list_devices lyckas men parningen kraschar ändå — orsak okänd, väntar på loggning i init-steget |
 | ✅ **P1** | [C. Task-kedjning fungerar inte](#c--p1--task-kedjning-fungerar-inte) | R1, R3, R4 | Return-avbrott före start implementerat — väntar hårdvaruverifiering |
 | ✅ **P1** | [D. Klippparametrar](#d--p1--klippparametrar-går-inte-att-styra) | R9, R13 | Spacing och klipphöjd hämtas nu från klipparens egna sparade tasks |
 | **P1** | [E. Bara "Task 1" listas](#e--p1--bara-task-1-listas) | R12.2 | Ej reproducerad — behöver bekräftas |
@@ -271,6 +271,25 @@ förutsett.
   på Aliyuns sida — men det slår igenom som `registerAliyunDevice failed`, dvs. enheterna
   registreras aldrig. Kontrollera: försöker vi igen efter ett sådant misslyckande, eller
   ligger enheterna oregistrerade till nästa omstart?
+  **Uppdatering (R18, 2026-10-06):** en tredje användare visar samma fel vid **fem olika
+  klockslag över tre dagar** (15:22, 14:27, 09:29, 04:32 UTC — inte ett fast fönster), i
+  kluster av tre försök ~1–2 minuter isär, med ~23 timmar mellan klustren. Det talar emot
+  "Aliyun har ett dagligt underhållsfönster" och för "något i vår egen kod försöker ungefär
+  en gång per dygn (kanske sedan appstart eller senaste lyckade refresh) och misslyckas tre
+  gånger i rad". Till skillnad från R5/R8 är R18:s enhet redan parkopplad sedan tidigare och
+  fortsätter leverera telemetri genom felen — så `getRegion` här verkar vara en
+  credential-refresh-väg, inte den enda vägen till `registerAliyunDevice`. Öppen fråga:
+  hänger detta ihop med samma loggs 429-begränsning (samma konto, samma gateway) eller är
+  det orelaterat? R18 kör v2.5.56 (`main`); okänt om mönstret finns kvar i `test`.
+- **R19 (2026-10-05, e-post, ej diagnostikrapport):** samma användare som R16 ("Gert")
+  rapporterar upprepade `mower_started_mowing`-notiser ("Hr. Poulsen Started") var 10:e–30:e
+  minut under flera timmar. Triggerkortet fyras bara på en statusövergång in i `mowing`
+  (`device.ts:1590,1596-1597` — kant-vakt, inte nivå), så **om** notiserna är legitima
+  betyder det att statuskällan faktiskt växlar ut och in ur `mowing` upprepat — möjligen
+  samma typ av brusig telemetri som R5/R8:s charging/paused-flapping, fast manifesterat som
+  upprepade starter. Kan inte skiljas från en appsidig regression i kant-vakten utan en
+  riktig diagnostikrapport från samma period (bara en skärmdump bifogad, inget Log ID). Bett
+  om en uppföljande diagnostikrapport, inte skickat ännu.
 - **`skewIfSeconds ≈ 204 800 s` (~56,8 h)** i R5/R8 mot 1–7 s i R1/R10. Antingen är
   enhetens klocka fel eller så tolkar vi `sysTimeStamp` fel för `aliyun_legacy`. Påverkar
   all tidsbaserad logik.
@@ -279,7 +298,7 @@ förutsett.
 
 ## B — P0 — Delade enheter syns inte vid parning
 
-**Rapporter:** R11 / R12.7, R15, **R16** (2026-09-22). R12.7 skriver **"I have the same issue"** —
+**Rapporter:** R11 / R12.7, R15, R16, **R17** (2026-10-18). R12.7 skriver **"I have the same issue"** —
 det finns alltså minst en tidigare rapportör i forumtråden som inte finns med i materialet
 och som bör letas upp.
 
@@ -348,6 +367,42 @@ opåverkade och kollar aldrig konnektivitet.
 2. Om nätverksblockering bekräftas hos fler användare (t.ex. samma ISP): värt en
    forum-/dokumentationsnot med en enkel `nslookup`/`ping`-instruktion mot
    `api.link.aliyun.com` som användaren kan köra själv innan de felsöker vidare i appen.
+
+### B7 — R17: `list_devices` lyckas, ändå kraschar parningen efteråt (2026-10-18)
+
+R17 är en helt annan sorts fel än B1–B6: alla tidigare B-rapporter hade något som gick fel
+**inuti** `list_devices` (tom lista, fel kluster, blockerat nätverk). Här gör
+`list_devices` exakt vad det ska — `owned=0 records=1`, Aliyun-konnektivitet `OK after
+1825ms`, legacy-proben ren (`bound=0`, inget fel) — och metoden loggar att den returnerar
+**1 enhet med 26 capabilities** till Homeys parnings-UI efter 3455 ms. Användaren
+("vanaf het apparaat toevoegen... crasht het proces en zit ik terug op het menu") beskriver
+ändå att parningen kraschar och hoppar tillbaka till "lägg till enhet"-menyn.
+
+**Var i flödet det måste hända.** Loggen slutar på raden `returning 1 device(s)...` — inget
+loggas efter det, varken ett fel eller en bekräftelse. Det näst steget i flödet är helt
+Homey-internt: SDK:n tar emot den returnerade listan, användaren väljer enheten i
+parnings-UI:t, och Homey instansierar en ny enhetsklass och kör dess `onInit`/`onAdded`.
+Det steget har **ingen loggning idag** med `list_devices:`-prefixet eller något annat
+prefix som syns i den här rapporten. Ett ohanterat fel i den nya enhetens `onInit` matchar
+exakt det beteende Homey visar utåt: guiden avbryts och användaren hamnar om på
+"lägg till enhet"-menyn, utan ett synligt felmeddelande i app-loggen.
+
+**Går inte att skilja från en engångshändelse ännu.** Bara ett parningsförsök loggat (till
+skillnad från R11/R15/R16:s tre identiska försök) — vi vet inte om ett omförsök hade
+lyckats, eller om `Luba-MBLCS4ZE`:s specifika capability-lista (26 st, `deviceType: 23`)
+triggar något i `onInit` som andra enheter i B-klustret inte gör.
+
+**Öppna frågor:**
+- Lägg till loggning i enhetens `onInit`/`onAdded` (eller runt den punkt Homey anropar dem)
+  så nästa rapport visar om det kastar ett fel, och i så fall vilket.
+- Är `deviceType: 23` (vad `resolveDeviceType` mappar `Luba-MBLCS4ZE`/`3drMFnqGVNe` till)
+  en modell som testats genom hela pairing→init-flödet tidigare, eller en ny kombination?
+- Be användaren prova ett omförsök och skicka en ny diagnostikrapport om det kraschar igen
+  — avgör om detta är deterministiskt eller en engångsglitch.
+
+**Status:** inte byggt. Väntar på loggning i init-steget innan en fix kan skrivas — just nu
+finns ingen synlig orsak att åtgärda, bara en lucka i observerbarheten som matchar B1/B3/B6:s
+mönster (lägg till en loggrad, låt nästa rapport avgöra).
 
 ---
 
